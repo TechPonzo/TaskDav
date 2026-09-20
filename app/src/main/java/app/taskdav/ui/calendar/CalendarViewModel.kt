@@ -46,7 +46,8 @@ data class MonthDayCell(
     val dayStartMillis: Long,
     val dayOfMonth: Int,
     val inCurrentMonth: Boolean,
-    val eventCount: Int,
+    /** Calendar colors for events on this day (ARGB), capped for the grid dots. */
+    val eventColorsArgb: List<Int>,
 )
 
 class CalendarViewModel(
@@ -68,8 +69,12 @@ class CalendarViewModel(
         events.filter { state.collectionFilter == null || it.collectionId == state.collectionFilter }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val monthCells: StateFlow<List<MonthDayCell>> = combine(filteredEvents, _ui) { events, state ->
-        buildMonthCells(state.visibleMonthStartMillis, events)
+    val monthCells: StateFlow<List<MonthDayCell>> = combine(
+        filteredEvents,
+        collections,
+        _ui,
+    ) { events, collections, state ->
+        buildMonthCells(state.visibleMonthStartMillis, events, collections)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val dayItems: StateFlow<List<CalendarDayItem>> = combine(
@@ -324,7 +329,11 @@ class CalendarViewModel(
             return start < dayEnd && end > dayStart
         }
 
-        fun buildMonthCells(selectedDayMillis: Long, events: List<EventEntity>): List<MonthDayCell> {
+        fun buildMonthCells(
+            selectedDayMillis: Long,
+            events: List<EventEntity>,
+            collections: List<CollectionEntity>,
+        ): List<MonthDayCell> {
             val cal = Calendar.getInstance().apply {
                 timeInMillis = selectedDayMillis
                 set(Calendar.DAY_OF_MONTH, 1)
@@ -340,7 +349,8 @@ class CalendarViewModel(
             val offset = (firstDow - Calendar.MONDAY + 7) % 7
             cal.add(Calendar.DAY_OF_MONTH, -offset)
 
-            val counts = HashMap<Long, Int>()
+            val colorByCollection = collections.associate { it.id to (it.colorArgb ?: DEFAULT_CALENDAR_COLOR) }
+            val colorsByDay = HashMap<Long, MutableList<Int>>()
             for (event in events) {
                 val start = event.dtStartMillis ?: continue
                 val endExclusive = when {
@@ -348,10 +358,14 @@ class CalendarViewModel(
                     event.allDay -> start + DAY_MS
                     else -> start + DEFAULT_DURATION_MS
                 }
+                val color = colorByCollection[event.collectionId] ?: DEFAULT_CALENDAR_COLOR
                 var day = startOfDay(start)
                 val last = startOfDay(endExclusive - 1)
                 while (day <= last) {
-                    counts[day] = (counts[day] ?: 0) + 1
+                    val list = colorsByDay.getOrPut(day) { mutableListOf() }
+                    if (list.size < MAX_EVENT_DOTS) {
+                        list += color
+                    }
                     day += DAY_MS
                 }
             }
@@ -364,11 +378,14 @@ class CalendarViewModel(
                     dayStartMillis = dayStart,
                     dayOfMonth = cal.get(Calendar.DAY_OF_MONTH),
                     inCurrentMonth = inMonth,
-                    eventCount = counts[dayStart] ?: 0,
+                    eventColorsArgb = colorsByDay[dayStart].orEmpty(),
                 )
                 cal.add(Calendar.DAY_OF_MONTH, 1)
                 cell
             }
         }
+
+        private const val MAX_EVENT_DOTS = 3
+        private const val DEFAULT_CALENDAR_COLOR = 0xFF2B6A4F.toInt()
     }
 }

@@ -69,8 +69,7 @@ import app.taskdav.ui.theme.collectionColorOrDefault
 import java.util.Calendar
 import java.util.Locale
 
-private val TodayDotRed = Color(0xFFE53935)
-private val EventDot = Color(0xFF1B6CA8)
+private val TodayCellBlack = Color(0xFF111111)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -364,33 +363,32 @@ private fun MonthDayCellView(
     modifier: Modifier = Modifier,
 ) {
     val muted = !cell.inCurrentMonth
-    Column(
+    Box(
         modifier = modifier
             .aspectRatio(1f)
             .padding(2.dp)
             .clip(RoundedCornerShape(10.dp))
             .then(
-                if (selected) {
-                    Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
-                } else {
-                    Modifier
+                when {
+                    isToday -> Modifier.background(TodayCellBlack)
+                    selected -> Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
+                    else -> Modifier
                 },
             )
-            .clickable(onClick = onClick)
-            .padding(vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween,
+            .clickable(onClick = onClick),
     ) {
+        // Day number is always dead-center in the cell (same for every day).
         Box(
             modifier = Modifier
+                .align(Alignment.Center)
                 .size(28.dp)
                 .then(
-                    if (selected) {
-                        Modifier
+                    when {
+                        isToday -> Modifier
+                        selected -> Modifier
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primary)
-                    } else {
-                        Modifier
+                        else -> Modifier
                     },
                 ),
             contentAlignment = Alignment.Center,
@@ -399,35 +397,37 @@ private fun MonthDayCellView(
                 cell.dayOfMonth.toString(),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (isToday || selected) FontWeight.Bold else FontWeight.Normal,
+                textAlign = TextAlign.Center,
                 color = when {
+                    isToday -> Color.White
                     selected -> MaterialTheme.colorScheme.onPrimary
                     muted -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
                     else -> MaterialTheme.colorScheme.onSurface
                 },
             )
         }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.height(10.dp),
+        // Fixed bottom lane so dots are centered under the number without shifting it.
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(10.dp)
+                .padding(bottom = 2.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            if (isToday) {
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(TodayDotRed),
-                )
-            }
-            if (cell.eventCount > 0) {
-                val dots = cell.eventCount.coerceAtMost(3)
-                repeat(dots) {
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                cell.eventColorsArgb.forEach { argb ->
+                    val color = collectionColorOrDefault(argb)
                     Box(
                         modifier = Modifier
                             .size(5.dp)
                             .clip(CircleShape)
                             .background(
-                                if (muted) EventDot.copy(alpha = 0.35f) else EventDot,
+                                when {
+                                    isToday -> color
+                                    muted -> color.copy(alpha = 0.35f)
+                                    else -> color
+                                },
                             ),
                     )
                 }
