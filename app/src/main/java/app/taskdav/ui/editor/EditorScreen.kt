@@ -1,6 +1,7 @@
 package app.taskdav.ui.editor
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -44,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.taskdav.ui.common.DateTimePickerDialog
+import app.taskdav.ui.common.LinkedCalendarSection
 import app.taskdav.ui.common.joinCategories
 import app.taskdav.ui.common.parseCategories
 import java.text.DateFormat
@@ -262,9 +264,10 @@ fun EditorScreen(
                 Text("Calendar link", style = MaterialTheme.typography.titleMedium)
                 val linked = editor.linkedEvent
                 if (linked != null || !editor.linkedEventUid.isNullOrBlank()) {
-                    Text(
-                        linked?.summary ?: "Linked calendar event",
-                        style = MaterialTheme.typography.bodyMedium,
+                    LinkedCalendarSection(
+                        event = linked,
+                        fallbackTitle = "Linked calendar event",
+                        onEditEvent = { viewModel.setShowEditEvent(true) },
                     )
                     OutlinedButton(onClick = viewModel::clearLinkedEvent) { Text("Unlink") }
                 } else {
@@ -320,13 +323,21 @@ fun EditorScreen(
                 } else {
                     LazyColumn {
                         items(events, key = { it.id }) { event ->
-                            Text(
-                                event.summary,
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable { viewModel.pickEvent(event) }
                                     .padding(vertical = 10.dp),
-                            )
+                            ) {
+                                Text(event.summary)
+                                event.location?.takeIf { it.isNotBlank() }?.let { loc ->
+                                    Text(
+                                        loc,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -338,7 +349,7 @@ fun EditorScreen(
     }
 
     if (ui.showCreateEvent) {
-        val eventCollections = collections.filter { it.supportsVevent && it.enabled }
+        val taskListName = collections.find { it.id == editor?.collectionId }?.displayName
         val fmt = DateFormat.getDateTimeInstance()
         AlertDialog(
             onDismissRequest = { viewModel.setShowCreateEvent(false) },
@@ -346,34 +357,18 @@ fun EditorScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "Creates a calendar event linked to this task so it can appear in your calendar apps. The link is kept after sync.",
+                        "Creates a calendar event on the same list as this task" +
+                            (taskListName?.let { " ($it)" } ?: "") +
+                            ", so it can appear in your calendar apps.",
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    var expanded by remember { mutableStateOf(false) }
-                    val selected = eventCollections.find { it.id == ui.eventCollectionId }
-                    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-                        OutlinedTextField(
-                            value = selected?.displayName ?: "Calendar",
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Calendar") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                            modifier = Modifier
-                                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                                .fillMaxWidth(),
-                        )
-                        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                            eventCollections.forEach { col ->
-                                DropdownMenuItem(
-                                    text = { Text(col.displayName) },
-                                    onClick = {
-                                        viewModel.setEventCollection(col.id)
-                                        expanded = false
-                                    },
-                                )
-                            }
-                        }
-                    }
+                    OutlinedTextField(
+                        value = ui.eventSummary,
+                        onValueChange = viewModel::setEventSummary,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Title") },
+                        singleLine = true,
+                    )
                     Text("Starts: ${fmt.format(Date(ui.eventStartMillis))}")
                     OutlinedButton(onClick = { showEventStartPicker = true }) {
                         Text("Pick start")
@@ -382,16 +377,67 @@ fun EditorScreen(
                     OutlinedButton(onClick = { showEventEndPicker = true }) {
                         Text("Pick end")
                     }
+                    OutlinedTextField(
+                        value = ui.eventLocation,
+                        onValueChange = viewModel::setEventLocation,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Location") },
+                        singleLine = true,
+                    )
                 }
             },
             confirmButton = {
                 TextButton(
                     onClick = viewModel::createAndLinkEvent,
-                    enabled = ui.eventCollectionId != null && ui.eventEndMillis >= ui.eventStartMillis,
+                    enabled = (editor?.collectionId ?: 0L) > 0L &&
+                        ui.eventEndMillis >= ui.eventStartMillis,
                 ) { Text("Create & link") }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.setShowCreateEvent(false) }) { Text("Cancel") }
+            },
+        )
+    }
+
+    if (ui.showEditEvent) {
+        val fmt = DateFormat.getDateTimeInstance()
+        AlertDialog(
+            onDismissRequest = { viewModel.setShowEditEvent(false) },
+            title = { Text("Update calendar event") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = ui.eventSummary,
+                        onValueChange = viewModel::setEventSummary,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Title") },
+                        singleLine = true,
+                    )
+                    Text("Starts: ${fmt.format(Date(ui.eventStartMillis))}")
+                    OutlinedButton(onClick = { showEventStartPicker = true }) {
+                        Text("Pick start")
+                    }
+                    Text("Ends: ${fmt.format(Date(ui.eventEndMillis))}")
+                    OutlinedButton(onClick = { showEventEndPicker = true }) {
+                        Text("Pick end")
+                    }
+                    OutlinedTextField(
+                        value = ui.eventLocation,
+                        onValueChange = viewModel::setEventLocation,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Location") },
+                        singleLine = true,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = viewModel::saveLinkedEvent,
+                    enabled = ui.eventEndMillis >= ui.eventStartMillis,
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.setShowEditEvent(false) }) { Text("Cancel") }
             },
         )
     }

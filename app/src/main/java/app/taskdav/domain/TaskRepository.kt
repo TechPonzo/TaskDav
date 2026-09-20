@@ -51,6 +51,10 @@ class TaskRepository(
 
     suspend fun getEventByUid(uid: String): EventEntity? = db.events().getByUid(uid)
 
+    /** Load calendar details for a task that has a link but missing local event row. */
+    suspend fun ensureLinkedEvent(taskId: Long): EventEntity? =
+        syncEngine.ensureLinkedEventForTask(taskId)
+
     suspend fun getCollections(): List<CollectionEntity> = db.collections().getAll()
 
     suspend fun setCollectionEnabled(id: Long, enabled: Boolean) {
@@ -113,6 +117,8 @@ class TaskRepository(
             parentUid = state.parentUid?.takeIf { it.isNotBlank() },
             linkedEventUid = state.linkedEventUid?.takeIf { it.isNotBlank() },
             isCategory = state.isCategory,
+            sortOrder = existing?.sortOrder
+                ?: nextSortOrder(state.parentUid?.takeIf { it.isNotBlank() }, state.collectionId),
             // Always rebuild ICS from structured fields on next push
             icsRaw = null,
             dirty = true,
@@ -125,6 +131,37 @@ class TaskRepository(
             db.tasks().upsert(entity.copy(id = existing.id))
             existing.id
         }
+    }
+
+    /**
+     * Persist sibling order from the flat task list (appearance order among same parent).
+     */
+    suspend fun persistFlatOrder(flat: List<TaskNode>) {
+        val now = System.currentTimeMillis()
+        val counters = mutableMapOf<String?, Int>()
+        for (node in flat) {
+            val parent = node.task.parentUid
+            val order = counters.getOrDefault(parent, 0)
+            counters[parent] = order + 1
+            val task = node.task
+            if (task.sortOrder != order) {
+                db.tasks().update(
+                    task.copy(
+                        sortOrder = order,
+                        icsRaw = null,
+                        dirty = true,
+                        updatedAt = now,
+                    ),
+                )
+            }
+        }
+    }
+
+    private suspend fun nextSortOrder(parentUid: String?, collectionId: Long): Int {
+        val siblings = db.tasks().getActive().filter {
+            it.collectionId == collectionId && it.parentUid == parentUid
+        }
+        return (siblings.maxOfOrNull { it.sortOrder } ?: -1) + 1
     }
 
     suspend fun toggleComplete(taskId: Long) {
@@ -223,6 +260,7 @@ class TaskRepository(
         summary: String,
         startMillis: Long,
         endMillis: Long,
+        location: String? = null,
     ): String {
         val task = db.tasks().getById(taskId) ?: throw IllegalStateException("Task missing")
         val uid = IcalMapper.newUid()
@@ -233,6 +271,7 @@ class TaskRepository(
             collectionId = collectionId,
             summary = summary.ifBlank { task.summary },
             description = "Linked from task ${task.uid}",
+            location = location?.trim()?.ifBlank { null },
             dtStartMillis = startMillis,
             dtEndMillis = endMillis,
             allDay = false,
@@ -249,6 +288,27 @@ class TaskRepository(
             )
         )
         return uid
+    }
+
+    suspend fun updateEvent(
+        uid: String,
+        summary: String,
+        startMillis: Long,
+        endMillis: Long,
+        location: String?,
+    ) {
+        val existing = db.events().getByUid(uid) ?: throw IllegalStateException("Event missing")
+        db.events().update(
+            existing.copy(
+                summary = summary.trim().ifBlank { existing.summary },
+                location = location?.trim()?.ifBlank { null },
+                dtStartMillis = startMillis,
+                dtEndMillis = endMillis,
+                icsRaw = null,
+                dirty = true,
+                updatedAt = System.currentTimeMillis(),
+            ),
+        )
     }
 
     suspend fun getNote(id: Long) = db.notes().getById(id)

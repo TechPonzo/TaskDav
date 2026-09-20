@@ -89,6 +89,32 @@ object CalDavXml {
           </c:filter>
         </c:calendar-query>
     """.trimIndent()
+
+    fun calendarQueryEventByUid(uid: String): String {
+        val escaped = uid
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+        return """
+            <?xml version="1.0" encoding="utf-8" ?>
+            <c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+              <d:prop>
+                <d:getetag/>
+                <c:calendar-data/>
+              </d:prop>
+              <c:filter>
+                <c:comp-filter name="VCALENDAR">
+                  <c:comp-filter name="VEVENT">
+                    <c:prop-filter name="UID">
+                      <c:text-match collation="i;octet">$escaped</c:text-match>
+                    </c:prop-filter>
+                  </c:comp-filter>
+                </c:comp-filter>
+              </c:filter>
+            </c:calendar-query>
+        """.trimIndent()
+    }
 }
 
 fun OkHttpClient.propfind(url: String, depth: Int, body: String): Response {
@@ -132,6 +158,10 @@ fun OkHttpClient.putIcsUnconditional(url: String, ics: String): Response {
         .header("Content-Type", "text/calendar; charset=utf-8")
         .build()
     return newCall(request).execute()
+}
+
+fun OkHttpClient.getResource(url: String): Response {
+    return newCall(Request.Builder().url(url).get().build()).execute()
 }
 
 fun OkHttpClient.deleteResource(url: String, etag: String?): Response {

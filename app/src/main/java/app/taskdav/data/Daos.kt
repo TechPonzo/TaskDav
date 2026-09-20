@@ -21,6 +21,9 @@ interface CollectionDao {
     @Query("SELECT * FROM collections WHERE enabled = 1 AND supportsVevent = 1")
     suspend fun getEnabledEventCollections(): List<CollectionEntity>
 
+    @Query("SELECT * FROM collections WHERE enabled = 1")
+    suspend fun getEnabled(): List<CollectionEntity>
+
     @Query("SELECT * FROM collections WHERE enabled = 1 AND supportsVjournal = 1")
     suspend fun getEnabledJournalCollections(): List<CollectionEntity>
 

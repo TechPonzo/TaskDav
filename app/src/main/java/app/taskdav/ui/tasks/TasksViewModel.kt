@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import app.taskdav.caldav.IcalMapper
 import app.taskdav.data.CollectionEntity
+import app.taskdav.data.EventEntity
 import app.taskdav.domain.TaskNode
 import app.taskdav.domain.TaskRepository
 import app.taskdav.sync.CalDavSyncWorker
@@ -38,6 +39,9 @@ class TasksViewModel(
     val ui: StateFlow<TasksUiState> = _ui.asStateFlow()
 
     val collections: StateFlow<List<CollectionEntity>> = repository.observeCollections()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val events: StateFlow<List<EventEntity>> = repository.observeEvents()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val taskForest: StateFlow<List<TaskNode>> = _ui
@@ -86,6 +90,13 @@ class TasksViewModel(
     fun deleteTask(taskId: Long) {
         viewModelScope.launch {
             repository.deleteTask(taskId)
+            CalDavSyncWorker.enqueueNow(app)
+        }
+    }
+
+    fun persistOrder(flat: List<TaskNode>) {
+        viewModelScope.launch {
+            repository.persistFlatOrder(flat)
             CalDavSyncWorker.enqueueNow(app)
         }
     }

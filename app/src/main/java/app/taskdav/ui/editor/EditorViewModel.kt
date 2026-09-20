@@ -9,7 +9,6 @@ import app.taskdav.data.CollectionEntity
 import app.taskdav.data.EventEntity
 import app.taskdav.domain.TaskEditorState
 import app.taskdav.domain.TaskRepository
-import app.taskdav.sync.CalDavSyncWorker
 import app.taskdav.ui.common.joinCategories
 import app.taskdav.ui.common.parseCategories
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,9 +26,12 @@ data class EditorUiState(
     val error: String? = null,
     val showEventPicker: Boolean = false,
     val showCreateEvent: Boolean = false,
+    val showEditEvent: Boolean = false,
     val eventStartMillis: Long = System.currentTimeMillis(),
-    val eventEndMillis: Long = System.currentTimeMillis() + 3_600_000,
+    val eventEndMillis: Long = System.currentTimeMillis() + 3_600_000L,
     val eventCollectionId: Long? = null,
+    val eventLocation: String = "",
+    val eventSummary: String = "",
     val saved: Boolean = false,
 )
 
@@ -55,14 +57,16 @@ class EditorViewModel(
     }
 
     private suspend fun load() {
-        val cols = repository.getCollections().filter { it.enabled && it.supportsVtodo }
+        val all = repository.getCollections()
+        val cols = all.filter { it.enabled && it.supportsVtodo }
         if (taskId != null) {
             val task = repository.getTask(taskId)
             if (task == null) {
                 _ui.update { it.copy(ready = true, error = "Task not found") }
                 return
             }
-            val linked = task.linkedEventUid?.let { repository.getEventByUid(it) }
+            val linked = repository.ensureLinkedEvent(taskId)
+                ?: task.linkedEventUid?.let { repository.getEventByUid(it) }
             _ui.update {
                 it.copy(
                     editor = TaskEditorState(
@@ -77,19 +81,18 @@ class EditorViewModel(
                         dueMillis = task.dueMillis,
                         categories = task.categories,
                         parentUid = task.parentUid,
-                        linkedEventUid = task.linkedEventUid,
+                        linkedEventUid = linked?.uid ?: task.linkedEventUid,
                         linkedEvent = linked,
                         isCategory = task.isCategory,
                     ),
-                    eventCollectionId = repository.getCollections()
-                        .firstOrNull { c -> c.enabled && c.supportsVevent }?.id,
+                    eventCollectionId = defaultEventCollectionId(all, task.collectionId),
                     ready = true,
                 )
             }
         } else {
             val collectionId = presetCollectionId
                 ?: cols.firstOrNull()?.id
-                ?: repository.getCollections().firstOrNull()?.id
+                ?: all.firstOrNull()?.id
                 ?: 0L
             val asCategory = presetIsCategory && parentUid.isNullOrBlank()
             _ui.update {
@@ -100,8 +103,7 @@ class EditorViewModel(
                         parentUid = parentUid,
                         isCategory = asCategory,
                     ),
-                    eventCollectionId = repository.getCollections()
-                        .firstOrNull { c -> c.enabled && c.supportsVevent }?.id,
+                    eventCollectionId = defaultEventCollectionId(all, collectionId),
                     ready = true,
                 )
             }
@@ -110,7 +112,16 @@ class EditorViewModel(
 
     fun updateSummary(v: String) = updateEditor { it.copy(summary = v) }
     fun updateDescription(v: String) = updateEditor { it.copy(description = v) }
-    fun updateCollection(id: Long) = updateEditor { it.copy(collectionId = id) }
+    fun updateCollection(id: Long) {
+        _ui.update { state ->
+            val editor = state.editor ?: return@update state
+            state.copy(
+                editor = editor.copy(collectionId = id),
+                // Keep linked-event calendar aligned with the task list
+                eventCollectionId = id,
+            )
+        }
+    }
     fun updateParent(uid: String?) = updateEditor { it.copy(parentUid = uid) }
     fun updatePriority(p: Int) = updateEditor { it.copy(priority = p) }
     fun updateDue(millis: Long?) = updateEditor { it.copy(dueMillis = millis) }
@@ -130,17 +141,59 @@ class EditorViewModel(
     }
 
     fun setShowEventPicker(show: Boolean) = _ui.update { it.copy(showEventPicker = show) }
-    fun setShowCreateEvent(show: Boolean) = _ui.update { it.copy(showCreateEvent = show) }
+    fun setShowCreateEvent(show: Boolean) {
+        _ui.update { state ->
+            if (!show) return@update state.copy(showCreateEvent = false)
+            val start = System.currentTimeMillis()
+            state.copy(
+                showCreateEvent = true,
+                showEditEvent = false,
+                eventCollectionId = state.editor?.collectionId,
+                eventStartMillis = start,
+                eventEndMillis = start + DEFAULT_EVENT_DURATION_MS,
+                eventLocation = "",
+                eventSummary = state.editor?.summary.orEmpty(),
+            )
+        }
+    }
+
+    fun setShowEditEvent(show: Boolean) {
+        _ui.update { state ->
+            if (!show) return@update state.copy(showEditEvent = false)
+            val event = state.editor?.linkedEvent ?: return@update state
+            val start = event.dtStartMillis ?: System.currentTimeMillis()
+            state.copy(
+                showEditEvent = true,
+                showCreateEvent = false,
+                eventSummary = event.summary,
+                eventStartMillis = start,
+                eventEndMillis = event.dtEndMillis ?: (start + DEFAULT_EVENT_DURATION_MS),
+                eventLocation = event.location.orEmpty(),
+                error = null,
+            )
+        }
+    }
+
     fun setEventStart(millis: Long) = _ui.update { state ->
-        val end = state.eventEndMillis.coerceAtLeast(millis + 60_000)
-        state.copy(eventStartMillis = millis, eventEndMillis = end)
+        state.copy(
+            eventStartMillis = millis,
+            eventEndMillis = millis + DEFAULT_EVENT_DURATION_MS,
+        )
     }
     fun setEventEnd(millis: Long) = _ui.update { state ->
-        state.copy(eventEndMillis = millis.coerceAtLeast(state.eventStartMillis + 60_000))
+        state.copy(
+            eventEndMillis = millis.coerceAtLeast(state.eventStartMillis + MIN_EVENT_DURATION_MS),
+        )
     }
     fun setEventTimes(start: Long, end: Long) =
-        _ui.update { it.copy(eventStartMillis = start, eventEndMillis = end.coerceAtLeast(start + 60_000)) }
-    fun setEventCollection(id: Long) = _ui.update { it.copy(eventCollectionId = id) }
+        _ui.update {
+            it.copy(
+                eventStartMillis = start,
+                eventEndMillis = end.coerceAtLeast(start + MIN_EVENT_DURATION_MS),
+            )
+        }
+    fun setEventLocation(location: String) = _ui.update { it.copy(eventLocation = location) }
+    fun setEventSummary(summary: String) = _ui.update { it.copy(eventSummary = summary) }
 
     fun clearLinkedEvent() {
         updateEditor { it.copy(linkedEventUid = null, linkedEvent = null) }
@@ -156,7 +209,7 @@ class EditorViewModel(
             val state = _ui.value
             if (!state.ready || state.saving) return@launch
             val editor = state.editor ?: return@launch
-            val collectionId = state.eventCollectionId ?: return@launch
+            val collectionId = editor.collectionId.takeIf { it > 0 } ?: return@launch
             if (state.eventEndMillis < state.eventStartMillis) {
                 _ui.update { it.copy(error = "Event end must be after start") }
                 return@launch
@@ -166,17 +219,61 @@ class EditorViewModel(
                 val uid = repository.createLinkedEvent(
                     taskId = id,
                     collectionId = collectionId,
-                    summary = editor.summary,
+                    summary = state.eventSummary.ifBlank { editor.summary },
                     startMillis = state.eventStartMillis,
                     endMillis = state.eventEndMillis,
+                    location = state.eventLocation,
                 )
                 val event = repository.getEventByUid(uid)
-                CalDavSyncWorker.enqueueNow(app)
+                val syncMsg = repository.syncNow()
+                val eventDirty = repository.getEventByUid(uid)?.dirty == true
                 _ui.update {
                     it.copy(
                         editor = editor.copy(id = id, linkedEventUid = uid, linkedEvent = event),
                         showCreateEvent = false,
-                        error = null,
+                        eventLocation = "",
+                        error = if (eventDirty) {
+                            syncMsg.ifBlank { "Event saved locally, but upload failed" }
+                        } else {
+                            null
+                        },
+                    )
+                }
+            } catch (e: Exception) {
+                _ui.update { it.copy(error = e.message) }
+            }
+        }
+    }
+
+    fun saveLinkedEvent() {
+        viewModelScope.launch {
+            val state = _ui.value
+            val editor = state.editor ?: return@launch
+            val event = editor.linkedEvent ?: return@launch
+            if (state.eventEndMillis < state.eventStartMillis) {
+                _ui.update { it.copy(error = "Event end must be after start") }
+                return@launch
+            }
+            try {
+                repository.updateEvent(
+                    uid = event.uid,
+                    summary = state.eventSummary.ifBlank { event.summary },
+                    startMillis = state.eventStartMillis,
+                    endMillis = state.eventEndMillis,
+                    location = state.eventLocation,
+                )
+                val syncMsg = repository.syncNow()
+                val updated = repository.getEventByUid(event.uid)
+                val eventDirty = updated?.dirty == true
+                _ui.update {
+                    it.copy(
+                        editor = editor.copy(linkedEvent = updated),
+                        showEditEvent = !eventDirty,
+                        error = if (eventDirty) {
+                            syncMsg.ifBlank { "Event saved locally, but upload failed" }
+                        } else {
+                            null
+                        },
                     )
                 }
             } catch (e: Exception) {
@@ -228,6 +325,30 @@ class EditorViewModel(
         _ui.update { state ->
             val editor = state.editor ?: return@update state
             state.copy(editor = block(editor))
+        }
+    }
+
+    companion object {
+        private const val DEFAULT_EVENT_DURATION_MS = 60 * 60 * 1000L
+        private const val MIN_EVENT_DURATION_MS = 60 * 1000L
+
+        /**
+         * Prefer the task's own collection for linked events (same list name/calendar),
+         * even if discovery didn't mark it as VEVENT — Radicale calendars often accept both.
+         */
+        fun defaultEventCollectionId(
+            collections: List<CollectionEntity>,
+            taskCollectionId: Long,
+        ): Long? {
+            val enabled = collections.filter { it.enabled }
+            enabled.find { it.id == taskCollectionId }?.let { return it.id }
+            val taskName = collections.find { it.id == taskCollectionId }?.displayName
+            if (!taskName.isNullOrBlank()) {
+                enabled.find { it.displayName.equals(taskName, ignoreCase = true) }
+                    ?.let { return it.id }
+            }
+            enabled.find { it.supportsVevent }?.let { return it.id }
+            return enabled.firstOrNull()?.id
         }
     }
 

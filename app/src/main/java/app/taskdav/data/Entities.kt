@@ -45,6 +45,8 @@ data class TaskEntity(
     val parentUid: String?,
     /** Linked VEVENT UID from RELATED-TO;RELTYPE=RELATED */
     val linkedEventUid: String?,
+    /** Manual order among siblings (same parent); lower = higher in list */
+    val sortOrder: Int = 0,
     /** Nestable folder VTODO (X-TASKDAV-KIND:CATEGORY) */
     val isCategory: Boolean = false,
     val icsRaw: String?,
@@ -68,6 +70,7 @@ data class EventEntity(
     val collectionId: Long,
     val summary: String,
     val description: String?,
+    val location: String? = null,
     val dtStartMillis: Long?,
     val dtEndMillis: Long?,
     val allDay: Boolean = false,

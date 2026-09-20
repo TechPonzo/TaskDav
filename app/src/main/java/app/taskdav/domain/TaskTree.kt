@@ -30,7 +30,13 @@ object TaskTreeBuilder {
         }
         fun build(parentUid: String?, depth: Int): List<TaskNode> {
             val kids = childrenMap[parentUid].orEmpty()
-                .sortedWith(compareBy({ isCompleted(it) }, { it.summary.lowercase() }))
+                .sortedWith(
+                    compareBy(
+                        { isCompleted(it) },
+                        { it.sortOrder },
+                        { it.summary.lowercase() },
+                    ),
+                )
             return kids.map { task ->
                 TaskNode(
                     task = task,

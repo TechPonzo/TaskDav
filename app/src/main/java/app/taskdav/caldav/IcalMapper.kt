@@ -20,6 +20,7 @@ import net.fortuna.ical4j.model.property.DtEnd
 import net.fortuna.ical4j.model.property.DtStamp
 import net.fortuna.ical4j.model.property.DtStart
 import net.fortuna.ical4j.model.property.Due
+import net.fortuna.ical4j.model.property.Location
 import net.fortuna.ical4j.model.property.PercentComplete
 import net.fortuna.ical4j.model.property.Priority
 import net.fortuna.ical4j.model.property.ProdId
@@ -35,6 +36,7 @@ import java.util.TimeZone
 import java.util.UUID
 
 const val X_TASKDAV_KIND = "X-TASKDAV-KIND"
+const val X_TASKDAV_SORT = "X-TASKDAV-SORT"
 const val KIND_CATEGORY = "CATEGORY"
 
 data class ParsedTodo(
@@ -51,6 +53,7 @@ data class ParsedTodo(
     val parentUid: String?,
     val linkedEventUid: String?,
     val isCategory: Boolean = false,
+    val sortOrder: Int = 0,
     val icsRaw: String,
 )
 
@@ -58,6 +61,7 @@ data class ParsedEvent(
     val uid: String,
     val summary: String,
     val description: String?,
+    val location: String?,
     val dtStartMillis: Long?,
     val dtEndMillis: Long?,
     val allDay: Boolean,
@@ -99,16 +103,20 @@ object IcalMapper {
                 }
             }
             for (relatedTo in relatedProps) {
-                val rel = relatedTo.getParameter(Parameter.RELTYPE) as? RelType
-                val relValue = rel?.value?.uppercase()
+                val relValue = (relatedTo.getParameter(Parameter.RELTYPE) as? Parameter)?.value?.uppercase()
+                val relatedUid = normalizeUid(relatedTo.value) ?: continue
                 when (relValue) {
-                    null, "PARENT" -> parentUid = relatedTo.value
-                    "RELATED", "SIBLING" -> if (linkedEventUid == null) linkedEventUid = relatedTo.value
-                    else -> {
-                        if (linkedEventUid == null && relValue != "CHILD") {
-                            linkedEventUid = relatedTo.value
-                        }
+                    "PARENT" -> parentUid = relatedUid
+                    "CHILD" -> Unit
+                    "RELATED", "SIBLING" -> if (linkedEventUid == null) {
+                        linkedEventUid = relatedUid
                     }
+                    null -> {
+                        // RFC default is PARENT; a second untyped RELATED-TO is the linked event
+                        if (parentUid == null) parentUid = relatedUid
+                        else if (linkedEventUid == null) linkedEventUid = relatedUid
+                    }
+                    else -> if (linkedEventUid == null) linkedEventUid = relatedUid
                 }
             }
             ParsedTodo(
@@ -134,6 +142,12 @@ object IcalMapper {
                         prop.name.equals(X_TASKDAV_KIND, ignoreCase = true) &&
                             prop.value.equals(KIND_CATEGORY, ignoreCase = true)
                     },
+                sortOrder = todo.properties
+                    .filterIsInstance<Property>()
+                    .firstOrNull { it.name.equals(X_TASKDAV_SORT, ignoreCase = true) }
+                    ?.value
+                    ?.toIntOrNull()
+                    ?: 0,
                 icsRaw = ics,
             )
         }
@@ -149,6 +163,8 @@ object IcalMapper {
                 uid = event.uid?.value ?: UUID.randomUUID().toString(),
                 summary = event.summary?.value.orEmpty().ifBlank { "(untitled)" },
                 description = event.description?.value,
+                location = event.location?.value
+                    ?: (event.getProperty(Property.LOCATION) as? Location)?.value,
                 dtStartMillis = start?.date?.toInstantMillis(),
                 dtEndMillis = event.endDate?.date?.toInstantMillis(),
                 allDay = allDay,
@@ -213,6 +229,7 @@ object IcalMapper {
         linkedEventUid: String?,
         existingRaw: String?,
         isCategory: Boolean = false,
+        sortOrder: Int = 0,
     ): String {
         val calendar = Calendar()
         calendar.properties.add(ProdId("-//TaskDav//EN"))
@@ -249,12 +266,14 @@ object IcalMapper {
         }
         if (!linkedEventUid.isNullOrBlank()) {
             val related = RelatedTo(linkedEventUid)
+            // SIBLING is a standard RELTYPE; servers keep it reliably next to PARENT
             related.parameters.add(RelType.SIBLING)
             todo.properties.add(related)
         }
         if (isCategory) {
             todo.properties.add(XProperty(X_TASKDAV_KIND, KIND_CATEGORY))
         }
+        todo.properties.add(XProperty(X_TASKDAV_SORT, sortOrder.toString()))
 
         // Only preserve unknown X-properties / extras; never revive cleared DUE/DESCRIPTION/etc.
         if (!existingRaw.isNullOrBlank()) {
@@ -290,6 +309,7 @@ object IcalMapper {
         uid: String,
         summary: String,
         description: String?,
+        location: String?,
         dtStartMillis: Long,
         dtEndMillis: Long,
         allDay: Boolean,
@@ -303,6 +323,7 @@ object IcalMapper {
         event.properties.add(DtStamp(DateTime(System.currentTimeMillis()).also { it.isUtc = true }))
         event.properties.add(Summary(summary))
         if (!description.isNullOrBlank()) event.properties.add(Description(description))
+        if (!location.isNullOrBlank()) event.properties.add(Location(location.trim()))
         if (allDay) {
             val start = DtStart(Date(dtStartMillis))
             start.parameters.add(Value.DATE)
@@ -320,13 +341,22 @@ object IcalMapper {
 
     fun newUid(): String = UUID.randomUUID().toString()
 
+    fun normalizeUid(raw: String?): String? {
+        if (raw.isNullOrBlank()) return null
+        return raw.trim()
+            .removePrefix("<")
+            .removeSuffix(">")
+            .trim()
+            .takeIf { it.isNotEmpty() }
+    }
+
     fun extractUid(ics: String): String? =
-        Regex("""(?im)^UID:([^\r\n]+)""")
-            .find(ics)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
+        normalizeUid(
+            Regex("""(?im)^UID:([^\r\n]+)""")
+                .find(ics)
+                ?.groupValues
+                ?.getOrNull(1),
+        )
 
     private fun todoStatus(status: String?): Status? {
         if (status.isNullOrBlank()) return Status.VTODO_NEEDS_ACTION
@@ -359,7 +389,7 @@ object IcalMapper {
         Property.PERCENT_COMPLETE, Property.PRIORITY, Property.DTSTART, Property.DUE,
         Property.COMPLETED, Property.CATEGORIES, Property.RELATED_TO, Property.CREATED,
         Property.LAST_MODIFIED, Property.DTSTAMP, Property.SEQUENCE,
-        X_TASKDAV_KIND,
+        X_TASKDAV_KIND, X_TASKDAV_SORT,
     )
 }
 

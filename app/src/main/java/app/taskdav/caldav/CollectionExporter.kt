@@ -50,6 +50,7 @@ class CollectionExporter(
                         linkedEventUid = task.linkedEventUid,
                         existingRaw = null,
                         isCategory = task.isCategory,
+                        sortOrder = task.sortOrder,
                     ),
                     "VTODO",
                 )
@@ -67,6 +68,7 @@ class CollectionExporter(
                         uid = event.uid,
                         summary = event.summary,
                         description = event.description,
+                        location = event.location,
                         dtStartMillis = start,
                         dtEndMillis = end,
                         allDay = event.allDay,

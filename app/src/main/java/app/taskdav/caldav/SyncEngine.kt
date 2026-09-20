@@ -96,7 +96,9 @@ class SyncEngine(
                 pushErrors += "Pull tasks ${collection.displayName}: ${e.message ?: e.javaClass.simpleName}"
             }
         }
-        for (collection in db.collections().getEnabledEventCollections()) {
+        for (collection in db.collections().getEnabled()) {
+            // Task lists often host linked VEVENTs too (Radicale); don't require supportsVevent
+            if (!collection.supportsVevent && !collection.supportsVtodo) continue
             try {
                 eventsPulled += pullEvents(client, collection, pushedEventUids)
             } catch (e: Exception) {
@@ -109,6 +111,12 @@ class SyncEngine(
             } catch (e: Exception) {
                 pushErrors += "Pull notes ${collection.displayName}: ${e.message ?: e.javaClass.simpleName}"
             }
+        }
+
+        try {
+            eventsPulled += resolveMissingLinkedEvents(client)
+        } catch (e: Exception) {
+            pushErrors += "Resolve linked events: ${e.message ?: e.javaClass.simpleName}"
         }
 
         val stillDirtyTasks = db.tasks().getDirty().count { !it.deleted }
@@ -190,6 +198,7 @@ class SyncEngine(
                         parentUid = parsed.parentUid,
                         linkedEventUid = parsed.linkedEventUid,
                         isCategory = parsed.isCategory,
+                        sortOrder = parsed.sortOrder,
                         icsRaw = obj.ics,
                         dirty = false,
                         deleted = false,
@@ -197,6 +206,8 @@ class SyncEngine(
                     )
                     if (existing == null) db.tasks().upsert(entity) else db.tasks().update(entity.copy(id = existing.id))
                 }
+                // Some clients store the linked VEVENT in the same resource as the VTODO
+                upsertEmbeddedEvents(obj.ics, obj.href, obj.etag, collection.id)
             }
             val current = db.tasks().getByCollection(collection.id)
             for (task in current) {
@@ -242,6 +253,7 @@ class SyncEngine(
                         collectionId = collection.id,
                         summary = parsed.summary,
                         description = parsed.description,
+                        location = parsed.location,
                         dtStartMillis = parsed.dtStartMillis,
                         dtEndMillis = parsed.dtEndMillis,
                         allDay = parsed.allDay,
@@ -253,13 +265,221 @@ class SyncEngine(
                     if (existing == null) db.events().upsert(entity) else db.events().update(entity.copy(id = existing.id))
                 }
             }
-            val current = db.events().getByCollection(collection.id)
-            for (event in current) {
-                if (!event.dirty && !event.deleted && event.uid !in keepUids && event.uid !in skipUids) {
-                    db.events().deleteById(event.id)
+            // Only prune when this collection advertises VEVENT and the query returned data.
+            // Empty REPORT on a task list must not wipe linked events still referenced by tasks.
+            if (collection.supportsVevent && objects.isNotEmpty()) {
+                val linkedUids = db.tasks().getActive()
+                    .mapNotNull { it.linkedEventUid?.takeIf { uid -> uid.isNotBlank() } }
+                    .toSet()
+                val current = db.events().getByCollection(collection.id)
+                for (event in current) {
+                    if (event.uid in linkedUids) continue
+                    if (!event.dirty && !event.deleted && event.uid !in keepUids && event.uid !in skipUids) {
+                        db.events().deleteById(event.id)
+                    }
                 }
             }
             return objects.size
+        }
+    }
+
+    /**
+     * Tasks can keep a RELATED-TO event UID after the local EventEntity was lost
+     * (e.g. wiped by an empty VEVENT pull). Re-fetch by UID from the task's list
+     * (and other enabled collections as fallback).
+     */
+    private suspend fun resolveMissingLinkedEvents(client: okhttp3.OkHttpClient): Int {
+        var recovered = 0
+        for (task in db.tasks().getActive()) {
+            val uid = IcalMapper.normalizeUid(task.linkedEventUid) ?: continue
+            if (db.events().getByUid(uid)?.deleted == false) continue
+            if (ensureLinkedEventForTask(client, task) != null) recovered++
+        }
+        return recovered
+    }
+
+    /** Public entry used when opening a task detail with a broken calendar link. */
+    suspend fun ensureLinkedEventForTask(taskId: Long): EventEntity? = withContext(Dispatchers.IO) {
+        val task = db.tasks().getById(taskId) ?: return@withContext null
+        val creds = accountStore.load() ?: return@withContext findLocalLinkedEvent(task)
+        val client = httpFactory.create(creds)
+        ensureLinkedEventForTask(client, task) ?: findLocalLinkedEvent(task)
+    }
+
+    private suspend fun findLocalLinkedEvent(task: TaskEntity): EventEntity? {
+        val uid = IcalMapper.normalizeUid(task.linkedEventUid)
+        if (uid != null) {
+            // Broken link: RELATED-TO points at another task, not a VEVENT
+            if (db.tasks().getByUid(uid) != null && db.events().getByUid(uid) == null) {
+                val byTitle = db.events().getActive().find {
+                    it.collectionId == task.collectionId &&
+                        it.summary.equals(task.summary, ignoreCase = true)
+                }
+                if (byTitle != null) {
+                    db.tasks().update(
+                        task.copy(
+                            linkedEventUid = byTitle.uid,
+                            dirty = true,
+                            updatedAt = System.currentTimeMillis(),
+                        ),
+                    )
+                    return byTitle
+                }
+            }
+            db.events().getByUid(uid)?.let { event ->
+                if (event.deleted) {
+                    val restored = event.copy(deleted = false, dirty = false)
+                    db.events().update(restored)
+                    return restored
+                }
+                return event
+            }
+            // Embedded in the task ICS resource
+            if (!task.icsRaw.isNullOrBlank()) {
+                upsertEmbeddedEvents(task.icsRaw, task.href, task.etag, task.collectionId)
+                db.events().getByUid(uid)?.let { return it }
+                IcalMapper.parseEvents(task.icsRaw).firstOrNull()?.let { parsed ->
+                    val stored = upsertParsedEvent(parsed, task.href, task.etag, task.collectionId)
+                    if (stored.uid != uid) {
+                        db.tasks().update(
+                            task.copy(
+                                linkedEventUid = stored.uid,
+                                dirty = true,
+                                updatedAt = System.currentTimeMillis(),
+                            ),
+                        )
+                    }
+                    return stored
+                }
+            }
+        }
+        // Last resort: same-title event on the same list
+        return db.events().getActive().find {
+            it.collectionId == task.collectionId &&
+                it.summary.equals(task.summary, ignoreCase = true)
+        }
+    }
+
+    private suspend fun ensureLinkedEventForTask(
+        client: okhttp3.OkHttpClient,
+        task: TaskEntity,
+    ): EventEntity? {
+        findLocalLinkedEvent(task)?.let { return it }
+
+        val uid = IcalMapper.normalizeUid(task.linkedEventUid) ?: return null
+        val collections = db.collections().getEnabled()
+        val preferred = collections.find { it.id == task.collectionId }
+        val candidates = buildList {
+            if (preferred != null) add(preferred)
+            collections.filterTo(this) { it.id != task.collectionId }
+        }
+
+        // 1) GET the task resource — VEVENT may be bundled with the VTODO
+        val taskHref = task.href
+        if (!taskHref.isNullOrBlank()) {
+            fetchAndStoreEventFromHref(client, taskHref, task.collectionId, uid)?.let { return it }
+        }
+
+        // 2) GET {uid}.ics from each collection
+        for (collection in candidates) {
+            val href = MultistatusParser.joinUrl(collection.href, "$uid.ics")
+            fetchAndStoreEventFromHref(client, href, collection.id, uid)?.let { return it }
+        }
+
+        // 3) calendar-query by UID
+        for (collection in candidates) {
+            try {
+                client.report(collection.href, CalDavXml.calendarQueryEventByUid(uid)).use { response ->
+                    if (!response.isSuccessful) return@use
+                    val xml = response.body?.string().orEmpty()
+                    val objects = MultistatusParser.parseCalendarObjects(xml, collection.href)
+                    for (obj in objects) {
+                        upsertEmbeddedEvents(obj.ics, obj.href, obj.etag, collection.id)
+                    }
+                }
+                db.events().getByUid(uid)?.let { return it }
+            } catch (_: Exception) {
+                // try next collection
+            }
+        }
+        return null
+    }
+
+    private suspend fun fetchAndStoreEventFromHref(
+        client: okhttp3.OkHttpClient,
+        href: String,
+        collectionId: Long,
+        wantedUid: String?,
+    ): EventEntity? {
+        return try {
+            client.getResource(href).use { response ->
+                if (!response.isSuccessful) return@use null
+                val ics = response.body?.string().orEmpty()
+                if (ics.isBlank()) return@use null
+                val etag = response.header("ETag")?.trim()?.trim('"')
+                upsertEmbeddedEvents(ics, href, etag, collectionId)
+                val events = IcalMapper.parseEvents(ics)
+                val match = when {
+                    wantedUid != null -> events.find {
+                        IcalMapper.normalizeUid(it.uid).equals(wantedUid, ignoreCase = true)
+                    }
+                    else -> events.firstOrNull()
+                } ?: events.firstOrNull()
+                match?.let { upsertParsedEvent(it, href, etag, collectionId) }
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private suspend fun upsertEmbeddedEvents(
+        ics: String,
+        href: String?,
+        etag: String?,
+        collectionId: Long,
+    ) {
+        val parsed = try {
+            IcalMapper.parseEvents(ics)
+        } catch (_: Exception) {
+            return
+        }
+        for (event in parsed) {
+            upsertParsedEvent(event, href, etag, collectionId)
+        }
+    }
+
+    private suspend fun upsertParsedEvent(
+        parsed: ParsedEvent,
+        href: String?,
+        etag: String?,
+        collectionId: Long,
+    ): EventEntity {
+        val existing = db.events().getByUid(parsed.uid)
+        if (existing?.dirty == true) return existing
+        val entity = EventEntity(
+            id = existing?.id ?: 0,
+            uid = parsed.uid,
+            href = href ?: existing?.href,
+            etag = etag ?: existing?.etag,
+            collectionId = collectionId,
+            summary = parsed.summary,
+            description = parsed.description,
+            location = parsed.location,
+            dtStartMillis = parsed.dtStartMillis,
+            dtEndMillis = parsed.dtEndMillis,
+            allDay = parsed.allDay,
+            icsRaw = parsed.icsRaw,
+            dirty = false,
+            deleted = false,
+            updatedAt = existing?.updatedAt ?: System.currentTimeMillis(),
+        )
+        return if (existing == null) {
+            val id = db.events().upsert(entity)
+            entity.copy(id = id)
+        } else {
+            val updated = entity.copy(id = existing.id)
+            db.events().update(updated)
+            updated
         }
     }
 
@@ -402,6 +622,7 @@ class SyncEngine(
             linkedEventUid = latest.linkedEventUid,
             existingRaw = null,
             isCategory = latest.isCategory,
+            sortOrder = latest.sortOrder,
         )
         val targetHref = MultistatusParser.joinUrl(collection.href, "${latest.uid}.ics")
         val oldHref = latest.href?.takeIf { it.isNotBlank() && !sameResource(it, targetHref) }
@@ -497,6 +718,7 @@ class SyncEngine(
                     uid = latest.uid,
                     summary = latest.summary,
                     description = latest.description,
+                    location = latest.location,
                     dtStartMillis = start,
                     dtEndMillis = end,
                     allDay = latest.allDay,
