@@ -10,11 +10,13 @@ import app.taskdav.data.EventEntity
 import app.taskdav.domain.TaskNode
 import app.taskdav.domain.TaskRepository
 import app.taskdav.sync.CalDavSyncWorker
+import app.taskdav.ui.common.parseCategories
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -22,6 +24,8 @@ import kotlinx.coroutines.launch
 
 data class TasksUiState(
     val collectionFilter: Long? = null,
+    val tagFilter: String? = null,
+    val availableTags: List<String> = emptyList(),
     val showCompleted: Boolean = true,
     val syncMessage: String? = null,
     val syncing: Boolean = false,
@@ -36,7 +40,26 @@ class TasksViewModel(
     private val _ui = MutableStateFlow(
         TasksUiState(syncMessage = repository.lastSyncMessage()),
     )
-    val ui: StateFlow<TasksUiState> = _ui.asStateFlow()
+    val ui: StateFlow<TasksUiState> = combine(
+        _ui,
+        repository.observeTasks(),
+    ) { state, tasks ->
+        val scoped = tasks.filter {
+            state.collectionFilter == null || it.collectionId == state.collectionFilter
+        }
+        val tags = scoped.flatMap { parseCategories(it.categories) }
+            .distinct()
+            .sortedBy { it.lowercase() }
+        val tagStillValid = state.tagFilter == null || state.tagFilter in tags
+        state.copy(
+            availableTags = tags,
+            tagFilter = if (tagStillValid) state.tagFilter else null,
+        )
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        TasksUiState(syncMessage = repository.lastSyncMessage()),
+    )
 
     val collections: StateFlow<List<CollectionEntity>> = repository.observeCollections()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -44,14 +67,22 @@ class TasksViewModel(
     val events: StateFlow<List<EventEntity>> = repository.observeEvents()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val taskForest: StateFlow<List<TaskNode>> = _ui
+    val taskForest: StateFlow<List<TaskNode>> = ui
         .flatMapLatest { state ->
-            repository.observeTaskForest(state.collectionFilter, state.showCompleted)
+            repository.observeTaskForest(
+                collectionFilter = state.collectionFilter,
+                showCompleted = state.showCompleted,
+                tagFilter = state.tagFilter,
+            )
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun setCollectionFilter(id: Long?) {
         _ui.update { it.copy(collectionFilter = id) }
+    }
+
+    fun setTagFilter(tag: String?) {
+        _ui.update { it.copy(tagFilter = tag) }
     }
 
     fun setShowCompleted(show: Boolean) {

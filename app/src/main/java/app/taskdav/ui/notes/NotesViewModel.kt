@@ -15,11 +15,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class NotesUiState(
+    val collectionFilter: Long? = null,
+    val tagFilter: String? = null,
+    val availableTags: List<String> = emptyList(),
+    val notes: List<NoteEntity> = emptyList(),
     val syncing: Boolean = false,
     val error: String? = null,
     val syncMessage: String? = null,
@@ -38,27 +43,72 @@ data class NoteEditorState(
     val error: String? = null,
 )
 
+private data class NotesFilters(
+    val collectionFilter: Long? = null,
+    val tagFilter: String? = null,
+    val syncing: Boolean = false,
+    val error: String? = null,
+    val syncMessage: String? = null,
+)
+
 class NotesViewModel(
     private val app: Application,
     private val repository: TaskRepository,
 ) : ViewModel() {
-    private val _ui = MutableStateFlow(NotesUiState(syncMessage = repository.lastSyncMessage()))
-    val ui: StateFlow<NotesUiState> = _ui.asStateFlow()
+    private val filters = MutableStateFlow(
+        NotesFilters(syncMessage = repository.lastSyncMessage()),
+    )
 
-    val notes: StateFlow<List<NoteEntity>> = repository.observeNotes()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val ui: StateFlow<NotesUiState> = combine(
+        filters,
+        repository.observeNotes(),
+    ) { f, allNotes ->
+        val scoped = allNotes.filter {
+            f.collectionFilter == null || it.collectionId == f.collectionFilter
+        }
+        val tags = scoped.flatMap { parseCategories(it.categories) }
+            .distinct()
+            .sortedBy { it.lowercase() }
+        val tagFilter = f.tagFilter?.takeIf { it in tags }
+        val notes = allNotes.filter { note ->
+            (f.collectionFilter == null || note.collectionId == f.collectionFilter) &&
+                (tagFilter == null || tagFilter in parseCategories(note.categories))
+        }.sortedByDescending { it.updatedAt }
+
+        NotesUiState(
+            collectionFilter = f.collectionFilter,
+            tagFilter = tagFilter,
+            availableTags = tags,
+            notes = notes,
+            syncing = f.syncing,
+            error = f.error,
+            syncMessage = f.syncMessage,
+        )
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NotesUiState(syncMessage = repository.lastSyncMessage()),
+    )
 
     val collections: StateFlow<List<CollectionEntity>> = repository.observeCollections()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    fun setCollectionFilter(id: Long?) {
+        filters.update { it.copy(collectionFilter = id) }
+    }
+
+    fun setTagFilter(tag: String?) {
+        filters.update { it.copy(tagFilter = tag) }
+    }
+
     fun syncNow() {
         viewModelScope.launch {
-            _ui.update { it.copy(syncing = true, error = null) }
+            filters.update { it.copy(syncing = true, error = null) }
             try {
                 val msg = repository.syncNow()
-                _ui.update { it.copy(syncing = false, syncMessage = msg) }
+                filters.update { it.copy(syncing = false, syncMessage = msg) }
             } catch (e: Exception) {
-                _ui.update { it.copy(syncing = false, error = e.message) }
+                filters.update { it.copy(syncing = false, error = e.message) }
             }
         }
     }

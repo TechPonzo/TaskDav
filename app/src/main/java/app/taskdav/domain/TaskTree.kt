@@ -17,10 +17,12 @@ object TaskTreeBuilder {
         collections: Map<Long, CollectionEntity>,
         collectionFilter: Long? = null,
         showCompleted: Boolean = true,
+        tagFilter: String? = null,
     ): List<TaskNode> {
         val filtered = tasks.filter { task ->
             (collectionFilter == null || task.collectionId == collectionFilter) &&
-                (showCompleted || task.isCategory || !isCompleted(task))
+                (showCompleted || task.isCategory || !isCompleted(task)) &&
+                (tagFilter == null || tagMatches(task.categories, tagFilter))
         }
         val byUid = filtered.associateBy { it.uid }
         val childrenMap = mutableMapOf<String?, MutableList<TaskEntity>>()
@@ -71,6 +73,14 @@ object TaskTreeBuilder {
         if (isCompleted(task)) return false
         if (task.status.equals("IN-PROCESS", ignoreCase = true)) return true
         return task.dtStartMillis != null
+    }
+
+    private fun tagMatches(categories: String?, tag: String): Boolean {
+        if (categories.isNullOrBlank()) return false
+        return categories.split(',', ';')
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .any { it == tag }
     }
 }
 

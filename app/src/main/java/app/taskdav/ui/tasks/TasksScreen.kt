@@ -179,6 +179,33 @@ fun TasksScreen(
                     }
                 }
 
+                if (ui.availableTags.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        FilterChip(
+                            selected = ui.tagFilter == null,
+                            onClick = { viewModel.setTagFilter(null) },
+                            label = { Text("All tags") },
+                        )
+                        ui.availableTags.forEach { tag ->
+                            FilterChip(
+                                selected = ui.tagFilter == tag,
+                                onClick = {
+                                    viewModel.setTagFilter(
+                                        if (ui.tagFilter == tag) null else tag,
+                                    )
+                                },
+                                label = { Text(tag) },
+                            )
+                        }
+                    }
+                }
+
                 if (displayList.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxSize(),

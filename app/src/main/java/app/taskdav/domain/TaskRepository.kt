@@ -37,6 +37,7 @@ class TaskRepository(
     fun observeTaskForest(
         collectionFilter: Long?,
         showCompleted: Boolean,
+        tagFilter: String? = null,
     ): Flow<List<TaskNode>> {
         return combine(
             db.tasks().observeActive(),
@@ -47,6 +48,7 @@ class TaskRepository(
                 collections = collections.associateBy { it.id },
                 collectionFilter = collectionFilter,
                 showCompleted = showCompleted,
+                tagFilter = tagFilter,
             )
         }
     }

@@ -94,7 +94,7 @@ fun CalendarScreen(
     var showEndPicker by remember { mutableStateOf(false) }
 
     val eventCollections = remember(collections) {
-        collections.filter { it.supportsVevent || it.supportsVtodo }
+        collections.filter { it.enabled && (it.supportsVevent || it.supportsVtodo) }
     }
     val todayStart = remember { CalendarViewModel.startOfDay(System.currentTimeMillis()) }
     val selectedOrToday = ui.selectedDayStartMillis ?: todayStart
@@ -149,149 +149,151 @@ fun CalendarScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 88.dp),
-            ) {
-                when (ui.viewMode) {
-                    CalendarViewMode.YEARLY -> {
-                        item {
-                            YearHeader(
-                                year = ui.visibleYear,
-                                onPrev = { viewModel.shiftYear(-1) },
-                                onNext = { viewModel.shiftYear(1) },
-                                onToday = viewModel::goToday,
+            Column(modifier = Modifier.fillMaxSize()) {
+                CollectionFilterRow(
+                    collections = eventCollections,
+                    collectionFilter = ui.collectionFilter,
+                    onFilter = viewModel::setCollectionFilter,
+                )
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 88.dp),
+                ) {
+                    when (ui.viewMode) {
+                        CalendarViewMode.YEARLY -> {
+                            item {
+                                YearHeader(
+                                    year = ui.visibleYear,
+                                    onPrev = { viewModel.shiftYear(-1) },
+                                    onNext = { viewModel.shiftYear(1) },
+                                    onToday = viewModel::goToday,
+                                )
+                            }
+                            item {
+                                YearGrid(
+                                    year = ui.visibleYear,
+                                    months = yearMonths,
+                                    todayStart = todayStart,
+                                    selectedDayStart = ui.selectedDayStartMillis,
+                                    onSelectDay = { viewModel.selectDay(it, switchToMonthDaily = true) },
+                                    onSelectMonth = { month ->
+                                        viewModel.openMonth(ui.visibleYear, month)
+                                    },
+                                )
+                            }
+                        }
+                        CalendarViewMode.MONTHLY -> {
+                            item {
+                                MonthHeader(
+                                    visibleMonthStart = ui.visibleMonthStartMillis,
+                                    onPrevMonth = { viewModel.shiftMonth(-1) },
+                                    onNextMonth = { viewModel.shiftMonth(1) },
+                                    onToday = viewModel::goToday,
+                                )
+                            }
+                            item {
+                                MonthGrid(
+                                    cells = monthCells,
+                                    selectedDayStart = ui.selectedDayStartMillis,
+                                    todayStart = todayStart,
+                                    onSelect = viewModel::selectDay,
+                                )
+                            }
+                        }
+                        CalendarViewMode.MONTHLY_AND_DAILY -> {
+                            item {
+                                MonthHeader(
+                                    visibleMonthStart = ui.visibleMonthStartMillis,
+                                    onPrevMonth = { viewModel.shiftMonth(-1) },
+                                    onNextMonth = { viewModel.shiftMonth(1) },
+                                    onToday = viewModel::goToday,
+                                )
+                            }
+                            item {
+                                MonthGrid(
+                                    cells = monthCells,
+                                    selectedDayStart = ui.selectedDayStartMillis,
+                                    todayStart = todayStart,
+                                    onSelect = viewModel::selectDay,
+                                )
+                            }
+                            dayAgenda(
+                                selectedDay = ui.selectedDayStartMillis,
+                                dayItems = dayItems,
+                                onOpenTask = onOpenTask,
+                                onEdit = { viewModel.openEdit(it.event) },
+                                context = context,
                             )
                         }
-                        item {
-                            YearGrid(
-                                year = ui.visibleYear,
-                                months = yearMonths,
-                                todayStart = todayStart,
-                                selectedDayStart = ui.selectedDayStartMillis,
-                                onSelectDay = { viewModel.selectDay(it, switchToMonthDaily = true) },
-                                onSelectMonth = { month ->
-                                    viewModel.openMonth(ui.visibleYear, month)
-                                },
+                        CalendarViewMode.WEEKLY -> {
+                            item {
+                                WeekHeader(
+                                    weekStart = weekStart,
+                                    onPrev = { viewModel.shiftWeek(-1) },
+                                    onNext = { viewModel.shiftWeek(1) },
+                                    onToday = viewModel::goToday,
+                                )
+                            }
+                            item {
+                                WeekStrip(
+                                    weekStart = weekStart,
+                                    selectedDayStart = ui.selectedDayStartMillis,
+                                    todayStart = todayStart,
+                                    eventDays = weekEventDays,
+                                    onSelect = viewModel::selectDay,
+                                )
+                            }
+                            item {
+                                Text(
+                                    "This week",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                )
+                            }
+                            eventRows(
+                                items = weekItems,
+                                emptyMessage = "No events this week.",
+                                onOpenTask = onOpenTask,
+                                onEdit = { viewModel.openEdit(it.event) },
+                                context = context,
                             )
                         }
-                    }
-                    CalendarViewMode.MONTHLY -> {
-                        item {
-                            MonthHeader(
-                                visibleMonthStart = ui.visibleMonthStartMillis,
-                                onPrevMonth = { viewModel.shiftMonth(-1) },
-                                onNextMonth = { viewModel.shiftMonth(1) },
-                                onToday = viewModel::goToday,
+                        CalendarViewMode.DAILY -> {
+                            item {
+                                DayNavHeader(
+                                    dayStart = selectedOrToday,
+                                    onPrev = { viewModel.shiftDay(-1) },
+                                    onNext = { viewModel.shiftDay(1) },
+                                    onToday = viewModel::goToday,
+                                )
+                            }
+                            dayAgenda(
+                                selectedDay = selectedOrToday,
+                                dayItems = dayItems,
+                                onOpenTask = onOpenTask,
+                                onEdit = { viewModel.openEdit(it.event) },
+                                context = context,
+                                requireSelection = false,
                             )
                         }
-                        item {
-                            MonthGrid(
-                                cells = monthCells,
-                                selectedDayStart = ui.selectedDayStartMillis,
-                                todayStart = todayStart,
-                                onSelect = viewModel::selectDay,
+                        CalendarViewMode.EVENT_LIST -> {
+                            item {
+                                Text(
+                                    "All events",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                )
+                            }
+                            eventRows(
+                                items = upcomingItems,
+                                emptyMessage = "No events. Sync or tap + to add one.",
+                                onOpenTask = onOpenTask,
+                                onEdit = { viewModel.openEdit(it.event) },
+                                context = context,
                             )
                         }
-                        collectionFilters(eventCollections, ui.collectionFilter, viewModel)
-                    }
-                    CalendarViewMode.MONTHLY_AND_DAILY -> {
-                        item {
-                            MonthHeader(
-                                visibleMonthStart = ui.visibleMonthStartMillis,
-                                onPrevMonth = { viewModel.shiftMonth(-1) },
-                                onNextMonth = { viewModel.shiftMonth(1) },
-                                onToday = viewModel::goToday,
-                            )
-                        }
-                        item {
-                            MonthGrid(
-                                cells = monthCells,
-                                selectedDayStart = ui.selectedDayStartMillis,
-                                todayStart = todayStart,
-                                onSelect = viewModel::selectDay,
-                            )
-                        }
-                        collectionFilters(eventCollections, ui.collectionFilter, viewModel)
-                        dayAgenda(
-                            selectedDay = ui.selectedDayStartMillis,
-                            dayItems = dayItems,
-                            onOpenTask = onOpenTask,
-                            onEdit = { viewModel.openEdit(it.event) },
-                            context = context,
-                        )
-                    }
-                    CalendarViewMode.WEEKLY -> {
-                        item {
-                            WeekHeader(
-                                weekStart = weekStart,
-                                onPrev = { viewModel.shiftWeek(-1) },
-                                onNext = { viewModel.shiftWeek(1) },
-                                onToday = viewModel::goToday,
-                            )
-                        }
-                        item {
-                            WeekStrip(
-                                weekStart = weekStart,
-                                selectedDayStart = ui.selectedDayStartMillis,
-                                todayStart = todayStart,
-                                eventDays = weekEventDays,
-                                onSelect = viewModel::selectDay,
-                            )
-                        }
-                        collectionFilters(eventCollections, ui.collectionFilter, viewModel)
-                        item {
-                            Text(
-                                "This week",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            )
-                        }
-                        eventRows(
-                            items = weekItems,
-                            emptyMessage = "No events this week.",
-                            onOpenTask = onOpenTask,
-                            onEdit = { viewModel.openEdit(it.event) },
-                            context = context,
-                        )
-                    }
-                    CalendarViewMode.DAILY -> {
-                        item {
-                            DayNavHeader(
-                                dayStart = selectedOrToday,
-                                onPrev = { viewModel.shiftDay(-1) },
-                                onNext = { viewModel.shiftDay(1) },
-                                onToday = viewModel::goToday,
-                            )
-                        }
-                        collectionFilters(eventCollections, ui.collectionFilter, viewModel)
-                        dayAgenda(
-                            selectedDay = selectedOrToday,
-                            dayItems = dayItems,
-                            onOpenTask = onOpenTask,
-                            onEdit = { viewModel.openEdit(it.event) },
-                            context = context,
-                            requireSelection = false,
-                        )
-                    }
-                    CalendarViewMode.EVENT_LIST -> {
-                        collectionFilters(eventCollections, ui.collectionFilter, viewModel)
-                        item {
-                            Text(
-                                "All events",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            )
-                        }
-                        eventRows(
-                            items = upcomingItems,
-                            emptyMessage = "No events. Sync or tap + to add one.",
-                            onOpenTask = onOpenTask,
-                            onEdit = { viewModel.openEdit(it.event) },
-                            context = context,
-                        )
                     }
                 }
             }
@@ -351,32 +353,48 @@ fun CalendarScreen(
     }
 }
 
-private fun LazyListScope.collectionFilters(
-    eventCollections: List<CollectionEntity>,
+@Composable
+private fun CollectionFilterRow(
+    collections: List<CollectionEntity>,
     collectionFilter: Long?,
-    viewModel: CalendarViewModel,
+    onFilter: (Long?) -> Unit,
 ) {
-    if (eventCollections.size <= 1) return
-    item {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+    if (collections.isEmpty()) return
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        FilterChip(
+            selected = collectionFilter == null,
+            onClick = { onFilter(null) },
+            label = { Text("All") },
+        )
+        collections.forEach { col ->
             FilterChip(
-                selected = collectionFilter == null,
-                onClick = { viewModel.setCollectionFilter(null) },
-                label = { Text("All") },
+                selected = collectionFilter == col.id,
+                onClick = {
+                    onFilter(if (collectionFilter == col.id) null else col.id)
+                },
+                label = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .background(
+                                    collectionColorOrDefault(col.colorArgb),
+                                    CircleShape,
+                                ),
+                        )
+                        Text(col.displayName)
+                    }
+                },
             )
-            eventCollections.forEach { col ->
-                FilterChip(
-                    selected = collectionFilter == col.id,
-                    onClick = { viewModel.setCollectionFilter(col.id) },
-                    label = { Text(col.displayName) },
-                )
-            }
         }
     }
 }
