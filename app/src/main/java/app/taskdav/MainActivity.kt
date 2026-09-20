@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -24,6 +25,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import app.taskdav.ui.calendar.CalendarScreen
+import app.taskdav.ui.calendar.CalendarViewModel
 import app.taskdav.ui.editor.EditorScreen
 import app.taskdav.ui.editor.EditorViewModel
 import app.taskdav.ui.home.HomeScreen
@@ -230,6 +233,12 @@ private fun HomeScaffold(
                     label = { Text("Home") },
                 )
                 NavigationBarItem(
+                    selected = selectedTab == "calendar",
+                    onClick = { onSelectTab("calendar") },
+                    icon = { Icon(Icons.Default.Event, contentDescription = null) },
+                    label = { Text("Calendar") },
+                )
+                NavigationBarItem(
                     selected = selectedTab == "tasks",
                     onClick = { onSelectTab("tasks") },
                     icon = { Icon(Icons.Default.CheckCircle, contentDescription = null) },
@@ -262,6 +271,15 @@ private fun HomeScaffold(
                         onOpenNote = { onEditNote(it) },
                         onSeeAllTasks = { onSelectTab("tasks") },
                         onSeeAllNotes = { onSelectTab("notes") },
+                    )
+                }
+                "calendar" -> {
+                    val vm: CalendarViewModel = viewModel(
+                        factory = CalendarViewModel.Factory(app, app.repository),
+                    )
+                    CalendarScreen(
+                        viewModel = vm,
+                        onOpenTask = { id -> onEditTask(id, false, null) },
                     )
                 }
                 "notes" -> {

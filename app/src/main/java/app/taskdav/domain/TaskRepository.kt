@@ -339,6 +339,55 @@ class TaskRepository(
         )
     }
 
+    suspend fun createEvent(
+        collectionId: Long,
+        summary: String,
+        startMillis: Long,
+        endMillis: Long,
+        location: String? = null,
+    ): String {
+        val uid = IcalMapper.newUid()
+        db.events().upsert(
+            EventEntity(
+                uid = uid,
+                href = null,
+                etag = null,
+                collectionId = collectionId,
+                summary = summary.trim().ifBlank { "Untitled" },
+                description = null,
+                location = location?.trim()?.ifBlank { null },
+                dtStartMillis = startMillis,
+                dtEndMillis = endMillis,
+                allDay = false,
+                icsRaw = null,
+                dirty = true,
+                deleted = false,
+            ),
+        )
+        return uid
+    }
+
+    suspend fun deleteEvent(eventId: Long) {
+        val event = db.events().getById(eventId) ?: return
+        // Unlink tasks that pointed at this event
+        val linked = db.tasks().getActive().filter {
+            it.linkedEventUid.equals(event.uid, ignoreCase = true)
+        }
+        val now = System.currentTimeMillis()
+        for (task in linked) {
+            db.tasks().update(
+                task.copy(linkedEventUid = null, dirty = true, updatedAt = now),
+            )
+        }
+        if (event.href.isNullOrBlank()) {
+            db.events().deleteById(event.id)
+        } else {
+            db.events().update(
+                event.copy(deleted = true, dirty = true, updatedAt = now),
+            )
+        }
+    }
+
     suspend fun getNote(id: Long) = db.notes().getById(id)
 
     suspend fun createOrUpdateNote(
