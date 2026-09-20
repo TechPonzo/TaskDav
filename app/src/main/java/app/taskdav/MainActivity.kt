@@ -111,6 +111,7 @@ private fun TaskDavNav(app: TaskDavApp) {
                 viewModel = vm,
                 onBack = { navController.popBackStack() },
                 onEdit = { navController.navigate("editor?taskId=$taskId") },
+                onOpenSubtask = { id -> navController.navigate("task/$id") },
             )
         }
 

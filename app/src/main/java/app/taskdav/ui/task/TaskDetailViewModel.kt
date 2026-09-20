@@ -4,16 +4,20 @@ import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import app.taskdav.caldav.IcalMapper
 import app.taskdav.data.CollectionEntity
 import app.taskdav.data.EventEntity
 import app.taskdav.data.TaskEntity
 import app.taskdav.domain.TaskRepository
 import app.taskdav.domain.TaskTreeBuilder
 import app.taskdav.sync.CalDavSyncWorker
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -22,6 +26,7 @@ data class TaskDetailUiState(
     val task: TaskEntity? = null,
     val collection: CollectionEntity? = null,
     val linkedEvent: EventEntity? = null,
+    val subtasks: List<TaskEntity> = emptyList(),
     val loading: Boolean = true,
     val deleted: Boolean = false,
     val showEditEvent: Boolean = false,
@@ -32,6 +37,7 @@ data class TaskDetailUiState(
     val error: String? = null,
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class TaskDetailViewModel(
     private val app: Application,
     private val repository: TaskRepository,
@@ -49,36 +55,73 @@ class TaskDetailViewModel(
         val error: String? = null,
     )
 
+    private data class CoreState(
+        val task: TaskEntity?,
+        val collection: CollectionEntity?,
+        val linkedEvent: EventEntity?,
+        val subtasks: List<TaskEntity>,
+    )
+
     init {
         viewModelScope.launch {
             repository.ensureLinkedEvent(taskId)
         }
     }
 
-    val ui: StateFlow<TaskDetailUiState> = combine(
-        repository.observeTask(taskId),
-        repository.observeCollections(),
-        repository.observeEvents(),
-        deleted,
-        edit,
-    ) { task, collections, events, wasDeleted, editUi ->
-        val uid = task?.linkedEventUid?.trim()?.removePrefix("<")?.removeSuffix(">")?.trim()
-        val linked = when {
-            uid.isNullOrBlank() -> null
-            else -> {
-                events.find { it.uid.equals(uid, ignoreCase = true) }
-                    ?: task?.let { t ->
-                        events.find {
-                            it.collectionId == t.collectionId &&
-                                it.summary.equals(t.summary, ignoreCase = true)
-                        }
+    private val taskFlow = repository.observeTask(taskId)
+
+    private val core: StateFlow<CoreState> = taskFlow
+        .flatMapLatest { task ->
+            val parentUid = task?.uid
+            val childrenFlow = if (parentUid.isNullOrBlank()) {
+                flowOf(emptyList())
+            } else {
+                repository.observeChildTasks(parentUid)
+            }
+            combine(
+                repository.observeCollections(),
+                repository.observeEvents(),
+                childrenFlow,
+            ) { collections, events, children ->
+                val linkUid = IcalMapper.normalizeUid(task?.linkedEventUid)
+                val linked = when {
+                    linkUid.isNullOrBlank() -> null
+                    else -> {
+                        events.find { it.uid.equals(linkUid, ignoreCase = true) }
+                            ?: task?.let { t ->
+                                events.find {
+                                    it.collectionId == t.collectionId &&
+                                        it.summary.equals(t.summary, ignoreCase = true)
+                                }
+                            }
                     }
+                }
+                CoreState(
+                    task = task,
+                    collection = task?.let { t -> collections.find { it.id == t.collectionId } },
+                    linkedEvent = linked,
+                    subtasks = children.sortedWith(
+                        compareBy(
+                            { TaskTreeBuilder.isCompleted(it) },
+                            { it.sortOrder },
+                            { it.summary.lowercase() },
+                        ),
+                    ),
+                )
             }
         }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            CoreState(null, null, null, emptyList()),
+        )
+
+    val ui: StateFlow<TaskDetailUiState> = combine(core, deleted, edit) { snap, wasDeleted, editUi ->
         TaskDetailUiState(
-            task = task,
-            collection = task?.let { t -> collections.find { it.id == t.collectionId } },
-            linkedEvent = linked,
+            task = snap.task,
+            collection = snap.collection,
+            linkedEvent = snap.linkedEvent,
+            subtasks = snap.subtasks,
             loading = false,
             deleted = wasDeleted,
             showEditEvent = editUi.show,

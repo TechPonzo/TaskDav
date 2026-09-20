@@ -20,6 +20,9 @@ class TaskRepository(
 
     fun observeTasks(): Flow<List<TaskEntity>> = db.tasks().observeActive()
 
+    fun observeChildTasks(parentUid: String): Flow<List<TaskEntity>> =
+        db.tasks().observeChildren(parentUid)
+
     fun observeEvents(): Flow<List<EventEntity>> = db.events().observeActive()
 
     fun observeNotes(): Flow<List<app.taskdav.data.NoteEntity>> = db.notes().observeActive()

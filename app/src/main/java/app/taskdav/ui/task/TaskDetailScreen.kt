@@ -1,5 +1,6 @@
 package app.taskdav.ui.task
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -30,9 +32,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.taskdav.data.TaskEntity
+import app.taskdav.domain.TaskTreeBuilder
 import app.taskdav.ui.common.DateTimePickerDialog
 import app.taskdav.ui.common.LinkedCalendarSection
 import app.taskdav.ui.common.parseCategories
@@ -45,6 +52,7 @@ fun TaskDetailScreen(
     viewModel: TaskDetailViewModel,
     onBack: () -> Unit,
     onEdit: () -> Unit,
+    onOpenSubtask: (Long) -> Unit = {},
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val task = ui.task
@@ -132,6 +140,25 @@ fun TaskDetailScreen(
                     val priority = task.priority ?: 0
                     if (!task.isCategory && priority > 0) {
                         DetailRow(label = "Priority", value = priority.toString())
+                    }
+
+                    if (ui.subtasks.isNotEmpty()) {
+                        Text(
+                            if (task.isCategory) {
+                                "Tasks (${ui.subtasks.size})"
+                            } else {
+                                "Subtasks (${ui.subtasks.size})"
+                            },
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            ui.subtasks.forEach { child ->
+                                SubtaskRow(
+                                    task = child,
+                                    onClick = { onOpenSubtask(child.id) },
+                                )
+                            }
+                        }
                     }
 
                     task.dueMillis?.let {
@@ -304,6 +331,47 @@ fun TaskDetailScreen(
                 viewModel.setEventEnd(it)
                 showEventEndPicker = false
             },
+        )
+    }
+}
+
+@Composable
+private fun SubtaskRow(
+    task: TaskEntity,
+    onClick: () -> Unit,
+) {
+    val done = TaskTreeBuilder.isCompleted(task)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                task.summary,
+                style = MaterialTheme.typography.bodyLarge,
+                textDecoration = if (done) TextDecoration.LineThrough else null,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            val meta = buildList {
+                when {
+                    done -> add("Done")
+                    TaskTreeBuilder.isStarted(task) -> add("Started")
+                    !task.status.isNullOrBlank() -> add(task.status)
+                }
+                if (!task.linkedEventUid.isNullOrBlank()) add("linked event")
+            }.joinToString(" · ")
+            if (meta.isNotEmpty()) {
+                Text(meta, style = MaterialTheme.typography.labelSmall)
+            }
+        }
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
         )
     }
 }

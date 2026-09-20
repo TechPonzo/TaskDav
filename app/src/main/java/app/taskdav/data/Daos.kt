@@ -69,6 +69,15 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE uid = :uid LIMIT 1")
     suspend fun getByUid(uid: String): TaskEntity?
 
+    @Query(
+        """
+        SELECT * FROM tasks
+        WHERE deleted = 0 AND parentUid = :parentUid
+        ORDER BY sortOrder ASC, summary COLLATE NOCASE
+        """,
+    )
+    fun observeChildren(parentUid: String): Flow<List<TaskEntity>>
+
     @Query("SELECT * FROM tasks WHERE deleted = 0")
     suspend fun getActive(): List<TaskEntity>
 
