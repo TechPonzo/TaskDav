@@ -310,6 +310,7 @@ fun CalendarScreen(
         EventEditorDialog(
             isNew = ui.editingEventId == null,
             summary = ui.editorSummary,
+            description = ui.editorDescription,
             location = ui.editorLocation,
             startMillis = ui.editorStartMillis,
             endMillis = ui.editorEndMillis,
@@ -317,6 +318,7 @@ fun CalendarScreen(
             collections = eventCollections,
             error = ui.error,
             onSummary = viewModel::setEditorSummary,
+            onDescription = viewModel::setEditorDescription,
             onLocation = viewModel::setEditorLocation,
             onCollection = viewModel::setEditorCollection,
             onPickStart = { showStartPicker = true },
@@ -720,6 +722,15 @@ private fun EventRow(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
             )
+            event.description?.takeIf { it.isNotBlank() }?.let { details ->
+                Text(
+                    details,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             val meta = buildList {
                 item.collection?.displayName?.let { add(it) }
                 item.linkedTask?.let { add("Task: ${it.summary}") }
@@ -763,6 +774,7 @@ private fun EventRow(
 private fun EventEditorDialog(
     isNew: Boolean,
     summary: String,
+    description: String,
     location: String,
     startMillis: Long,
     endMillis: Long,
@@ -770,6 +782,7 @@ private fun EventEditorDialog(
     collections: List<CollectionEntity>,
     error: String?,
     onSummary: (String) -> Unit,
+    onDescription: (String) -> Unit,
     onLocation: (String) -> Unit,
     onCollection: (Long) -> Unit,
     onPickStart: () -> Unit,
@@ -793,6 +806,13 @@ private fun EventEditorDialog(
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Title") },
                     singleLine = true,
+                )
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = onDescription,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Description") },
+                    minLines = 3,
                 )
                 if (isNew && collections.isNotEmpty()) {
                     ExposedDropdownMenuBox(

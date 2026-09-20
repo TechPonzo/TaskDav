@@ -206,6 +206,7 @@ class TaskDetailViewModel(
                     startMillis = e.startMillis,
                     endMillis = e.endMillis,
                     location = e.location,
+                    description = event.description,
                 )
                 val syncMsg = repository.pushLocalChanges()
                 val stillDirty = repository.getEventByUid(event.uid)?.dirty == true

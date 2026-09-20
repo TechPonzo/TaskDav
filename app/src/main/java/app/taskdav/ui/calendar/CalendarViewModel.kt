@@ -40,6 +40,7 @@ data class CalendarUiState(
     val editorStartMillis: Long = System.currentTimeMillis(),
     val editorEndMillis: Long = System.currentTimeMillis() + CalendarViewModel.DEFAULT_DURATION_MS,
     val editorLocation: String = "",
+    val editorDescription: String = "",
     val editorCollectionId: Long? = null,
 )
 
@@ -339,6 +340,7 @@ class CalendarViewModel(
                 editorStartMillis = start,
                 editorEndMillis = start + DEFAULT_DURATION_MS,
                 editorLocation = "",
+                editorDescription = "",
                 editorCollectionId = it.collectionFilter
                     ?: cols.firstOrNull()?.id,
                 error = null,
@@ -357,6 +359,7 @@ class CalendarViewModel(
                 editorStartMillis = start,
                 editorEndMillis = end,
                 editorLocation = event.location.orEmpty(),
+                editorDescription = event.description.orEmpty(),
                 editorCollectionId = event.collectionId,
                 error = null,
             )
@@ -369,6 +372,7 @@ class CalendarViewModel(
 
     fun setEditorSummary(v: String) = _ui.update { it.copy(editorSummary = v) }
     fun setEditorLocation(v: String) = _ui.update { it.copy(editorLocation = v) }
+    fun setEditorDescription(v: String) = _ui.update { it.copy(editorDescription = v) }
     fun setEditorCollection(id: Long) = _ui.update { it.copy(editorCollectionId = id) }
     fun setEditorStart(millis: Long) = _ui.update {
         it.copy(
@@ -401,6 +405,7 @@ class CalendarViewModel(
                         startMillis = state.editorStartMillis,
                         endMillis = state.editorEndMillis,
                         location = state.editorLocation,
+                        description = state.editorDescription,
                     )
                 } else {
                     val existing = repository.getEventByUid(
@@ -414,6 +419,7 @@ class CalendarViewModel(
                         startMillis = state.editorStartMillis,
                         endMillis = state.editorEndMillis,
                         location = state.editorLocation,
+                        description = state.editorDescription,
                     )
                 }
                 repository.pushLocalChanges()

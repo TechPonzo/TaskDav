@@ -262,6 +262,7 @@ class EditorViewModel(
                     startMillis = state.eventStartMillis,
                     endMillis = state.eventEndMillis,
                     location = state.eventLocation,
+                    description = event.description,
                 )
                 val syncMsg = repository.pushLocalChanges()
                 val updated = repository.getEventByUid(event.uid)
