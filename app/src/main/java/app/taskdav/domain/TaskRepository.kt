@@ -2,6 +2,7 @@ package app.taskdav.domain
 
 import app.taskdav.caldav.IcalMapper
 import app.taskdav.caldav.SyncEngine
+import app.taskdav.caldav.SyncMode
 import app.taskdav.data.AccountCredentials
 import app.taskdav.data.AccountStore
 import app.taskdav.data.CollectionEntity
@@ -81,7 +82,9 @@ class TaskRepository(
         return "Found ${result.collections.size} collections"
     }
 
-    suspend fun syncNow(): String = syncEngine.syncAll().message
+    suspend fun syncNow(mode: SyncMode = SyncMode.FULL): String = syncEngine.syncAll(mode).message
+
+    suspend fun pushLocalChanges(): String = syncEngine.syncAll(SyncMode.PUSH_ONLY).message
 
     suspend fun createOrUpdateTask(state: TaskEditorState): Long {
         require(state.collectionId > 0) { "Pick a task list before saving" }
@@ -201,6 +204,28 @@ class TaskRepository(
                 percentComplete = if ((task.percentComplete ?: 0) >= 100) 0 else task.percentComplete,
                 dtStartMillis = now,
                 completedMillis = null,
+                dirty = true,
+                updatedAt = now,
+            ),
+        )
+    }
+
+    /**
+     * Convert a top-level task into a category or the reverse.
+     * Subtasks cannot become categories (they have a parent).
+     */
+    suspend fun setIsCategory(taskId: Long, isCategory: Boolean) {
+        val task = db.tasks().getById(taskId) ?: return
+        if (!task.parentUid.isNullOrBlank()) return
+        if (task.isCategory == isCategory) return
+        val now = System.currentTimeMillis()
+        db.tasks().update(
+            task.copy(
+                isCategory = isCategory,
+                dueMillis = if (isCategory) null else task.dueMillis,
+                priority = if (isCategory) 0 else task.priority,
+                linkedEventUid = if (isCategory) null else task.linkedEventUid,
+                icsRaw = null,
                 dirty = true,
                 updatedAt = now,
             ),

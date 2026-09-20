@@ -160,8 +160,12 @@ fun OkHttpClient.putIcsUnconditional(url: String, ics: String): Response {
     return newCall(request).execute()
 }
 
-fun OkHttpClient.getResource(url: String): Response {
-    return newCall(Request.Builder().url(url).get().build()).execute()
+fun OkHttpClient.getResource(url: String, ifNoneMatch: String? = null): Response {
+    val builder = Request.Builder().url(url).get()
+    if (!ifNoneMatch.isNullOrBlank()) {
+        builder.header("If-None-Match", quotedEtag(ifNoneMatch))
+    }
+    return newCall(builder.build()).execute()
 }
 
 fun OkHttpClient.deleteResource(url: String, etag: String?): Response {

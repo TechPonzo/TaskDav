@@ -157,7 +157,7 @@ class NoteEditorViewModel(
                     description = s.description,
                     categories = categories,
                 )
-                val syncMsg = repository.syncNow()
+                val syncMsg = repository.pushLocalChanges()
                 val stillDirty = repository.getNote(id)?.dirty == true
                 if (stillDirty) {
                     _state.update {

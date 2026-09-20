@@ -10,7 +10,6 @@ import app.taskdav.data.EventEntity
 import app.taskdav.data.TaskEntity
 import app.taskdav.domain.TaskRepository
 import app.taskdav.domain.TaskTreeBuilder
-import app.taskdav.sync.CalDavSyncWorker
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -136,21 +135,30 @@ class TaskDetailViewModel(
     fun startTask() {
         viewModelScope.launch {
             repository.startTask(taskId)
-            CalDavSyncWorker.enqueueNow(app)
+            repository.pushLocalChanges()
         }
     }
 
     fun endTask() {
         viewModelScope.launch {
             repository.endTask(taskId)
-            CalDavSyncWorker.enqueueNow(app)
+            repository.pushLocalChanges()
+        }
+    }
+
+    fun convertKind() {
+        viewModelScope.launch {
+            val task = ui.value.task ?: return@launch
+            if (!task.parentUid.isNullOrBlank()) return@launch
+            repository.setIsCategory(taskId, !task.isCategory)
+            repository.pushLocalChanges()
         }
     }
 
     fun deleteTask() {
         viewModelScope.launch {
             repository.deleteTask(taskId)
-            CalDavSyncWorker.enqueueNow(app)
+            repository.pushLocalChanges()
             deleted.value = true
         }
     }
@@ -199,7 +207,7 @@ class TaskDetailViewModel(
                     endMillis = e.endMillis,
                     location = e.location,
                 )
-                val syncMsg = repository.syncNow()
+                val syncMsg = repository.pushLocalChanges()
                 val stillDirty = repository.getEventByUid(event.uid)?.dirty == true
                 if (stillDirty) {
                     edit.update {

@@ -223,6 +223,21 @@ fun TaskDetailScreen(
                         Text("Edit")
                     }
 
+                    if (task.parentUid.isNullOrBlank()) {
+                        OutlinedButton(
+                            onClick = viewModel::convertKind,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                if (task.isCategory) {
+                                    "Convert to task"
+                                } else {
+                                    "Convert to category"
+                                },
+                            )
+                        }
+                    }
+
                     OutlinedButton(
                         onClick = { showDeleteConfirm = true },
                         modifier = Modifier.fillMaxWidth(),

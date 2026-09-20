@@ -83,21 +83,21 @@ class TasksViewModel(
     fun toggleComplete(taskId: Long) {
         viewModelScope.launch {
             repository.toggleComplete(taskId)
-            CalDavSyncWorker.enqueueNow(app)
+            repository.pushLocalChanges()
         }
     }
 
     fun deleteTask(taskId: Long) {
         viewModelScope.launch {
             repository.deleteTask(taskId)
-            CalDavSyncWorker.enqueueNow(app)
+            repository.pushLocalChanges()
         }
     }
 
     fun persistOrder(flat: List<TaskNode>) {
         viewModelScope.launch {
             repository.persistFlatOrder(flat)
-            CalDavSyncWorker.enqueueNow(app)
+            repository.pushLocalChanges()
         }
     }
 

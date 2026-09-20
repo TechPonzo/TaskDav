@@ -129,7 +129,8 @@ class EditorViewModel(
 
     fun setIsCategory(isCategory: Boolean) {
         updateEditor { editor ->
-            if (editor.id != null || !editor.parentUid.isNullOrBlank()) editor
+            // Only top-level items can be categories (not subtasks)
+            if (!editor.parentUid.isNullOrBlank()) editor
             else editor.copy(
                 isCategory = isCategory,
                 dueMillis = if (isCategory) null else editor.dueMillis,
@@ -225,7 +226,7 @@ class EditorViewModel(
                     location = state.eventLocation,
                 )
                 val event = repository.getEventByUid(uid)
-                val syncMsg = repository.syncNow()
+                val syncMsg = repository.pushLocalChanges()
                 val eventDirty = repository.getEventByUid(uid)?.dirty == true
                 _ui.update {
                     it.copy(
@@ -262,7 +263,7 @@ class EditorViewModel(
                     endMillis = state.eventEndMillis,
                     location = state.eventLocation,
                 )
-                val syncMsg = repository.syncNow()
+                val syncMsg = repository.pushLocalChanges()
                 val updated = repository.getEventByUid(event.uid)
                 val eventDirty = updated?.dirty == true
                 _ui.update {
@@ -295,8 +296,7 @@ class EditorViewModel(
                 val id = repository.createOrUpdateTask(
                     withTag.copy(id = withTag.id ?: taskId),
                 )
-                // Push to Radicale now (don't only queue WorkManager — that can lag or fail silently)
-                val syncMsg = repository.syncNow()
+                val syncMsg = repository.pushLocalChanges()
                 val stillDirty = repository.getTask(id)?.dirty == true
                 if (stillDirty) {
                     _ui.update {

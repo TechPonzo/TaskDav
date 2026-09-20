@@ -72,7 +72,7 @@ fun EditorScreen(
     }
 
     val isCategory = editor?.isCategory == true
-    val canToggleKind = editor != null && editor.id == null && editor.parentUid.isNullOrBlank()
+    val canToggleKind = editor != null && editor.parentUid.isNullOrBlank()
     val title = when {
         editor == null -> "Task"
         editor.id == null && isCategory -> "New category"
@@ -130,13 +130,15 @@ fun EditorScreen(
                         label = { Text("Category") },
                     )
                 }
-                if (isCategory) {
-                    Text(
-                        "Categories group tasks. Add tasks inside from the list with +.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                    )
-                }
+                Text(
+                    if (isCategory) {
+                        "Categories group tasks. Nested items stay as tasks inside this category."
+                    } else {
+                        "Switch to Category to use this as a folder for other tasks."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                )
             }
 
             OutlinedTextField(
