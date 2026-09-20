@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import app.taskdav.TaskDavApp
+import app.taskdav.data.CalendarViewMode
 import app.taskdav.data.CollectionEntity
 import app.taskdav.data.EventEntity
 import app.taskdav.data.TaskEntity
@@ -11,7 +13,6 @@ import app.taskdav.domain.TaskRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -19,9 +20,15 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 
 data class CalendarUiState(
+    val viewMode: CalendarViewMode = CalendarViewMode.MONTHLY_AND_DAILY,
+    val showViewPicker: Boolean = false,
     /** First day of the month currently shown in the grid. */
     val visibleMonthStartMillis: Long = CalendarViewModel.startOfMonthMillis(),
-    /** Selected day, or null after changing months until the user picks a day. */
+    /** Monday of the week currently shown in weekly view. */
+    val visibleWeekStartMillis: Long = CalendarViewModel.startOfWeekMillis(),
+    /** Year shown in yearly view. */
+    val visibleYear: Int = CalendarViewModel.currentYear(),
+    /** Selected day, or null after changing months/weeks until the user picks a day. */
     val selectedDayStartMillis: Long? = CalendarViewModel.startOfDayMillis(),
     val collectionFilter: Long? = null,
     val syncMessage: String? = null,
@@ -54,10 +61,21 @@ class CalendarViewModel(
     private val app: Application,
     private val repository: TaskRepository,
 ) : ViewModel() {
+    private val appearanceStore = (app as TaskDavApp).appearanceStore
+
     private val _ui = MutableStateFlow(
         CalendarUiState(syncMessage = repository.lastSyncMessage()),
     )
-    val ui: StateFlow<CalendarUiState> = _ui.asStateFlow()
+    val ui: StateFlow<CalendarUiState> = combine(
+        _ui,
+        appearanceStore.calendarViewMode,
+    ) { state, modeId ->
+        state.copy(viewMode = CalendarViewMode.fromId(modeId))
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        CalendarUiState(syncMessage = repository.lastSyncMessage()),
+    )
 
     val collections: StateFlow<List<CollectionEntity>> = repository.observeCollections()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -77,6 +95,26 @@ class CalendarViewModel(
         buildMonthCells(state.visibleMonthStartMillis, events, collections)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** 12 mini-month grids for the visible year. */
+    val yearMonths: StateFlow<List<List<MonthDayCell>>> = combine(
+        filteredEvents,
+        collections,
+        _ui,
+    ) { events, collections, state ->
+        (Calendar.JANUARY..Calendar.DECEMBER).map { month ->
+            val monthStart = Calendar.getInstance().apply {
+                set(Calendar.YEAR, state.visibleYear)
+                set(Calendar.MONTH, month)
+                set(Calendar.DAY_OF_MONTH, 1)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            buildMonthCells(monthStart, events, collections)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     val dayItems: StateFlow<List<CalendarDayItem>> = combine(
         filteredEvents,
         repository.observeCollections(),
@@ -84,17 +122,33 @@ class CalendarViewModel(
         _ui,
     ) { events, collections, tasks, state ->
         val dayStart = state.selectedDayStartMillis ?: return@combine emptyList()
-        val dayEnd = dayStart + DAY_MS
+        mapDayItems(events, collections, tasks, dayStart, dayStart + DAY_MS)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Events for the week currently shown. */
+    val weekItems: StateFlow<List<CalendarDayItem>> = combine(
+        filteredEvents,
+        repository.observeCollections(),
+        repository.observeTasks(),
+        _ui,
+    ) { events, collections, tasks, state ->
+        val weekStart = state.visibleWeekStartMillis
+        mapDayItems(events, collections, tasks, weekStart, weekStart + 7 * DAY_MS)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Upcoming / all events for the simple list view. */
+    val upcomingItems: StateFlow<List<CalendarDayItem>> = combine(
+        filteredEvents,
+        repository.observeCollections(),
+        repository.observeTasks(),
+    ) { events, collections, tasks ->
         val byCollection = collections.associateBy { it.id }
         val taskByEventUid = tasks
             .filter { !it.linkedEventUid.isNullOrBlank() }
             .associateBy { it.linkedEventUid!!.lowercase() }
         events
-            .asSequence()
-            .filter { overlapsDay(it, dayStart, dayEnd) }
             .sortedWith(
                 compareBy(
-                    { it.allDay },
                     { it.dtStartMillis ?: Long.MAX_VALUE },
                     { it.summary.lowercase() },
                 ),
@@ -106,17 +160,59 @@ class CalendarViewModel(
                     linkedTask = taskByEventUid[event.uid.lowercase()],
                 )
             }
-            .toList()
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun selectDay(dayStartMillis: Long) {
+    fun openViewPicker() = _ui.update { it.copy(showViewPicker = true) }
+    fun dismissViewPicker() = _ui.update { it.copy(showViewPicker = false) }
+
+    fun setViewMode(mode: CalendarViewMode) {
+        viewModelScope.launch {
+            appearanceStore.setCalendarViewMode(mode.id)
+            _ui.update { state ->
+                val needsDay = state.selectedDayStartMillis == null &&
+                    mode != CalendarViewMode.YEARLY &&
+                    mode != CalendarViewMode.EVENT_LIST &&
+                    mode != CalendarViewMode.MONTHLY &&
+                    mode != CalendarViewMode.WEEKLY
+                val today = startOfDay(System.currentTimeMillis())
+                state.copy(
+                    showViewPicker = false,
+                    selectedDayStartMillis = if (needsDay) today else state.selectedDayStartMillis,
+                    visibleMonthStartMillis = if (needsDay) {
+                        startOfMonth(today)
+                    } else {
+                        state.visibleMonthStartMillis
+                    },
+                    visibleWeekStartMillis = if (mode == CalendarViewMode.WEEKLY &&
+                        state.selectedDayStartMillis == null
+                    ) {
+                        startOfWeek(today)
+                    } else if (needsDay) {
+                        startOfWeek(today)
+                    } else {
+                        state.visibleWeekStartMillis
+                    },
+                    visibleYear = if (needsDay) yearOf(today) else state.visibleYear,
+                )
+            }
+        }
+    }
+
+    fun selectDay(dayStartMillis: Long, switchToMonthDaily: Boolean = false) {
         val day = startOfDay(dayStartMillis)
-        _ui.update {
-            it.copy(
-                selectedDayStartMillis = day,
-                visibleMonthStartMillis = startOfMonth(day),
-                error = null,
-            )
+        viewModelScope.launch {
+            if (switchToMonthDaily) {
+                appearanceStore.setCalendarViewMode(CalendarViewMode.MONTHLY_AND_DAILY.id)
+            }
+            _ui.update {
+                it.copy(
+                    selectedDayStartMillis = day,
+                    visibleMonthStartMillis = startOfMonth(day),
+                    visibleWeekStartMillis = startOfWeek(day),
+                    visibleYear = yearOf(day),
+                    error = null,
+                )
+            }
         }
     }
 
@@ -129,6 +225,43 @@ class CalendarViewModel(
             }
             state.copy(
                 visibleMonthStartMillis = startOfDay(cal.timeInMillis),
+                visibleYear = cal.get(Calendar.YEAR),
+                selectedDayStartMillis = null,
+                error = null,
+            )
+        }
+    }
+
+    fun shiftYear(deltaYears: Int) {
+        _ui.update { state ->
+            state.copy(
+                visibleYear = state.visibleYear + deltaYears,
+                selectedDayStartMillis = null,
+                error = null,
+            )
+        }
+    }
+
+    fun shiftDay(deltaDays: Int) {
+        _ui.update { state ->
+            val base = state.selectedDayStartMillis ?: startOfDay(System.currentTimeMillis())
+            val day = base + deltaDays * DAY_MS
+            state.copy(
+                selectedDayStartMillis = day,
+                visibleMonthStartMillis = startOfMonth(day),
+                visibleWeekStartMillis = startOfWeek(day),
+                visibleYear = yearOf(day),
+            )
+        }
+    }
+
+    fun shiftWeek(deltaWeeks: Int) {
+        _ui.update { state ->
+            val weekStart = state.visibleWeekStartMillis + deltaWeeks * 7 * DAY_MS
+            state.copy(
+                visibleWeekStartMillis = weekStart,
+                visibleMonthStartMillis = startOfMonth(weekStart),
+                visibleYear = yearOf(weekStart),
                 selectedDayStartMillis = null,
                 error = null,
             )
@@ -141,8 +274,33 @@ class CalendarViewModel(
             it.copy(
                 selectedDayStartMillis = today,
                 visibleMonthStartMillis = startOfMonth(today),
+                visibleWeekStartMillis = startOfWeek(today),
+                visibleYear = yearOf(today),
                 error = null,
             )
+        }
+    }
+
+    fun openMonth(year: Int, monthIndex: Int) {
+        val monthStart = Calendar.getInstance().apply {
+            set(Calendar.YEAR, year)
+            set(Calendar.MONTH, monthIndex)
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        viewModelScope.launch {
+            appearanceStore.setCalendarViewMode(CalendarViewMode.MONTHLY_AND_DAILY.id)
+            _ui.update {
+                it.copy(
+                    visibleMonthStartMillis = monthStart,
+                    visibleYear = year,
+                    selectedDayStartMillis = null,
+                    error = null,
+                )
+            }
         }
     }
 
@@ -298,6 +456,14 @@ class CalendarViewModel(
 
         fun startOfMonthMillis(millis: Long = System.currentTimeMillis()): Long = startOfMonth(millis)
 
+        fun startOfWeekMillis(millis: Long = System.currentTimeMillis()): Long = startOfWeek(millis)
+
+        fun currentYear(): Int = Calendar.getInstance().get(Calendar.YEAR)
+
+        fun yearOf(millis: Long): Int {
+            return Calendar.getInstance().apply { timeInMillis = millis }.get(Calendar.YEAR)
+        }
+
         fun startOfDay(millis: Long): Long {
             val cal = Calendar.getInstance()
             cal.timeInMillis = millis
@@ -317,6 +483,45 @@ class CalendarViewModel(
             cal.set(Calendar.SECOND, 0)
             cal.set(Calendar.MILLISECOND, 0)
             return cal.timeInMillis
+        }
+
+        fun startOfWeek(millis: Long): Long {
+            val cal = Calendar.getInstance()
+            cal.timeInMillis = startOfDay(millis)
+            val offset = (cal.get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7
+            cal.add(Calendar.DAY_OF_MONTH, -offset)
+            return cal.timeInMillis
+        }
+
+        private fun mapDayItems(
+            events: List<EventEntity>,
+            collections: List<CollectionEntity>,
+            tasks: List<TaskEntity>,
+            rangeStart: Long,
+            rangeEnd: Long,
+        ): List<CalendarDayItem> {
+            val byCollection = collections.associateBy { it.id }
+            val taskByEventUid = tasks
+                .filter { !it.linkedEventUid.isNullOrBlank() }
+                .associateBy { it.linkedEventUid!!.lowercase() }
+            return events
+                .asSequence()
+                .filter { overlapsDay(it, rangeStart, rangeEnd) }
+                .sortedWith(
+                    compareBy(
+                        { it.allDay },
+                        { it.dtStartMillis ?: Long.MAX_VALUE },
+                        { it.summary.lowercase() },
+                    ),
+                )
+                .map { event ->
+                    CalendarDayItem(
+                        event = event,
+                        collection = byCollection[event.collectionId],
+                        linkedTask = taskByEventUid[event.uid.lowercase()],
+                    )
+                }
+                .toList()
         }
 
         fun overlapsDay(event: EventEntity, dayStart: Long, dayEnd: Long): Boolean {
