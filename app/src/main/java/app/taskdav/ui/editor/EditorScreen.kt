@@ -31,7 +31,6 @@ import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -224,13 +223,30 @@ fun EditorScreen(
             }
 
             if (!isCategory) {
-                Text("Priority: ${editor.priority ?: 0}", style = MaterialTheme.typography.labelLarge)
-                Slider(
-                    value = (editor.priority ?: 0).toFloat(),
-                    onValueChange = { viewModel.updatePriority(it.toInt()) },
-                    valueRange = 0f..9f,
-                    steps = 8,
+                val priority = (editor.priority ?: 0).coerceIn(0, 9)
+                Text(
+                    "Priority: $priority",
+                    style = MaterialTheme.typography.labelLarge,
                 )
+                Text(
+                    "0 = none · 1 = highest · 9 = lowest",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    (0..9).forEach { value ->
+                        FilterChip(
+                            selected = priority == value,
+                            onClick = { viewModel.updatePriority(value) },
+                            label = { Text("$value") },
+                        )
+                    }
+                }
 
                 Text("Due", style = MaterialTheme.typography.titleSmall)
                 Text(

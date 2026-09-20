@@ -229,7 +229,9 @@ object IcalMapper {
         }
         todoStatus(status)?.let { todo.properties.add(it) }
         if (percentComplete != null) todo.properties.add(PercentComplete(percentComplete))
-        if (priority != null && priority > 0) todo.properties.add(Priority(priority))
+        if (priority != null && priority > 0) {
+            todo.properties.add(Priority(priority.coerceIn(1, 9)))
+        }
         if (dtStartMillis != null) {
             todo.properties.add(DtStart(DateTime(dtStartMillis).also { it.isUtc = true }))
         }
