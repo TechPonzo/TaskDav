@@ -271,6 +271,7 @@ private fun HomeScaffold(
                         onOpenNote = { onEditNote(it) },
                         onSeeAllTasks = { onSelectTab("tasks") },
                         onSeeAllNotes = { onSelectTab("notes") },
+                        onSeeCalendar = { onSelectTab("calendar") },
                     )
                 }
                 "calendar" -> {

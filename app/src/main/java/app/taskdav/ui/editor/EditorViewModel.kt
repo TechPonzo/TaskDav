@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -51,6 +52,16 @@ class EditorViewModel(
 
     val events: StateFlow<List<EventEntity>> = repository.observeEvents()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val knownTags: StateFlow<List<String>> = combine(
+        repository.observeTasks(),
+        repository.observeNotes(),
+    ) { tasks, notes ->
+        (tasks.flatMap { parseCategories(it.categories) } +
+            notes.flatMap { parseCategories(it.categories) })
+            .distinct()
+            .sortedBy { it.lowercase() }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     init {
         viewModelScope.launch { load() }

@@ -11,8 +11,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,7 +25,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.DropdownMenuItem
@@ -38,10 +35,8 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -58,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.taskdav.ui.common.TagsEditor
 import app.taskdav.ui.common.joinCategories
 import app.taskdav.ui.common.parseCategories
 import app.taskdav.ui.theme.collectionColorOrDefault
@@ -233,7 +229,7 @@ fun NotesScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoteEditorScreen(
     viewModel: NoteEditorViewModel,
@@ -241,6 +237,7 @@ fun NoteEditorScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val collections by viewModel.collections.collectAsStateWithLifecycle()
+    val knownTags by viewModel.knownTags.collectAsStateWithLifecycle()
     var tagDraft by remember { mutableStateOf("") }
     val tags = parseCategories(state.categories)
 
@@ -324,37 +321,18 @@ fun NoteEditorScreen(
                 }
             }
 
-            Text("Tags", style = MaterialTheme.typography.titleSmall)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                tags.forEach { tag ->
-                    InputChip(
-                        selected = false,
-                        onClick = { viewModel.updateCategories(joinCategories(tags - tag)) },
-                        label = { Text(tag) },
-                        trailingIcon = {
-                            Icon(Icons.Default.Close, contentDescription = "Remove")
-                        },
-                    )
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = tagDraft,
-                    onValueChange = { tagDraft = it },
-                    modifier = Modifier.weight(1f),
-                    label = { Text("Add tag") },
-                    singleLine = true,
-                )
-                OutlinedButton(
-                    onClick = {
-                        val next = tagDraft.trim()
-                        if (next.isNotEmpty()) {
-                            viewModel.updateCategories(joinCategories(tags + next))
-                            tagDraft = ""
-                        }
-                    },
-                ) { Text("Add") }
-            }
+            TagsEditor(
+                selected = tags,
+                knownTags = knownTags,
+                draft = tagDraft,
+                onDraftChange = { tagDraft = it },
+                onAdd = { tag ->
+                    viewModel.updateCategories(joinCategories(tags + tag))
+                },
+                onRemove = { tag ->
+                    viewModel.updateCategories(joinCategories(tags - tag))
+                },
+            )
 
             state.error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error)

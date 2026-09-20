@@ -16,7 +16,7 @@ Kotlin Android app for tasks and notes that syncs over CalDAV with your own serv
 - Appearance themes (Forest, Ocean, Sand, Slate, High contrast)
 - Export selected calendars as ICS via the share sheet
 - Collections list is pruned when calendars are removed on the server
-- Bottom tabs: Home / Tasks / Notes / Settings; Home shows recent items with tag and calendar filters
+- Bottom tabs: Home / Calendar / Tasks / Notes / Settings; Home is a hub with stats, today, overdue, upcoming, and recent notes
 - Categories are nestable VTODO parents (`X-TASKDAV-KIND:CATEGORY`) for grouping tasks
 - Settings hub: Account, Collections, Appearance, Export, Privacy & license, Credits
 

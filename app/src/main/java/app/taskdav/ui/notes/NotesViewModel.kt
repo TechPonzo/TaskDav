@@ -144,6 +144,16 @@ class NoteEditorViewModel(
     val collections: StateFlow<List<CollectionEntity>> = repository.observeCollections()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val knownTags: StateFlow<List<String>> = combine(
+        repository.observeTasks(),
+        repository.observeNotes(),
+    ) { tasks, notes ->
+        (tasks.flatMap { parseCategories(it.categories) } +
+            notes.flatMap { parseCategories(it.categories) })
+            .distinct()
+            .sortedBy { it.lowercase() }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     init {
         viewModelScope.launch {
             if (noteId != null) {

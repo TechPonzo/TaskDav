@@ -4,8 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,7 +14,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
@@ -26,7 +23,6 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
@@ -48,10 +44,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.taskdav.ui.common.DateFormats
 import app.taskdav.ui.common.DateTimePickerDialog
 import app.taskdav.ui.common.LinkedCalendarSection
+import app.taskdav.ui.common.TagsEditor
 import app.taskdav.ui.common.joinCategories
 import app.taskdav.ui.common.parseCategories
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorScreen(
     viewModel: EditorViewModel,
@@ -60,6 +57,7 @@ fun EditorScreen(
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val collections by viewModel.collections.collectAsStateWithLifecycle()
     val events by viewModel.events.collectAsStateWithLifecycle()
+    val knownTags by viewModel.knownTags.collectAsStateWithLifecycle()
     val editor = ui.editor
     val context = LocalContext.current
 
@@ -190,42 +188,18 @@ fun EditorScreen(
                 }
             }
 
-            Text("Tags", style = MaterialTheme.typography.titleSmall)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                tags.forEach { tag ->
-                    InputChip(
-                        selected = false,
-                        onClick = {
-                            viewModel.updateCategories(joinCategories(tags - tag))
-                        },
-                        label = { Text(tag) },
-                        trailingIcon = {
-                            Icon(Icons.Default.Close, contentDescription = "Remove $tag")
-                        },
-                    )
-                }
-            }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                OutlinedTextField(
-                    value = tagDraft,
-                    onValueChange = { tagDraft = it },
-                    modifier = Modifier.weight(1f),
-                    label = { Text("Add tag") },
-                    singleLine = true,
-                )
-                OutlinedButton(
-                    onClick = {
-                        val next = tagDraft.trim()
-                        if (next.isNotEmpty()) {
-                            viewModel.updateCategories(joinCategories(tags + next))
-                            tagDraft = ""
-                        }
-                    },
-                ) { Text("Add") }
-            }
+            TagsEditor(
+                selected = tags,
+                knownTags = knownTags,
+                draft = tagDraft,
+                onDraftChange = { tagDraft = it },
+                onAdd = { tag ->
+                    viewModel.updateCategories(joinCategories(tags + tag))
+                },
+                onRemove = { tag ->
+                    viewModel.updateCategories(joinCategories(tags - tag))
+                },
+            )
 
             if (!isCategory) {
                 val priority = (editor.priority ?: 0).coerceIn(0, 9)
