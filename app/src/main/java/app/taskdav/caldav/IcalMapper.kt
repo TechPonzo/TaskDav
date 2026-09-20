@@ -1,0 +1,372 @@
+package app.taskdav.caldav
+
+import net.fortuna.ical4j.data.CalendarBuilder
+import net.fortuna.ical4j.data.CalendarOutputter
+import net.fortuna.ical4j.model.Calendar
+import net.fortuna.ical4j.model.Component
+import net.fortuna.ical4j.model.Date
+import net.fortuna.ical4j.model.DateTime
+import net.fortuna.ical4j.model.Parameter
+import net.fortuna.ical4j.model.Property
+import net.fortuna.ical4j.model.component.VEvent
+import net.fortuna.ical4j.model.component.VJournal
+import net.fortuna.ical4j.model.component.VToDo
+import net.fortuna.ical4j.model.parameter.RelType
+import net.fortuna.ical4j.model.parameter.Value
+import net.fortuna.ical4j.model.property.Categories
+import net.fortuna.ical4j.model.property.Completed
+import net.fortuna.ical4j.model.property.Description
+import net.fortuna.ical4j.model.property.DtEnd
+import net.fortuna.ical4j.model.property.DtStamp
+import net.fortuna.ical4j.model.property.DtStart
+import net.fortuna.ical4j.model.property.Due
+import net.fortuna.ical4j.model.property.PercentComplete
+import net.fortuna.ical4j.model.property.Priority
+import net.fortuna.ical4j.model.property.ProdId
+import net.fortuna.ical4j.model.property.RelatedTo
+import net.fortuna.ical4j.model.property.Status
+import net.fortuna.ical4j.model.property.Summary
+import net.fortuna.ical4j.model.property.Uid
+import net.fortuna.ical4j.model.property.Version
+import net.fortuna.ical4j.model.property.XProperty
+import java.io.StringReader
+import java.io.StringWriter
+import java.util.TimeZone
+import java.util.UUID
+
+const val X_TASKDAV_KIND = "X-TASKDAV-KIND"
+const val KIND_CATEGORY = "CATEGORY"
+
+data class ParsedTodo(
+    val uid: String,
+    val summary: String,
+    val description: String?,
+    val status: String?,
+    val percentComplete: Int?,
+    val priority: Int?,
+    val dtStartMillis: Long?,
+    val dueMillis: Long?,
+    val completedMillis: Long?,
+    val categories: String?,
+    val parentUid: String?,
+    val linkedEventUid: String?,
+    val isCategory: Boolean = false,
+    val icsRaw: String,
+)
+
+data class ParsedEvent(
+    val uid: String,
+    val summary: String,
+    val description: String?,
+    val dtStartMillis: Long?,
+    val dtEndMillis: Long?,
+    val allDay: Boolean,
+    val icsRaw: String,
+)
+
+data class ParsedNote(
+    val uid: String,
+    val summary: String,
+    val description: String?,
+    val dtStartMillis: Long?,
+    val categories: String?,
+    val icsRaw: String,
+)
+
+object IcalMapper {
+    init {
+        System.setProperty(
+            "net.fortuna.ical4j.timezone.cache.impl",
+            "net.fortuna.ical4j.util.MapTimeZoneCache",
+        )
+        System.setProperty("net.fortuna.ical4j.timezone.update.enabled", "false")
+        System.setProperty("ical4j.parsing.relaxed", "true")
+        System.setProperty("ical4j.unfolding.relaxed", "true")
+        System.setProperty("ical4j.validation.relaxed", "true")
+    }
+
+    fun parseTodos(ics: String): List<ParsedTodo> {
+        val calendar = CalendarBuilder().build(StringReader(ics))
+        val todos = calendar.getComponents<VToDo>(Component.VTODO)
+        return todos.map { todo ->
+            var parentUid: String? = null
+            var linkedEventUid: String? = null
+            val relatedProps = mutableListOf<RelatedTo>()
+            for (prop in todo.properties) {
+                val p = prop as Property
+                if (p.name.equals(Property.RELATED_TO, ignoreCase = true)) {
+                    relatedProps += p as RelatedTo
+                }
+            }
+            for (relatedTo in relatedProps) {
+                val rel = relatedTo.getParameter(Parameter.RELTYPE) as? RelType
+                val relValue = rel?.value?.uppercase()
+                when (relValue) {
+                    null, "PARENT" -> parentUid = relatedTo.value
+                    "RELATED", "SIBLING" -> if (linkedEventUid == null) linkedEventUid = relatedTo.value
+                    else -> {
+                        if (linkedEventUid == null && relValue != "CHILD") {
+                            linkedEventUid = relatedTo.value
+                        }
+                    }
+                }
+            }
+            ParsedTodo(
+                uid = todo.uid?.value ?: UUID.randomUUID().toString(),
+                summary = todo.summary?.value.orEmpty().ifBlank { "(untitled)" },
+                description = todo.description?.value
+                    ?: (todo.getProperty(Property.DESCRIPTION) as? Description)?.value,
+                status = todo.status?.value,
+                percentComplete = todo.percentComplete?.percentage,
+                priority = todo.priority?.level,
+                dtStartMillis = todo.startDate?.date?.toInstantMillis()
+                    ?: (todo.getProperty(Property.DTSTART) as? DtStart)?.date?.toInstantMillis(),
+                dueMillis = todo.due?.date?.toInstantMillis()
+                    ?: (todo.getProperty(Property.DUE) as? Due)?.date?.toInstantMillis(),
+                completedMillis = todo.dateCompleted?.date?.toInstantMillis()
+                    ?: (todo.getProperty(Property.COMPLETED) as? Completed)?.date?.toInstantMillis(),
+                categories = (todo.getProperty(Property.CATEGORIES) as? Categories)?.value,
+                parentUid = parentUid,
+                linkedEventUid = linkedEventUid,
+                isCategory = todo.properties
+                    .filterIsInstance<Property>()
+                    .any { prop ->
+                        prop.name.equals(X_TASKDAV_KIND, ignoreCase = true) &&
+                            prop.value.equals(KIND_CATEGORY, ignoreCase = true)
+                    },
+                icsRaw = ics,
+            )
+        }
+    }
+
+    fun parseEvents(ics: String): List<ParsedEvent> {
+        val calendar = CalendarBuilder().build(StringReader(ics))
+        val events = calendar.getComponents<VEvent>(Component.VEVENT)
+        return events.map { event ->
+            val start = event.startDate
+            val allDay = start != null && start.date !is DateTime
+            ParsedEvent(
+                uid = event.uid?.value ?: UUID.randomUUID().toString(),
+                summary = event.summary?.value.orEmpty().ifBlank { "(untitled)" },
+                description = event.description?.value,
+                dtStartMillis = start?.date?.toInstantMillis(),
+                dtEndMillis = event.endDate?.date?.toInstantMillis(),
+                allDay = allDay,
+                icsRaw = ics,
+            )
+        }
+    }
+
+    fun parseNotes(ics: String): List<ParsedNote> {
+        val calendar = CalendarBuilder().build(StringReader(ics))
+        val notes = calendar.getComponents<VJournal>(Component.VJOURNAL)
+        return notes.map { note ->
+            ParsedNote(
+                uid = note.uid?.value ?: UUID.randomUUID().toString(),
+                summary = note.summary?.value.orEmpty().ifBlank { "(untitled)" },
+                description = note.description?.value,
+                dtStartMillis = note.startDate?.date?.toInstantMillis(),
+                categories = (note.getProperty(Property.CATEGORIES) as? Categories)?.value,
+                icsRaw = ics,
+            )
+        }
+    }
+
+    fun buildNoteIcs(
+        uid: String,
+        summary: String,
+        description: String?,
+        dtStartMillis: Long?,
+        categories: String?,
+    ): String {
+        val calendar = Calendar()
+        calendar.properties.add(ProdId("-//TaskDav//EN"))
+        calendar.properties.add(Version.VERSION_2_0)
+        // false = do not auto-add DTSTAMP (we add exactly one below)
+        val journal = VJournal(false)
+        journal.properties.add(Uid(uid))
+        journal.properties.add(DtStamp(DateTime(System.currentTimeMillis()).also { it.isUtc = true }))
+        journal.properties.add(Summary(summary))
+        if (!description.isNullOrBlank()) {
+            journal.properties.add(Description(description))
+        }
+        if (dtStartMillis != null) {
+            journal.properties.add(DtStart(DateTime(dtStartMillis).also { it.isUtc = true }))
+        }
+        addCategories(journal.properties, categories)
+        calendar.components.add(journal)
+        return outputCalendar(calendar)
+    }
+
+    fun buildTodoIcs(
+        uid: String,
+        summary: String,
+        description: String?,
+        status: String?,
+        percentComplete: Int?,
+        priority: Int?,
+        dtStartMillis: Long?,
+        dueMillis: Long?,
+        completedMillis: Long?,
+        categories: String?,
+        parentUid: String?,
+        linkedEventUid: String?,
+        existingRaw: String?,
+        isCategory: Boolean = false,
+    ): String {
+        val calendar = Calendar()
+        calendar.properties.add(ProdId("-//TaskDav//EN"))
+        calendar.properties.add(Version.VERSION_2_0)
+
+        // false = do not auto-add DTSTAMP; duplicate DTSTAMP → Radicale HTTP 400
+        val todo = VToDo(false)
+        val now = System.currentTimeMillis()
+        todo.properties.add(Uid(uid))
+        todo.properties.add(DtStamp(DateTime(now).also { it.isUtc = true }))
+        todo.properties.add(Summary(summary))
+        if (!description.isNullOrBlank()) {
+            todo.properties.add(Description(description))
+        }
+        todoStatus(status)?.let { todo.properties.add(it) }
+        if (percentComplete != null) todo.properties.add(PercentComplete(percentComplete))
+        if (priority != null && priority > 0) todo.properties.add(Priority(priority))
+        if (dtStartMillis != null) {
+            todo.properties.add(DtStart(DateTime(dtStartMillis).also { it.isUtc = true }))
+        }
+        if (dueMillis != null) {
+            todo.properties.add(Due(DateTime(dueMillis).also { it.isUtc = true }))
+        }
+        if (completedMillis != null) {
+            todo.properties.add(Completed(DateTime(completedMillis).also { it.isUtc = true }))
+        }
+        addCategories(todo.properties, categories)
+        if (!parentUid.isNullOrBlank()) {
+            val related = RelatedTo(parentUid)
+            related.parameters.add(RelType.PARENT)
+            todo.properties.add(related)
+        }
+        if (!linkedEventUid.isNullOrBlank()) {
+            val related = RelatedTo(linkedEventUid)
+            related.parameters.add(RelType.SIBLING)
+            todo.properties.add(related)
+        }
+        if (isCategory) {
+            todo.properties.add(XProperty(X_TASKDAV_KIND, KIND_CATEGORY))
+        }
+
+        // Only preserve unknown X-properties / extras; never revive cleared DUE/DESCRIPTION/etc.
+        if (!existingRaw.isNullOrBlank()) {
+            try {
+                val old = CalendarBuilder().build(StringReader(existingRaw))
+                val oldTodo = old.getComponents<VToDo>(Component.VTODO).firstOrNull()
+                if (oldTodo != null) {
+                    @Suppress("UNCHECKED_CAST")
+                    val props = ArrayList<Property>().apply {
+                        addAll(oldTodo.properties as Collection<Property>)
+                    }
+                    for (prop in props) {
+                        val name = prop.name
+                        if (name in PRESERVE_SKIP) continue
+                        if (name.equals(X_TASKDAV_KIND, ignoreCase = true)) continue
+                        if (!name.startsWith("X-", ignoreCase = true)) continue
+                        val exists = todo.properties.any { p ->
+                            (p as Property).name.equals(name, ignoreCase = true)
+                        }
+                        if (!exists) todo.properties.add(prop)
+                    }
+                }
+            } catch (_: Exception) {
+                // ignore preserve failures
+            }
+        }
+
+        calendar.components.add(todo)
+        return outputCalendar(calendar)
+    }
+
+    fun buildEventIcs(
+        uid: String,
+        summary: String,
+        description: String?,
+        dtStartMillis: Long,
+        dtEndMillis: Long,
+        allDay: Boolean,
+    ): String {
+        val calendar = Calendar()
+        calendar.properties.add(ProdId("-//TaskDav//EN"))
+        calendar.properties.add(Version.VERSION_2_0)
+
+        val event = VEvent(false)
+        event.properties.add(Uid(uid))
+        event.properties.add(DtStamp(DateTime(System.currentTimeMillis()).also { it.isUtc = true }))
+        event.properties.add(Summary(summary))
+        if (!description.isNullOrBlank()) event.properties.add(Description(description))
+        if (allDay) {
+            val start = DtStart(Date(dtStartMillis))
+            start.parameters.add(Value.DATE)
+            event.properties.add(start)
+            val end = DtEnd(Date(dtEndMillis))
+            end.parameters.add(Value.DATE)
+            event.properties.add(end)
+        } else {
+            event.properties.add(DtStart(DateTime(dtStartMillis).also { it.isUtc = true }))
+            event.properties.add(DtEnd(DateTime(dtEndMillis).also { it.isUtc = true }))
+        }
+        calendar.components.add(event)
+        return outputCalendar(calendar)
+    }
+
+    fun newUid(): String = UUID.randomUUID().toString()
+
+    fun extractUid(ics: String): String? =
+        Regex("""(?im)^UID:([^\r\n]+)""")
+            .find(ics)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+
+    private fun todoStatus(status: String?): Status? {
+        if (status.isNullOrBlank()) return Status.VTODO_NEEDS_ACTION
+        return when (status.trim().uppercase()) {
+            "NEEDS-ACTION", "NEEDS_ACTION" -> Status.VTODO_NEEDS_ACTION
+            "COMPLETED" -> Status.VTODO_COMPLETED
+            "IN-PROCESS", "IN_PROCESS" -> Status.VTODO_IN_PROCESS
+            "CANCELLED", "CANCELED" -> Status.VTODO_CANCELLED
+            else -> Status.VTODO_NEEDS_ACTION
+        }
+    }
+
+    private fun addCategories(properties: MutableList<Property>, categories: String?) {
+        val categoryList = categories.orEmpty()
+            .split(',', ';')
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+        if (categoryList.isEmpty()) return
+        properties.add(Categories(net.fortuna.ical4j.model.TextList(categoryList.toTypedArray())))
+    }
+
+    private fun outputCalendar(calendar: Calendar): String {
+        val writer = StringWriter()
+        CalendarOutputter(false).output(calendar, writer)
+        return writer.toString()
+    }
+
+    private val PRESERVE_SKIP = setOf(
+        Property.UID, Property.SUMMARY, Property.DESCRIPTION, Property.STATUS,
+        Property.PERCENT_COMPLETE, Property.PRIORITY, Property.DTSTART, Property.DUE,
+        Property.COMPLETED, Property.CATEGORIES, Property.RELATED_TO, Property.CREATED,
+        Property.LAST_MODIFIED, Property.DTSTAMP, Property.SEQUENCE,
+        X_TASKDAV_KIND,
+    )
+}
+
+private fun java.util.Date.toInstantMillis(): Long {
+    return if (this is DateTime) {
+        time
+    } else {
+        val cal = java.util.Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+        cal.time = this
+        cal.timeInMillis
+    }
+}
