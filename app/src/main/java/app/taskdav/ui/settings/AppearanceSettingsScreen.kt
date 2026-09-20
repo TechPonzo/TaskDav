@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.taskdav.TaskDavApp
 import app.taskdav.data.AppearanceStore
+import app.taskdav.data.DateOrderPreference
+import app.taskdav.ui.common.DateFormats
 import app.taskdav.ui.theme.AppThemeId
 import app.taskdav.ui.theme.previewLight
 import kotlinx.coroutines.launch
@@ -46,6 +48,9 @@ fun AppearanceSettingsScreen(onBack: () -> Unit) {
     val app = LocalContext.current.applicationContext as TaskDavApp
     val themeId by app.appearanceStore.themeId.collectAsStateWithLifecycle(
         initialValue = AppearanceStore.DEFAULT_THEME,
+    )
+    val dateOrderId by app.appearanceStore.dateOrder.collectAsStateWithLifecycle(
+        initialValue = AppearanceStore.DEFAULT_DATE_ORDER,
     )
     val scope = rememberCoroutineScope()
 
@@ -123,6 +128,57 @@ fun AppearanceSettingsScreen(onBack: () -> Unit) {
                         )
                     }
                     Text(theme.label, style = MaterialTheme.typography.titleMedium)
+                    if (selected) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = "Selected",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
+            }
+
+            item {
+                Text(
+                    "Date format",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+                Text(
+                    "Your phone language is often English (US), which uses month/day. Pick day/month for 25/9/26.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+            }
+            items(DateOrderPreference.entries.toList(), key = { it.id }) { option ->
+                val selected = option.id == dateOrderId
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(
+                            width = if (selected) 2.dp else 1.dp,
+                            color = if (selected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                        .clickable {
+                            scope.launch { app.appearanceStore.setDateOrder(option.id) }
+                        }
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        option.label,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f),
+                    )
                     if (selected) {
                         Icon(
                             Icons.Default.Check,

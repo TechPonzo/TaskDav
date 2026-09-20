@@ -34,17 +34,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.taskdav.data.TaskEntity
 import app.taskdav.domain.TaskTreeBuilder
+import app.taskdav.ui.common.DateFormats
 import app.taskdav.ui.common.DateTimePickerDialog
 import app.taskdav.ui.common.LinkedCalendarSection
 import app.taskdav.ui.common.parseCategories
-import java.text.DateFormat
-import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,6 +56,7 @@ fun TaskDetailScreen(
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val task = ui.task
+    val context = LocalContext.current
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showEventStartPicker by remember { mutableStateOf(false) }
     var showEventEndPicker by remember { mutableStateOf(false) }
@@ -105,7 +106,6 @@ fun TaskDetailScreen(
                 val completed = viewModel.isCompleted(task)
                 val started = viewModel.isStarted(task)
                 val tags = parseCategories(task.categories)
-                val fmt = DateFormat.getDateTimeInstance()
 
                 Column(
                     modifier = Modifier
@@ -162,7 +162,7 @@ fun TaskDetailScreen(
                     }
 
                     task.dueMillis?.let {
-                        DetailRow(label = "Due", value = fmt.format(Date(it)))
+                        DetailRow(label = "Due", value = DateFormats.dateTime(context, it))
                     }
 
                     when {
@@ -183,11 +183,11 @@ fun TaskDetailScreen(
                     }
 
                     task.dtStartMillis?.let {
-                        DetailRow(label = "Started", value = fmt.format(Date(it)))
+                        DetailRow(label = "Started", value = DateFormats.dateTime(context, it))
                     }
 
                     task.completedMillis?.let {
-                        DetailRow(label = "Ended", value = fmt.format(Date(it)))
+                        DetailRow(label = "Ended", value = DateFormats.dateTime(context, it))
                     }
 
                     ui.error?.let {
@@ -283,7 +283,6 @@ fun TaskDetailScreen(
     }
 
     if (ui.showEditEvent) {
-        val fmt = DateFormat.getDateTimeInstance()
         AlertDialog(
             onDismissRequest = { viewModel.setShowEditEvent(false) },
             title = { Text("Update calendar event") },
@@ -296,11 +295,11 @@ fun TaskDetailScreen(
                         label = { Text("Title") },
                         singleLine = true,
                     )
-                    Text("Starts: ${fmt.format(Date(ui.eventStartMillis))}")
+                    Text("Starts: ${DateFormats.dateTime(context, ui.eventStartMillis)}")
                     OutlinedButton(onClick = { showEventStartPicker = true }) {
                         Text("Pick start")
                     }
-                    Text("Ends: ${fmt.format(Date(ui.eventEndMillis))}")
+                    Text("Ends: ${DateFormats.dateTime(context, ui.eventEndMillis)}")
                     OutlinedButton(onClick = { showEventEndPicker = true }) {
                         Text("Pick end")
                     }

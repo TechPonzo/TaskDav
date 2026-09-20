@@ -54,12 +54,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.taskdav.data.EventEntity
 import app.taskdav.domain.TaskNode
 import app.taskdav.domain.TaskTreeBuilder
+import androidx.compose.ui.platform.LocalContext
+import app.taskdav.ui.common.DateFormats
 import app.taskdav.ui.common.parseCategories
 import app.taskdav.ui.theme.collectionColorOrDefault
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
-import java.text.DateFormat
-import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -287,7 +287,7 @@ private fun TaskRow(
     val completed = TaskTreeBuilder.isCompleted(node.task)
     val isCategory = node.task.isCategory
     val color = collectionColorOrDefault(node.collection?.colorArgb)
-    val dateTimeFmt = remember { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT) }
+    val context = LocalContext.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -325,7 +325,7 @@ private fun TaskRow(
             )
             val started = !isCategory && TaskTreeBuilder.isStarted(node.task)
             val endLabel = node.task.completedMillis?.let { millis ->
-                DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(millis))
+                DateFormats.time(context, millis)
             }
             val meta = buildList {
                 if (isCategory) add("category")
@@ -337,7 +337,7 @@ private fun TaskRow(
                 val tags = parseCategories(node.task.categories)
                 if (tags.isNotEmpty()) add(tags.joinToString(", "))
                 node.task.dueMillis?.let { due ->
-                    add("Due ${dateTimeFmt.format(Date(due))}")
+                    add("Due ${DateFormats.dateTime(context, due)}")
                 }
                 val eventStart = linkedEvent?.dtStartMillis
                 when {
@@ -345,13 +345,10 @@ private fun TaskRow(
                         val end = linkedEvent?.dtEndMillis
                         add(
                             buildString {
-                                append(dateTimeFmt.format(Date(eventStart)))
+                                append(DateFormats.dateTime(context, eventStart))
                                 if (end != null) {
                                     append(" – ")
-                                    append(
-                                        DateFormat.getTimeInstance(DateFormat.SHORT)
-                                            .format(Date(end)),
-                                    )
+                                    append(DateFormats.time(context, end))
                                 }
                             },
                         )

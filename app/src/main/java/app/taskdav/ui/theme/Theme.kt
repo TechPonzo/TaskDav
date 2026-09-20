@@ -12,6 +12,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import app.taskdav.TaskDavApp
 import app.taskdav.data.AppearanceStore
+import app.taskdav.data.DateOrderPreference
+import app.taskdav.ui.common.DateFormats
 
 enum class AppThemeId(val id: String, val label: String) {
     Forest("forest", "Forest"),
@@ -146,12 +148,27 @@ fun TaskDavTheme(content: @Composable () -> Unit) {
     } else {
         androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(AppearanceStore.DEFAULT_THEME) }
     }
+    val dateOrderId by if (app?.appearanceStore != null) {
+        app.appearanceStore.dateOrder.collectAsState(initial = AppearanceStore.DEFAULT_DATE_ORDER)
+    } else {
+        androidx.compose.runtime.remember {
+            androidx.compose.runtime.mutableStateOf(AppearanceStore.DEFAULT_DATE_ORDER)
+        }
+    }
+    val dateOrder = DateOrderPreference.fromId(dateOrderId)
+    androidx.compose.runtime.SideEffect {
+        DateFormats.setOrderPreference(dateOrder)
+    }
     val dark = isSystemInDarkTheme()
     val (light, darkScheme) = schemesFor(AppThemeId.fromId(themeId))
     MaterialTheme(
         colorScheme = if (dark) darkScheme else light,
-        content = content,
-    )
+    ) {
+        // Recompose date-bearing screens when order preference changes
+        androidx.compose.runtime.key(dateOrderId) {
+            content()
+        }
+    }
 }
 
 fun collectionColorOrDefault(argb: Int?, fallback: Color = Color(0xFF2B6A4F)): Color {

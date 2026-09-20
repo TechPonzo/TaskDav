@@ -42,14 +42,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.taskdav.ui.common.DateFormats
 import app.taskdav.ui.common.DateTimePickerDialog
 import app.taskdav.ui.common.LinkedCalendarSection
 import app.taskdav.ui.common.joinCategories
 import app.taskdav.ui.common.parseCategories
-import java.text.DateFormat
-import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -61,6 +61,7 @@ fun EditorScreen(
     val collections by viewModel.collections.collectAsStateWithLifecycle()
     val events by viewModel.events.collectAsStateWithLifecycle()
     val editor = ui.editor
+    val context = LocalContext.current
 
     var showDuePicker by remember { mutableStateOf(false) }
     var showEventStartPicker by remember { mutableStateOf(false) }
@@ -254,7 +255,7 @@ fun EditorScreen(
 
                 Text("Due", style = MaterialTheme.typography.titleSmall)
                 Text(
-                    editor.dueMillis?.let { DateFormat.getDateTimeInstance().format(Date(it)) }
+                    editor.dueMillis?.let { DateFormats.dateTime(context, it) }
                         ?: "No due date",
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -352,7 +353,6 @@ fun EditorScreen(
 
     if (ui.showCreateEvent) {
         val taskListName = collections.find { it.id == editor?.collectionId }?.displayName
-        val fmt = DateFormat.getDateTimeInstance()
         AlertDialog(
             onDismissRequest = { viewModel.setShowCreateEvent(false) },
             title = { Text("Create calendar event") },
@@ -371,11 +371,11 @@ fun EditorScreen(
                         label = { Text("Title") },
                         singleLine = true,
                     )
-                    Text("Starts: ${fmt.format(Date(ui.eventStartMillis))}")
+                    Text("Starts: ${DateFormats.dateTime(context, ui.eventStartMillis)}")
                     OutlinedButton(onClick = { showEventStartPicker = true }) {
                         Text("Pick start")
                     }
-                    Text("Ends: ${fmt.format(Date(ui.eventEndMillis))}")
+                    Text("Ends: ${DateFormats.dateTime(context, ui.eventEndMillis)}")
                     OutlinedButton(onClick = { showEventEndPicker = true }) {
                         Text("Pick end")
                     }
@@ -402,7 +402,6 @@ fun EditorScreen(
     }
 
     if (ui.showEditEvent) {
-        val fmt = DateFormat.getDateTimeInstance()
         AlertDialog(
             onDismissRequest = { viewModel.setShowEditEvent(false) },
             title = { Text("Update calendar event") },
@@ -415,11 +414,11 @@ fun EditorScreen(
                         label = { Text("Title") },
                         singleLine = true,
                     )
-                    Text("Starts: ${fmt.format(Date(ui.eventStartMillis))}")
+                    Text("Starts: ${DateFormats.dateTime(context, ui.eventStartMillis)}")
                     OutlinedButton(onClick = { showEventStartPicker = true }) {
                         Text("Pick start")
                     }
-                    Text("Ends: ${fmt.format(Date(ui.eventEndMillis))}")
+                    Text("Ends: ${DateFormats.dateTime(context, ui.eventEndMillis)}")
                     OutlinedButton(onClick = { showEventEndPicker = true }) {
                         Text("Pick end")
                     }

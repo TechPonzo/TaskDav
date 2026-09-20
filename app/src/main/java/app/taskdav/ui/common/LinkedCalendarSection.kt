@@ -17,8 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.taskdav.data.EventEntity
-import java.text.DateFormat
-import java.util.Date
 
 @Composable
 fun LinkedCalendarSection(
@@ -28,7 +26,6 @@ fun LinkedCalendarSection(
     modifier: Modifier = Modifier,
 ) {
     if (event == null && fallbackTitle.isNullOrBlank()) return
-    val fmt = DateFormat.getDateTimeInstance()
     val context = LocalContext.current
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -44,14 +41,14 @@ fun LinkedCalendarSection(
                 )
                 event?.dtStartMillis?.let { start ->
                     Text(
-                        "Starts: ${fmt.format(Date(start))}",
+                        "Starts: ${DateFormats.dateTime(context, start)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
                     )
                 }
                 event?.dtEndMillis?.let { end ->
                     Text(
-                        "Ends: ${fmt.format(Date(end))}",
+                        "Ends: ${DateFormats.dateTime(context, end)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
                     )
