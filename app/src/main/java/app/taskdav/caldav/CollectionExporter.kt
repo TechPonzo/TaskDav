@@ -72,6 +72,7 @@ class CollectionExporter(
                         dtStartMillis = start,
                         dtEndMillis = end,
                         allDay = event.allDay,
+                        rrule = event.rrule,
                     ),
                     "VEVENT",
                 )

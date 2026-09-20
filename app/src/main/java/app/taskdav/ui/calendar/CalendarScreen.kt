@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -66,6 +67,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.taskdav.data.CalendarViewMode
 import app.taskdav.data.CollectionEntity
 import app.taskdav.data.EventEntity
+import app.taskdav.domain.EventRecurrence
 import app.taskdav.ui.common.DateFormats
 import app.taskdav.ui.common.DateTimePickerDialog
 import app.taskdav.ui.common.openLocationInMaps
@@ -199,6 +201,13 @@ fun CalendarScreen(
                                     onSelect = viewModel::selectDay,
                                 )
                             }
+                            dayAgenda(
+                                selectedDay = ui.selectedDayStartMillis,
+                                dayItems = dayItems,
+                                onOpenTask = onOpenTask,
+                                onEdit = { viewModel.openEdit(it.event) },
+                                context = context,
+                            )
                         }
                         CalendarViewMode.MONTHLY_AND_DAILY -> {
                             item {
@@ -318,11 +327,13 @@ fun CalendarScreen(
             endMillis = ui.editorEndMillis,
             collectionId = ui.editorCollectionId,
             collections = eventCollections,
+            recurrence = ui.editorRecurrence,
             error = ui.error,
             onSummary = viewModel::setEditorSummary,
             onDescription = viewModel::setEditorDescription,
             onLocation = viewModel::setEditorLocation,
             onCollection = viewModel::setEditorCollection,
+            onRecurrence = viewModel::setEditorRecurrence,
             onPickStart = { showStartPicker = true },
             onPickEnd = { showEndPicker = true },
             onDismiss = viewModel::dismissEditor,
@@ -451,7 +462,7 @@ private fun LazyListScope.eventRows(
             )
         }
     } else {
-        items(items, key = { it.event.id }) { item ->
+        items(items, key = { "${it.event.id}-${it.event.dtStartMillis}" }) { item ->
             EventRow(
                 item = item,
                 onClick = { onEdit(item) },
@@ -798,11 +809,13 @@ private fun EventEditorDialog(
     endMillis: Long,
     collectionId: Long?,
     collections: List<CollectionEntity>,
+    recurrence: EventRecurrence.EditState,
     error: String?,
     onSummary: (String) -> Unit,
     onDescription: (String) -> Unit,
     onLocation: (String) -> Unit,
     onCollection: (Long) -> Unit,
+    onRecurrence: (EventRecurrence.EditState) -> Unit,
     onPickStart: () -> Unit,
     onPickEnd: () -> Unit,
     onDismiss: () -> Unit,
@@ -812,12 +825,16 @@ private fun EventEditorDialog(
     val context = LocalContext.current
     var collectionExpanded by remember { mutableStateOf(false) }
     val selected = collections.find { it.id == collectionId }
+    val repeats = recurrence.mode != EventRecurrence.Mode.NONE
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (isNew) "New event" else "Edit event") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 OutlinedTextField(
                     value = summary,
                     onValueChange = onSummary,
@@ -867,6 +884,114 @@ private fun EventEditorDialog(
                 OutlinedButton(onClick = onPickStart) { Text("Pick start") }
                 Text("Ends: ${DateFormats.dateTime(context, endMillis)}")
                 OutlinedButton(onClick = onPickEnd) { Text("Pick end") }
+
+                Text("Repeat", style = MaterialTheme.typography.titleSmall)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilterChip(
+                        selected = recurrence.mode == EventRecurrence.Mode.NONE,
+                        onClick = {
+                            onRecurrence(recurrence.copy(mode = EventRecurrence.Mode.NONE))
+                        },
+                        label = { Text("Never") },
+                    )
+                    FilterChip(
+                        selected = recurrence.mode == EventRecurrence.Mode.WEEKLY,
+                        onClick = {
+                            onRecurrence(recurrence.copy(mode = EventRecurrence.Mode.WEEKLY))
+                        },
+                        label = { Text("Weekly") },
+                    )
+                    FilterChip(
+                        selected = recurrence.mode == EventRecurrence.Mode.EVERY_2_WEEKS,
+                        onClick = {
+                            onRecurrence(recurrence.copy(mode = EventRecurrence.Mode.EVERY_2_WEEKS))
+                        },
+                        label = { Text("Every 2 weeks") },
+                    )
+                    FilterChip(
+                        selected = recurrence.mode == EventRecurrence.Mode.EVERY_N_WEEKS,
+                        onClick = {
+                            onRecurrence(
+                                recurrence.copy(
+                                    mode = EventRecurrence.Mode.EVERY_N_WEEKS,
+                                    intervalWeeks = recurrence.intervalWeeks.coerceAtLeast(3),
+                                ),
+                            )
+                        },
+                        label = { Text("Every N weeks") },
+                    )
+                    if (recurrence.mode == EventRecurrence.Mode.OTHER) {
+                        FilterChip(
+                            selected = true,
+                            onClick = {},
+                            label = { Text("Custom") },
+                        )
+                    }
+                }
+                if (recurrence.mode == EventRecurrence.Mode.EVERY_N_WEEKS) {
+                    OutlinedTextField(
+                        value = recurrence.intervalWeeks.toString(),
+                        onValueChange = { raw ->
+                            val n = raw.filter { it.isDigit() }.toIntOrNull()?.coerceIn(1, 52) ?: 1
+                            onRecurrence(recurrence.copy(intervalWeeks = n))
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Repeat every (weeks)") },
+                        singleLine = true,
+                    )
+                }
+                if (recurrence.mode == EventRecurrence.Mode.OTHER) {
+                    Text(
+                        recurrence.otherRrule.orEmpty(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    )
+                    TextButton(
+                        onClick = {
+                            onRecurrence(EventRecurrence.EditState())
+                        },
+                    ) { Text("Clear custom rule") }
+                }
+                if (repeats && recurrence.mode != EventRecurrence.Mode.OTHER) {
+                    Text("Ends", style = MaterialTheme.typography.titleSmall)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        FilterChip(
+                            selected = recurrence.count == null,
+                            onClick = { onRecurrence(recurrence.copy(count = null)) },
+                            label = { Text("Never") },
+                        )
+                        FilterChip(
+                            selected = recurrence.count != null,
+                            onClick = {
+                                onRecurrence(recurrence.copy(count = recurrence.count ?: 10))
+                            },
+                            label = { Text("After N times") },
+                        )
+                    }
+                    if (recurrence.count != null) {
+                        OutlinedTextField(
+                            value = recurrence.count.toString(),
+                            onValueChange = { raw ->
+                                val n = raw.filter { it.isDigit() }.toIntOrNull()?.coerceIn(1, 999)
+                                onRecurrence(recurrence.copy(count = n ?: 1))
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Number of occurrences") },
+                            singleLine = true,
+                        )
+                    }
+                }
+
                 OutlinedTextField(
                     value = location,
                     onValueChange = onLocation,

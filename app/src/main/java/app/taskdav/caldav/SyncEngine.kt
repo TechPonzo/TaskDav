@@ -289,6 +289,7 @@ class SyncEngine(
                         dtStartMillis = parsed.dtStartMillis,
                         dtEndMillis = parsed.dtEndMillis,
                         allDay = parsed.allDay,
+                        rrule = parsed.rrule,
                         icsRaw = obj.ics,
                         dirty = false,
                         deleted = false,
@@ -359,6 +360,7 @@ class SyncEngine(
             event.dtStartMillis?.toString().orEmpty(),
             event.dtEndMillis?.toString().orEmpty(),
             event.allDay.toString(),
+            event.rrule.orEmpty(),
         ).joinToString("|")
 
     /** Public entry: load/refresh linked calendar when opening a task. */
@@ -567,6 +569,7 @@ class SyncEngine(
             dtStartMillis = parsed.dtStartMillis,
             dtEndMillis = parsed.dtEndMillis,
             allDay = parsed.allDay,
+            rrule = parsed.rrule,
             icsRaw = parsed.icsRaw,
             dirty = false,
             deleted = false,
@@ -827,6 +830,7 @@ class SyncEngine(
                     dtStartMillis = start,
                     dtEndMillis = end,
                     allDay = latest.allDay,
+                    rrule = latest.rrule,
                 )
                 val href = latest.href ?: MultistatusParser.joinUrl(collection.href, "${latest.uid}.ics")
                 client.putIcs(href, ics, latest.etag).use { response ->

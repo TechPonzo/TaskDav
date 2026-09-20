@@ -9,6 +9,7 @@ import app.taskdav.data.CalendarViewMode
 import app.taskdav.data.CollectionEntity
 import app.taskdav.data.EventEntity
 import app.taskdav.data.TaskEntity
+import app.taskdav.domain.EventRecurrence
 import app.taskdav.domain.TaskRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -42,6 +43,7 @@ data class CalendarUiState(
     val editorLocation: String = "",
     val editorDescription: String = "",
     val editorCollectionId: Long? = null,
+    val editorRecurrence: EventRecurrence.EditState = EventRecurrence.EditState(),
 )
 
 data class CalendarDayItem(
@@ -93,7 +95,8 @@ class CalendarViewModel(
         collections,
         _ui,
     ) { events, collections, state ->
-        buildMonthCells(state.visibleMonthStartMillis, events, collections)
+        val expanded = expandForMonthGrid(events, state.visibleMonthStartMillis)
+        buildMonthCells(state.visibleMonthStartMillis, expanded, collections)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** 12 mini-month grids for the visible year. */
@@ -112,7 +115,8 @@ class CalendarViewModel(
                 set(Calendar.SECOND, 0)
                 set(Calendar.MILLISECOND, 0)
             }.timeInMillis
-            buildMonthCells(monthStart, events, collections)
+            val expanded = expandForMonthGrid(events, monthStart)
+            buildMonthCells(monthStart, expanded, collections)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -123,7 +127,8 @@ class CalendarViewModel(
         _ui,
     ) { events, collections, tasks, state ->
         val dayStart = state.selectedDayStartMillis ?: return@combine emptyList()
-        mapDayItems(events, collections, tasks, dayStart, dayStart + DAY_MS)
+        val expanded = EventRecurrence.expandAll(events, dayStart, dayStart + DAY_MS, DEFAULT_DURATION_MS)
+        mapDayItems(expanded, collections, tasks, dayStart, dayStart + DAY_MS)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Events for the week currently shown. */
@@ -134,7 +139,9 @@ class CalendarViewModel(
         _ui,
     ) { events, collections, tasks, state ->
         val weekStart = state.visibleWeekStartMillis
-        mapDayItems(events, collections, tasks, weekStart, weekStart + 7 * DAY_MS)
+        val weekEnd = weekStart + 7 * DAY_MS
+        val expanded = EventRecurrence.expandAll(events, weekStart, weekEnd, DEFAULT_DURATION_MS)
+        mapDayItems(expanded, collections, tasks, weekStart, weekEnd)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Upcoming / all events for the simple list view. */
@@ -143,11 +150,14 @@ class CalendarViewModel(
         repository.observeCollections(),
         repository.observeTasks(),
     ) { events, collections, tasks ->
+        val now = startOfDay(System.currentTimeMillis())
+        val rangeEnd = now + 90 * DAY_MS
+        val expanded = EventRecurrence.expandAll(events, now, rangeEnd, DEFAULT_DURATION_MS)
         val byCollection = collections.associateBy { it.id }
         val taskByEventUid = tasks
             .filter { !it.linkedEventUid.isNullOrBlank() }
             .associateBy { it.linkedEventUid!!.lowercase() }
-        events
+        expanded
             .sortedWith(
                 compareBy(
                     { it.dtStartMillis ?: Long.MAX_VALUE },
@@ -343,26 +353,31 @@ class CalendarViewModel(
                 editorDescription = "",
                 editorCollectionId = it.collectionFilter
                     ?: cols.firstOrNull()?.id,
+                editorRecurrence = EventRecurrence.EditState(),
                 error = null,
             )
         }
     }
 
     fun openEdit(event: EventEntity) {
-        val start = event.dtStartMillis ?: System.currentTimeMillis()
-        val end = event.dtEndMillis ?: (start + DEFAULT_DURATION_MS)
-        _ui.update {
-            it.copy(
-                showEditor = true,
-                editingEventId = event.id,
-                editorSummary = event.summary,
-                editorStartMillis = start,
-                editorEndMillis = end,
-                editorLocation = event.location.orEmpty(),
-                editorDescription = event.description.orEmpty(),
-                editorCollectionId = event.collectionId,
-                error = null,
-            )
+        viewModelScope.launch {
+            val master = repository.getEventByUid(event.uid) ?: event
+            val start = master.dtStartMillis ?: System.currentTimeMillis()
+            val end = master.dtEndMillis ?: (start + DEFAULT_DURATION_MS)
+            _ui.update {
+                it.copy(
+                    showEditor = true,
+                    editingEventId = master.id,
+                    editorSummary = master.summary,
+                    editorStartMillis = start,
+                    editorEndMillis = end,
+                    editorLocation = master.location.orEmpty(),
+                    editorDescription = master.description.orEmpty(),
+                    editorCollectionId = master.collectionId,
+                    editorRecurrence = EventRecurrence.fromRrule(master.rrule),
+                    error = null,
+                )
+            }
         }
     }
 
@@ -374,6 +389,8 @@ class CalendarViewModel(
     fun setEditorLocation(v: String) = _ui.update { it.copy(editorLocation = v) }
     fun setEditorDescription(v: String) = _ui.update { it.copy(editorDescription = v) }
     fun setEditorCollection(id: Long) = _ui.update { it.copy(editorCollectionId = id) }
+    fun setEditorRecurrence(state: EventRecurrence.EditState) =
+        _ui.update { it.copy(editorRecurrence = state) }
     fun setEditorStart(millis: Long) = _ui.update {
         it.copy(
             editorStartMillis = millis,
@@ -396,6 +413,7 @@ class CalendarViewModel(
                 _ui.update { it.copy(error = "End must be after start") }
                 return@launch
             }
+            val rrule = state.editorRecurrence.toRrule()
             try {
                 val editId = state.editingEventId
                 if (editId == null) {
@@ -406,6 +424,7 @@ class CalendarViewModel(
                         endMillis = state.editorEndMillis,
                         location = state.editorLocation,
                         description = state.editorDescription,
+                        rrule = rrule,
                     )
                 } else {
                     val existing = repository.getEventByUid(
@@ -420,6 +439,8 @@ class CalendarViewModel(
                         endMillis = state.editorEndMillis,
                         location = state.editorLocation,
                         description = state.editorDescription,
+                        rrule = rrule,
+                        updateRrule = true,
                     )
                 }
                 repository.pushLocalChanges()
@@ -497,6 +518,26 @@ class CalendarViewModel(
             val offset = (cal.get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7
             cal.add(Calendar.DAY_OF_MONTH, -offset)
             return cal.timeInMillis
+        }
+
+        private fun expandForMonthGrid(
+            events: List<EventEntity>,
+            monthStartMillis: Long,
+        ): List<EventEntity> {
+            val cal = Calendar.getInstance().apply {
+                timeInMillis = monthStartMillis
+                set(Calendar.DAY_OF_MONTH, 1)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            val firstDow = cal.get(Calendar.DAY_OF_WEEK)
+            val offset = (firstDow - Calendar.MONDAY + 7) % 7
+            cal.add(Calendar.DAY_OF_MONTH, -offset)
+            val rangeStart = cal.timeInMillis
+            val rangeEnd = rangeStart + 42 * DAY_MS
+            return EventRecurrence.expandAll(events, rangeStart, rangeEnd, DEFAULT_DURATION_MS)
         }
 
         private fun mapDayItems(

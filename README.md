@@ -11,6 +11,7 @@ Kotlin Android app for tasks and notes that syncs over CalDAV with your own serv
 - Collection colors from Apple `calendar-color`
 - Due date/time pickers; optional calendar event link with start/end pickers
 - Tags on tasks and notes (`CATEGORIES`)
+- Calendar events with weekly recurrence (`RRULE`: weekly / every N weeks, optional count)
 - Notes synced as `VJOURNAL`
 - Animated task/note list inserts and removals
 - Appearance themes (Forest, Ocean, Sand, Slate, High contrast)
@@ -90,7 +91,7 @@ In TaskDav: **Settings → Account** → enter base URL (e.g. `https://host:5232
 ## Non-goals
 
 - DAVx⁵ ContentProvider integration
-- Recurring-task editing (existing RRULEs may be preserved on rewrite when possible)
+- Per-occurrence edits of recurring events (series only); recurring *tasks* are not edited in-app (existing RRULEs may be preserved on rewrite when possible)
 
 ## License
 

@@ -327,6 +327,8 @@ class TaskRepository(
         endMillis: Long,
         location: String?,
         description: String?,
+        rrule: String? = null,
+        updateRrule: Boolean = false,
     ) {
         val existing = db.events().getByUid(uid) ?: throw IllegalStateException("Event missing")
         db.events().update(
@@ -336,6 +338,7 @@ class TaskRepository(
                 description = description?.trim()?.ifBlank { null },
                 dtStartMillis = startMillis,
                 dtEndMillis = endMillis,
+                rrule = if (updateRrule) rrule?.trim()?.ifBlank { null } else existing.rrule,
                 icsRaw = null,
                 dirty = true,
                 updatedAt = System.currentTimeMillis(),
@@ -350,6 +353,7 @@ class TaskRepository(
         endMillis: Long,
         location: String? = null,
         description: String? = null,
+        rrule: String? = null,
     ): String {
         val uid = IcalMapper.newUid()
         db.events().upsert(
@@ -364,6 +368,7 @@ class TaskRepository(
                 dtStartMillis = startMillis,
                 dtEndMillis = endMillis,
                 allDay = false,
+                rrule = rrule?.trim()?.ifBlank { null },
                 icsRaw = null,
                 dirty = true,
                 deleted = false,

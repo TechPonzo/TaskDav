@@ -13,7 +13,7 @@ import androidx.room.RoomDatabase
         NoteEntity::class,
         SyncMetaEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 abstract class TaskDavDatabase : RoomDatabase() {

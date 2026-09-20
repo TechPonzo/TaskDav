@@ -24,6 +24,7 @@ import net.fortuna.ical4j.model.property.Location
 import net.fortuna.ical4j.model.property.PercentComplete
 import net.fortuna.ical4j.model.property.Priority
 import net.fortuna.ical4j.model.property.ProdId
+import net.fortuna.ical4j.model.property.RRule
 import net.fortuna.ical4j.model.property.RelatedTo
 import net.fortuna.ical4j.model.property.Status
 import net.fortuna.ical4j.model.property.Summary
@@ -65,6 +66,7 @@ data class ParsedEvent(
     val dtStartMillis: Long?,
     val dtEndMillis: Long?,
     val allDay: Boolean,
+    val rrule: String?,
     val icsRaw: String,
 )
 
@@ -168,6 +170,11 @@ object IcalMapper {
                 dtStartMillis = start?.date?.toInstantMillis(),
                 dtEndMillis = event.endDate?.date?.toInstantMillis(),
                 allDay = allDay,
+                rrule = (event.getProperty(Property.RRULE) as? RRule)?.value
+                    ?: event.properties
+                        .filterIsInstance<Property>()
+                        .firstOrNull { it.name.equals(Property.RRULE, ignoreCase = true) }
+                        ?.value,
                 icsRaw = ics,
             )
         }
@@ -313,6 +320,7 @@ object IcalMapper {
         dtStartMillis: Long,
         dtEndMillis: Long,
         allDay: Boolean,
+        rrule: String? = null,
     ): String {
         val calendar = Calendar()
         calendar.properties.add(ProdId("-//TaskDav//EN"))
@@ -334,6 +342,10 @@ object IcalMapper {
         } else {
             event.properties.add(DtStart(DateTime(dtStartMillis).also { it.isUtc = true }))
             event.properties.add(DtEnd(DateTime(dtEndMillis).also { it.isUtc = true }))
+        }
+        val rule = rrule?.trim()?.takeIf { it.isNotEmpty() }
+        if (rule != null) {
+            event.properties.add(RRule(rule))
         }
         calendar.components.add(event)
         return outputCalendar(calendar)

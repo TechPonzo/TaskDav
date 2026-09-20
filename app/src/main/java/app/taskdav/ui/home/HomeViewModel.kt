@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import app.taskdav.data.EventEntity
 import app.taskdav.data.NoteEntity
 import app.taskdav.data.TaskEntity
+import app.taskdav.domain.EventRecurrence
 import app.taskdav.domain.TaskRepository
 import app.taskdav.domain.TaskTreeBuilder
 import app.taskdav.ui.calendar.CalendarViewModel
@@ -90,15 +91,10 @@ class HomeViewModel(
             d in tomorrowStart until weekEnd
         }.sortedBy { it.dueMillis }.take(6)
 
-        val todayEv = events
-            .filter { eventOnDay(it, todayStart, tomorrowStart) }
+        val todayEv = EventRecurrence.expandAll(events, todayStart, tomorrowStart)
             .sortedBy { it.dtStartMillis ?: Long.MAX_VALUE }
 
-        val upcomingEv = events
-            .filter { event ->
-                val start = event.dtStartMillis ?: return@filter false
-                start >= tomorrowStart && start < weekEnd
-            }
+        val upcomingEv = EventRecurrence.expandAll(events, tomorrowStart, weekEnd)
             .sortedBy { it.dtStartMillis }
             .take(8)
 
@@ -150,13 +146,6 @@ class HomeViewModel(
         atMillis = dueMillis,
         subtitle = null,
     )
-
-    private fun eventOnDay(event: EventEntity, dayStart: Long, dayEnd: Long): Boolean {
-        val start = event.dtStartMillis ?: return false
-        val end = event.dtEndMillis ?: (start + if (event.allDay) TimeUnit.DAYS.toMillis(1) else 0)
-        // Inclusive of events that span the day
-        return start < dayEnd && end > dayStart
-    }
 
     private fun greetingForHour(hour: Int): String = when (hour) {
         in 5..11 -> "Good morning"

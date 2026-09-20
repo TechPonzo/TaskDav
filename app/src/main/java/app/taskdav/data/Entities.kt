@@ -74,6 +74,8 @@ data class EventEntity(
     val dtStartMillis: Long?,
     val dtEndMillis: Long?,
     val allDay: Boolean = false,
+    /** iCalendar RRULE value without the property name, e.g. FREQ=WEEKLY;INTERVAL=2 */
+    val rrule: String? = null,
     val icsRaw: String?,
     val dirty: Boolean = false,
     val deleted: Boolean = false,
