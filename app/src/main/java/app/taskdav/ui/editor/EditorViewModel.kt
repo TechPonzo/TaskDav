@@ -9,6 +9,7 @@ import app.taskdav.data.CollectionEntity
 import app.taskdav.data.EventEntity
 import app.taskdav.domain.TaskEditorState
 import app.taskdav.domain.TaskRepository
+import app.taskdav.sync.CalDavSyncWorker
 import app.taskdav.ui.common.joinCategories
 import app.taskdav.ui.common.parseCategories
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -237,18 +238,14 @@ class EditorViewModel(
                     location = state.eventLocation,
                 )
                 val event = repository.getEventByUid(uid)
-                val syncMsg = repository.pushLocalChanges()
-                val eventDirty = repository.getEventByUid(uid)?.dirty == true
+                repository.tryPushLocalChanges()
+                CalDavSyncWorker.enqueueNow(app)
                 _ui.update {
                     it.copy(
                         editor = editor.copy(id = id, linkedEventUid = uid, linkedEvent = event),
                         showCreateEvent = false,
                         eventLocation = "",
-                        error = if (eventDirty) {
-                            syncMsg.ifBlank { "Event saved locally, but upload failed" }
-                        } else {
-                            null
-                        },
+                        error = null,
                     )
                 }
             } catch (e: Exception) {
@@ -275,18 +272,14 @@ class EditorViewModel(
                     location = state.eventLocation,
                     description = event.description,
                 )
-                val syncMsg = repository.pushLocalChanges()
+                repository.tryPushLocalChanges()
+                CalDavSyncWorker.enqueueNow(app)
                 val updated = repository.getEventByUid(event.uid)
-                val eventDirty = updated?.dirty == true
                 _ui.update {
                     it.copy(
                         editor = editor.copy(linkedEvent = updated),
-                        showEditEvent = !eventDirty,
-                        error = if (eventDirty) {
-                            syncMsg.ifBlank { "Event saved locally, but upload failed" }
-                        } else {
-                            null
-                        },
+                        showEditEvent = false,
+                        error = null,
                     )
                 }
             } catch (e: Exception) {
@@ -308,17 +301,14 @@ class EditorViewModel(
                 val id = repository.createOrUpdateTask(
                     withTag.copy(id = withTag.id ?: taskId),
                 )
-                val syncMsg = repository.pushLocalChanges()
-                val stillDirty = repository.getTask(id)?.dirty == true
-                if (stillDirty) {
-                    _ui.update {
-                        it.copy(
-                            saving = false,
-                            error = syncMsg.ifBlank { "Saved on device, but upload to server failed" },
-                        )
-                    }
-                } else {
-                    _ui.update { it.copy(saving = false, saved = true) }
+                repository.tryPushLocalChanges()
+                CalDavSyncWorker.enqueueNow(app)
+                _ui.update {
+                    it.copy(
+                        saving = false,
+                        saved = true,
+                        error = null,
+                    )
                 }
             } catch (e: Exception) {
                 _ui.update { it.copy(saving = false, error = e.message) }

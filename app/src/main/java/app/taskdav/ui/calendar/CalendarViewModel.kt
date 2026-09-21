@@ -11,6 +11,7 @@ import app.taskdav.data.EventEntity
 import app.taskdav.data.TaskEntity
 import app.taskdav.domain.EventRecurrence
 import app.taskdav.domain.TaskRepository
+import app.taskdav.sync.CalDavSyncWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -443,7 +444,8 @@ class CalendarViewModel(
                         updateRrule = true,
                     )
                 }
-                repository.pushLocalChanges()
+                repository.tryPushLocalChanges()
+                CalDavSyncWorker.enqueueNow(app)
                 _ui.update { it.copy(showEditor = false, editingEventId = null, error = null) }
             } catch (e: Exception) {
                 _ui.update { it.copy(error = e.message) }
@@ -456,7 +458,8 @@ class CalendarViewModel(
             val id = _ui.value.editingEventId ?: return@launch
             try {
                 repository.deleteEvent(id)
-                repository.pushLocalChanges()
+                repository.tryPushLocalChanges()
+                CalDavSyncWorker.enqueueNow(app)
                 _ui.update { it.copy(showEditor = false, editingEventId = null, error = null) }
             } catch (e: Exception) {
                 _ui.update { it.copy(error = e.message) }

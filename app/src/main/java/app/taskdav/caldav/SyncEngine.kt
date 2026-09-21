@@ -1,5 +1,6 @@
 package app.taskdav.caldav
 
+import app.taskdav.data.AccountCredentials
 import app.taskdav.data.AccountStore
 import app.taskdav.data.CollectionEntity
 import app.taskdav.data.EventEntity
@@ -81,7 +82,21 @@ class SyncEngine(
     }
 
     suspend fun syncAll(mode: SyncMode = SyncMode.FULL): SyncResult = withContext(Dispatchers.IO) {
-        val creds = accountStore.load() ?: throw CalDavException("Account not configured")
+        val creds = accountStore.load()
+            ?: return@withContext SyncResult(message = "Account not configured")
+        try {
+            syncAllInternal(creds, mode)
+        } catch (e: Exception) {
+            val msg = "Offline or sync deferred: ${e.message ?: e.javaClass.simpleName}. Local changes kept."
+            accountStore.setLastSync(System.currentTimeMillis(), msg)
+            SyncResult(message = msg)
+        }
+    }
+
+    private suspend fun syncAllInternal(
+        creds: AccountCredentials,
+        mode: SyncMode,
+    ): SyncResult {
         val client = httpFactory.create(creds)
 
         val pushedTaskUids = mutableSetOf<String>()
@@ -153,12 +168,21 @@ class SyncEngine(
             msg += ". Issues: ${pushErrors.joinToString("; ")}"
         }
         accountStore.setLastSync(System.currentTimeMillis(), msg)
-        SyncResult(
+        return SyncResult(
             tasksPulled = tasksPulled,
             eventsPulled = eventsPulled,
             notesPulled = notesPulled,
             message = msg,
         )
+    }
+
+    /**
+     * When a local row is dirty, keep it unless the server copy is strictly newer
+     * (LAST-MODIFIED / DTSTAMP). Equal or older server → local wins and stays dirty for push.
+     */
+    private fun serverWinsOverLocal(localUpdatedAt: Long, serverMillis: Long?): Boolean {
+        if (serverMillis == null) return false
+        return serverMillis > localUpdatedAt
     }
 
     private fun normalizeHref(href: String): String {
@@ -189,7 +213,13 @@ class SyncEngine(
                 for (parsed in parsedList) {
                     keepUids += parsed.uid
                     val existing = db.tasks().getByUid(parsed.uid)
-                    if (existing?.dirty == true) continue
+                    if (existing?.dirty == true &&
+                        !serverWinsOverLocal(existing.updatedAt, parsed.lastModifiedMillis)
+                    ) {
+                        // Local edit is newer (or server time unknown) — keep dirty for push
+                        db.tasks().update(existing.copy(href = obj.href, etag = obj.etag ?: existing.etag))
+                        continue
+                    }
                     // Keep local fields from a push in this same sync (avoid stale REPORT overwrite)
                     if (parsed.uid in skipUids) {
                         if (existing != null) {
@@ -202,7 +232,8 @@ class SyncEngine(
                     // Unchanged on server — skip local rewrite
                     if (existing != null &&
                         !obj.etag.isNullOrBlank() &&
-                        existing.etag == obj.etag
+                        existing.etag == obj.etag &&
+                        existing.dirty != true
                     ) {
                         continue
                     }
@@ -228,7 +259,9 @@ class SyncEngine(
                         icsRaw = obj.ics,
                         dirty = false,
                         deleted = false,
-                        updatedAt = existing?.updatedAt ?: System.currentTimeMillis(),
+                        updatedAt = parsed.lastModifiedMillis
+                            ?: existing?.updatedAt
+                            ?: System.currentTimeMillis(),
                     )
                     if (existing == null) db.tasks().upsert(entity) else db.tasks().update(entity.copy(id = existing.id))
                 }
@@ -264,7 +297,12 @@ class SyncEngine(
                 for (parsed in parsedList) {
                     keepUids += parsed.uid
                     val existing = db.events().getByUid(parsed.uid)
-                    if (existing?.dirty == true) continue
+                    if (existing?.dirty == true &&
+                        !serverWinsOverLocal(existing.updatedAt, parsed.lastModifiedMillis)
+                    ) {
+                        db.events().update(existing.copy(href = obj.href, etag = obj.etag ?: existing.etag))
+                        continue
+                    }
                     if (parsed.uid in skipUids) {
                         if (existing != null) {
                             db.events().update(existing.copy(href = obj.href, etag = obj.etag))
@@ -273,7 +311,8 @@ class SyncEngine(
                     }
                     if (existing != null &&
                         !obj.etag.isNullOrBlank() &&
-                        existing.etag == obj.etag
+                        existing.etag == obj.etag &&
+                        existing.dirty != true
                     ) {
                         continue
                     }
@@ -293,7 +332,9 @@ class SyncEngine(
                         icsRaw = obj.ics,
                         dirty = false,
                         deleted = false,
-                        updatedAt = System.currentTimeMillis(),
+                        updatedAt = parsed.lastModifiedMillis
+                            ?: existing?.updatedAt
+                            ?: System.currentTimeMillis(),
                     )
                     if (existing == null) db.events().upsert(entity) else db.events().update(entity.copy(id = existing.id))
                 }
@@ -556,7 +597,11 @@ class SyncEngine(
         collectionId: Long,
     ): EventEntity {
         val existing = db.events().getByUid(parsed.uid)
-        if (existing?.dirty == true) return existing
+        if (existing?.dirty == true &&
+            !serverWinsOverLocal(existing.updatedAt, parsed.lastModifiedMillis)
+        ) {
+            return existing
+        }
         val entity = EventEntity(
             id = existing?.id ?: 0,
             uid = parsed.uid,
@@ -573,7 +618,9 @@ class SyncEngine(
             icsRaw = parsed.icsRaw,
             dirty = false,
             deleted = false,
-            updatedAt = System.currentTimeMillis(),
+            updatedAt = parsed.lastModifiedMillis
+                ?: existing?.updatedAt
+                ?: System.currentTimeMillis(),
         )
         return if (existing == null) {
             val id = db.events().upsert(entity)
@@ -604,7 +651,12 @@ class SyncEngine(
                 for (parsed in parsedList) {
                     keepUids += parsed.uid
                     val existing = db.notes().getByUid(parsed.uid)
-                    if (existing?.dirty == true) continue
+                    if (existing?.dirty == true &&
+                        !serverWinsOverLocal(existing.updatedAt, parsed.lastModifiedMillis)
+                    ) {
+                        db.notes().update(existing.copy(href = obj.href, etag = obj.etag ?: existing.etag))
+                        continue
+                    }
                     if (parsed.uid in skipUids) {
                         if (existing != null) {
                             db.notes().update(existing.copy(href = obj.href, etag = obj.etag))
@@ -613,7 +665,8 @@ class SyncEngine(
                     }
                     if (existing != null &&
                         !obj.etag.isNullOrBlank() &&
-                        existing.etag == obj.etag
+                        existing.etag == obj.etag &&
+                        existing.dirty != true
                     ) {
                         continue
                     }
@@ -630,7 +683,9 @@ class SyncEngine(
                         icsRaw = obj.ics,
                         dirty = false,
                         deleted = false,
-                        updatedAt = existing?.updatedAt ?: System.currentTimeMillis(),
+                        updatedAt = parsed.lastModifiedMillis
+                            ?: existing?.updatedAt
+                            ?: System.currentTimeMillis(),
                     )
                     if (existing == null) db.notes().upsert(entity) else db.notes().update(entity.copy(id = existing.id))
                 }

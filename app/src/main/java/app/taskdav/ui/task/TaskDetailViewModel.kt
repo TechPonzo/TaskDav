@@ -10,6 +10,7 @@ import app.taskdav.data.EventEntity
 import app.taskdav.data.TaskEntity
 import app.taskdav.domain.TaskRepository
 import app.taskdav.domain.TaskTreeBuilder
+import app.taskdav.sync.CalDavSyncWorker
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -135,14 +136,16 @@ class TaskDetailViewModel(
     fun startTask() {
         viewModelScope.launch {
             repository.startTask(taskId)
-            repository.pushLocalChanges()
+            repository.tryPushLocalChanges()
+            CalDavSyncWorker.enqueueNow(app)
         }
     }
 
     fun endTask() {
         viewModelScope.launch {
             repository.endTask(taskId)
-            repository.pushLocalChanges()
+            repository.tryPushLocalChanges()
+            CalDavSyncWorker.enqueueNow(app)
         }
     }
 
@@ -151,14 +154,16 @@ class TaskDetailViewModel(
             val task = ui.value.task ?: return@launch
             if (!task.parentUid.isNullOrBlank()) return@launch
             repository.setIsCategory(taskId, !task.isCategory)
-            repository.pushLocalChanges()
+            repository.tryPushLocalChanges()
+            CalDavSyncWorker.enqueueNow(app)
         }
     }
 
     fun deleteTask() {
         viewModelScope.launch {
             repository.deleteTask(taskId)
-            repository.pushLocalChanges()
+            repository.tryPushLocalChanges()
+            CalDavSyncWorker.enqueueNow(app)
             deleted.value = true
         }
     }
@@ -208,15 +213,9 @@ class TaskDetailViewModel(
                     location = e.location,
                     description = event.description,
                 )
-                val syncMsg = repository.pushLocalChanges()
-                val stillDirty = repository.getEventByUid(event.uid)?.dirty == true
-                if (stillDirty) {
-                    edit.update {
-                        it.copy(error = syncMsg.ifBlank { "Saved locally, but upload failed" })
-                    }
-                } else {
-                    edit.update { it.copy(show = false, error = null) }
-                }
+                repository.tryPushLocalChanges()
+                CalDavSyncWorker.enqueueNow(app)
+                edit.update { it.copy(show = false, error = null) }
             } catch (ex: Exception) {
                 edit.update { it.copy(error = ex.message) }
             }

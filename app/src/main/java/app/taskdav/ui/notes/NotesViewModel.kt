@@ -217,18 +217,9 @@ class NoteEditorViewModel(
                     description = s.description,
                     categories = categories,
                 )
-                val syncMsg = repository.pushLocalChanges()
-                val stillDirty = repository.getNote(id)?.dirty == true
-                if (stillDirty) {
-                    _state.update {
-                        it.copy(
-                            saving = false,
-                            error = syncMsg.ifBlank { "Saved on device, but upload to server failed" },
-                        )
-                    }
-                } else {
-                    _state.update { it.copy(saving = false, saved = true) }
-                }
+                repository.tryPushLocalChanges()
+                CalDavSyncWorker.enqueueNow(app)
+                _state.update { it.copy(saving = false, saved = true, error = null) }
             } catch (e: Exception) {
                 _state.update { it.copy(saving = false, error = e.message) }
             }

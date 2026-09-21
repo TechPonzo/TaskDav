@@ -12,6 +12,12 @@ import app.taskdav.data.TaskEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
+data class PushOutcome(
+    /** True when nothing dirty remains after the attempt. */
+    val fullyUploaded: Boolean,
+    val message: String,
+)
+
 class TaskRepository(
     private val db: TaskDavDatabase,
     private val accountStore: AccountStore,
@@ -87,6 +93,36 @@ class TaskRepository(
     suspend fun syncNow(mode: SyncMode = SyncMode.FULL): String = syncEngine.syncAll(mode).message
 
     suspend fun pushLocalChanges(): String = syncEngine.syncAll(SyncMode.PUSH_ONLY).message
+
+    /**
+     * Best-effort upload after a local edit. Never throws for network errors —
+     * local Room rows stay dirty until a later sync succeeds.
+     */
+    suspend fun tryPushLocalChanges(): PushOutcome {
+        return try {
+            val result = syncEngine.syncAll(SyncMode.PUSH_ONLY)
+            val pending = countPendingUploads()
+            PushOutcome(
+                fullyUploaded = pending == 0,
+                message = when {
+                    pending == 0 -> result.message
+                    else -> "Saved on device. Will sync when online."
+                },
+            )
+        } catch (_: Exception) {
+            PushOutcome(
+                fullyUploaded = false,
+                message = "Saved on device. Will sync when online.",
+            )
+        }
+    }
+
+    suspend fun countPendingUploads(): Int {
+        val tasks = db.tasks().getDirty().count { !it.deleted }
+        val notes = db.notes().getDirty().count { !it.deleted }
+        val events = db.events().getDirty().count { !it.deleted }
+        return tasks + notes + events
+    }
 
     suspend fun createOrUpdateTask(state: TaskEditorState): Long {
         require(state.collectionId > 0) { "Pick a task list before saving" }

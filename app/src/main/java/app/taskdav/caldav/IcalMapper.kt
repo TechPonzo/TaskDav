@@ -20,6 +20,7 @@ import net.fortuna.ical4j.model.property.DtEnd
 import net.fortuna.ical4j.model.property.DtStamp
 import net.fortuna.ical4j.model.property.DtStart
 import net.fortuna.ical4j.model.property.Due
+import net.fortuna.ical4j.model.property.LastModified
 import net.fortuna.ical4j.model.property.Location
 import net.fortuna.ical4j.model.property.PercentComplete
 import net.fortuna.ical4j.model.property.Priority
@@ -55,6 +56,7 @@ data class ParsedTodo(
     val linkedEventUid: String?,
     val isCategory: Boolean = false,
     val sortOrder: Int = 0,
+    val lastModifiedMillis: Long? = null,
     val icsRaw: String,
 )
 
@@ -67,6 +69,7 @@ data class ParsedEvent(
     val dtEndMillis: Long?,
     val allDay: Boolean,
     val rrule: String?,
+    val lastModifiedMillis: Long? = null,
     val icsRaw: String,
 )
 
@@ -76,6 +79,7 @@ data class ParsedNote(
     val description: String?,
     val dtStartMillis: Long?,
     val categories: String?,
+    val lastModifiedMillis: Long? = null,
     val icsRaw: String,
 )
 
@@ -150,6 +154,7 @@ object IcalMapper {
                     ?.value
                     ?.toIntOrNull()
                     ?: 0,
+                lastModifiedMillis = readLastModifiedMillis(todo.properties),
                 icsRaw = ics,
             )
         }
@@ -175,6 +180,7 @@ object IcalMapper {
                         .filterIsInstance<Property>()
                         .firstOrNull { it.name.equals(Property.RRULE, ignoreCase = true) }
                         ?.value,
+                lastModifiedMillis = readLastModifiedMillis(event.properties),
                 icsRaw = ics,
             )
         }
@@ -190,6 +196,7 @@ object IcalMapper {
                 description = note.description?.value,
                 dtStartMillis = note.startDate?.date?.toInstantMillis(),
                 categories = (note.getProperty(Property.CATEGORIES) as? Categories)?.value,
+                lastModifiedMillis = readLastModifiedMillis(note.properties),
                 icsRaw = ics,
             )
         }
@@ -388,6 +395,39 @@ object IcalMapper {
             .filter { it.isNotEmpty() }
         if (categoryList.isEmpty()) return
         properties.add(Categories(net.fortuna.ical4j.model.TextList(categoryList.toTypedArray())))
+    }
+
+    /** LAST-MODIFIED, else DTSTAMP — used for offline last-write-wins. */
+    fun readLastModifiedMillis(properties: Iterable<*>): Long? {
+        var lastMod: Long? = null
+        var dtStamp: Long? = null
+        for (prop in properties) {
+            val p = prop as? Property ?: continue
+            when {
+                p.name.equals(Property.LAST_MODIFIED, ignoreCase = true) -> {
+                    lastMod = (p as? LastModified)?.date?.toInstantMillis()
+                        ?: p.value?.let { parseIcalDateMillis(it) }
+                }
+                p.name.equals(Property.DTSTAMP, ignoreCase = true) -> {
+                    dtStamp = (p as? DtStamp)?.date?.toInstantMillis()
+                        ?: p.value?.let { parseIcalDateMillis(it) }
+                }
+            }
+        }
+        return lastMod ?: dtStamp
+    }
+
+    private fun parseIcalDateMillis(raw: String): Long? {
+        return try {
+            val trimmed = raw.trim()
+            if (trimmed.length == 8 && trimmed.all { it.isDigit() }) {
+                Date(trimmed).toInstantMillis()
+            } else {
+                DateTime(trimmed).toInstantMillis()
+            }
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun outputCalendar(calendar: Calendar): String {
