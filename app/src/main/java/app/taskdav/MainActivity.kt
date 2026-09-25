@@ -1,10 +1,14 @@
 package app.taskdav
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
@@ -12,19 +16,29 @@ import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import app.taskdav.data.SyncBackend
 import app.taskdav.ui.calendar.CalendarScreen
 import app.taskdav.ui.calendar.CalendarViewModel
 import app.taskdav.ui.editor.EditorScreen
@@ -55,18 +69,40 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val app = application as TaskDavApp
+        val fromCalendarIntent = app.consumeCalendarIntent(intent)
         setContent {
             TaskDavTheme {
-                TaskDavNav(app)
+                TaskDavNav(app, preferCalendarTab = fromCalendarIntent)
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        (application as TaskDavApp).consumeCalendarIntent(intent)
     }
 }
 
 @Composable
-private fun TaskDavNav(app: TaskDavApp) {
+private fun TaskDavNav(app: TaskDavApp, preferCalendarTab: Boolean = false) {
     val navController = rememberNavController()
-    val start = if (app.repository.accountConfigured()) "home/home" else "settings/account"
+    val start = when {
+        preferCalendarTab &&
+            (app.repository.syncBackend() == SyncBackend.LOCAL || app.repository.accountConfigured()) ->
+            "home/calendar"
+        app.repository.syncBackend() == SyncBackend.LOCAL -> "home/home"
+        app.repository.accountConfigured() -> "home/home"
+        else -> "settings/account"
+    }
+
+    LaunchedEffect(Unit) {
+        app.navigateToCalendar.collect {
+            navController.navigate("home/calendar") {
+                launchSingleTop = true
+            }
+        }
+    }
 
     NavHost(navController = navController, startDestination = start) {
         composable("home/{tab}") { entry ->
@@ -129,9 +165,15 @@ private fun TaskDavNav(app: TaskDavApp) {
                         navController.navigate("home/settings")
                     }
                 },
-                onContinueAfterDiscover = {
+                onOpenCollections = {
                     navController.navigate("settings/collections") {
                         popUpTo("settings/account") { inclusive = false }
+                    }
+                },
+                onLocalReady = {
+                    navController.navigate("home/home") {
+                        popUpTo("settings/account") { inclusive = true }
+                        launchSingleTop = true
                     }
                 },
             )
@@ -223,6 +265,8 @@ private fun HomeScaffold(
     onAddSubtask: (String, Long) -> Unit,
     onEditNote: (Long?) -> Unit,
 ) {
+    val syncBackend by app.syncBackend.collectAsStateWithLifecycle()
+
     Scaffold(
         bottomBar = {
             NavigationBar {
@@ -259,7 +303,7 @@ private fun HomeScaffold(
             }
         },
     ) { padding ->
-        androidx.compose.foundation.layout.Box(modifier = Modifier.padding(padding)) {
+        Box(modifier = Modifier.padding(padding)) {
             when (selectedTab) {
                 "home" -> {
                     val vm: HomeViewModel = viewModel(
@@ -295,8 +339,7 @@ private fun HomeScaffold(
                 "settings" -> {
                     SettingsHubScreen(
                         onBack = null,
-                        onAccount = { onOpenSettingsPage("settings/account") },
-                        onCollections = { onOpenSettingsPage("settings/collections") },
+                        onSyncing = { onOpenSettingsPage("settings/account") },
                         onAppearance = { onOpenSettingsPage("settings/appearance") },
                         onExport = { onOpenSettingsPage("settings/export") },
                         onPrivacy = { onOpenSettingsPage("settings/privacy") },
@@ -316,6 +359,43 @@ private fun HomeScaffold(
                     )
                 }
             }
+
+            SyncModeBadge(
+                backend = syncBackend,
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
         }
+    }
+}
+
+@Composable
+private fun SyncModeBadge(
+    backend: SyncBackend,
+    modifier: Modifier = Modifier,
+) {
+    val container = when (backend) {
+        SyncBackend.LOCAL -> MaterialTheme.colorScheme.tertiaryContainer
+        SyncBackend.CALDAV -> MaterialTheme.colorScheme.primaryContainer
+    }
+    val content = when (backend) {
+        SyncBackend.LOCAL -> MaterialTheme.colorScheme.onTertiaryContainer
+        SyncBackend.CALDAV -> MaterialTheme.colorScheme.onPrimaryContainer
+    }
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(0.dp),
+        color = container,
+        tonalElevation = 1.dp,
+    ) {
+        Text(
+            backend.badgeLabel,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = content,
+            textAlign = TextAlign.Center,
+        )
     }
 }

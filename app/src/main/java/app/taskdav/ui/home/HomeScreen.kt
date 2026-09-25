@@ -51,6 +51,7 @@ fun HomeScreen(
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val todayBusy = ui.todayEvents.isNotEmpty() || ui.dueToday.isNotEmpty()
+    val hasThisWeek = ui.thisWeekEvents.isNotEmpty() || ui.thisWeekTasks.isNotEmpty()
     val hasUpcoming = ui.upcomingEvents.isNotEmpty() || ui.upcomingTasks.isNotEmpty()
 
     Scaffold(
@@ -139,6 +140,34 @@ fun HomeScreen(
                 }
             }
 
+            item {
+                SectionHeader(
+                    title = "This week",
+                    actionLabel = "Calendar",
+                    onAction = onSeeCalendar,
+                )
+            }
+            if (!hasThisWeek) {
+                item {
+                    EmptyHint("Nothing else this week.")
+                }
+            } else {
+                items(ui.thisWeekEvents, key = { "we-${it.id}-${it.atMillis}" }) { item ->
+                    AgendaRow(
+                        item = item,
+                        timeLabel = item.atMillis?.let { DateFormats.dateTime(context, it) },
+                        onClick = onSeeCalendar,
+                    )
+                }
+                items(ui.thisWeekTasks, key = { "wt-${it.id}" }) { item ->
+                    AgendaRow(
+                        item = item,
+                        timeLabel = item.atMillis?.let { "Due ${DateFormats.date(context, it)}" },
+                        onClick = { onOpenTask(item.id) },
+                    )
+                }
+            }
+
             if (hasUpcoming) {
                 item {
                     SectionHeader(
@@ -147,7 +176,7 @@ fun HomeScreen(
                         onAction = null,
                     )
                 }
-                items(ui.upcomingEvents, key = { "ue-${it.id}" }) { item ->
+                items(ui.upcomingEvents, key = { "ue-${it.id}-${it.atMillis}" }) { item ->
                     AgendaRow(
                         item = item,
                         timeLabel = item.atMillis?.let { DateFormats.dateTime(context, it) },

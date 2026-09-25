@@ -19,6 +19,8 @@ object DateFormats {
         orderOverride.set(pref)
     }
 
+    fun orderPreference(): DateOrderPreference = orderOverride.get()
+
     fun dateTime(context: Context, millis: Long): String {
         val date = Date(millis)
         return "${formatDate(context, date)} ${formatTime(context, date)}"

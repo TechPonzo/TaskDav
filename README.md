@@ -7,6 +7,9 @@ Kotlin Android app for tasks and notes that syncs over CalDAV with your own serv
 ## Features
 
 - Offline-first tasks, notes, and events (Room): edits save locally immediately and sync when the CalDAV server is reachable (WorkManager + reconnect); conflicts prefer the newer item
+- Local-only or CalDAV sync mode (Settings → Syncing); optional publish of events into the phone calendar (CalendarContract)
+- Handles “add event” / ICS intents so TaskDav can be chosen as a calendar app
+- Share task, event, or note via the Android share sheet (text + `.ics`)
 - Recursive subtasks via `RELATED-TO;RELTYPE=PARENT`
 - Collection colors from Apple `calendar-color`
 - Due date/time pickers; optional calendar event link with start/end pickers
@@ -19,7 +22,7 @@ Kotlin Android app for tasks and notes that syncs over CalDAV with your own serv
 - Collections list is pruned when calendars are removed on the server
 - Bottom tabs: Home / Calendar / Tasks / Notes / Settings; Home is a hub with stats, today, overdue, upcoming, and recent notes
 - Categories are nestable VTODO parents (`X-TASKDAV-KIND:CATEGORY`) for grouping tasks
-- Settings hub: Account, Collections, Appearance, Export, Privacy & license, Credits
+- Settings hub: Syncing, Appearance, Export, Privacy & license, Credits
 
 ## Requirements
 

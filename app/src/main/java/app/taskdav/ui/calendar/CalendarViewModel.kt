@@ -45,6 +45,8 @@ data class CalendarUiState(
     val editorDescription: String = "",
     val editorCollectionId: Long? = null,
     val editorRecurrence: EventRecurrence.EditState = EventRecurrence.EditState(),
+    /** Full-day hourly timeline (opened by tapping the already-selected date). */
+    val showHourlyDay: Boolean = false,
 )
 
 data class CalendarDayItem(
@@ -174,6 +176,30 @@ class CalendarViewModel(
             }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    init {
+        val appRef = app as TaskDavApp
+        appRef.takeStickyPendingEvent()?.let { pending ->
+            openCreatePrefilled(
+                title = pending.title,
+                description = pending.description,
+                location = pending.location,
+                beginMillis = pending.beginMillis,
+                endMillis = pending.endMillis,
+            )
+        }
+        viewModelScope.launch {
+            appRef.pendingEventCompose.collect { pending ->
+                openCreatePrefilled(
+                    title = pending.title,
+                    description = pending.description,
+                    location = pending.location,
+                    beginMillis = pending.beginMillis,
+                    endMillis = pending.endMillis,
+                )
+            }
+        }
+    }
+
     fun openViewPicker() = _ui.update { it.copy(showViewPicker = true) }
     fun dismissViewPicker() = _ui.update { it.copy(showViewPicker = false) }
 
@@ -216,15 +242,36 @@ class CalendarViewModel(
             if (switchToMonthDaily) {
                 appearanceStore.setCalendarViewMode(CalendarViewMode.MONTHLY_AND_DAILY.id)
             }
+            val alreadySelected = _ui.value.selectedDayStartMillis == day
             _ui.update {
                 it.copy(
                     selectedDayStartMillis = day,
                     visibleMonthStartMillis = startOfMonth(day),
                     visibleWeekStartMillis = startOfWeek(day),
                     visibleYear = yearOf(day),
+                    showHourlyDay = alreadySelected,
                     error = null,
                 )
             }
+        }
+    }
+
+    fun dismissHourlyDay() {
+        _ui.update { it.copy(showHourlyDay = false) }
+    }
+
+    fun openHourlyDay(dayStartMillis: Long? = null) {
+        val day = startOfDay(dayStartMillis ?: _ui.value.selectedDayStartMillis
+            ?: System.currentTimeMillis())
+        _ui.update {
+            it.copy(
+                selectedDayStartMillis = day,
+                visibleMonthStartMillis = startOfMonth(day),
+                visibleWeekStartMillis = startOfWeek(day),
+                visibleYear = yearOf(day),
+                showHourlyDay = true,
+                error = null,
+            )
         }
     }
 
@@ -239,6 +286,7 @@ class CalendarViewModel(
                 visibleMonthStartMillis = startOfDay(cal.timeInMillis),
                 visibleYear = cal.get(Calendar.YEAR),
                 selectedDayStartMillis = null,
+                showHourlyDay = false,
                 error = null,
             )
         }
@@ -249,6 +297,7 @@ class CalendarViewModel(
             state.copy(
                 visibleYear = state.visibleYear + deltaYears,
                 selectedDayStartMillis = null,
+                showHourlyDay = false,
                 error = null,
             )
         }
@@ -263,6 +312,7 @@ class CalendarViewModel(
                 visibleMonthStartMillis = startOfMonth(day),
                 visibleWeekStartMillis = startOfWeek(day),
                 visibleYear = yearOf(day),
+                // Keep hourly schedule open while flipping days
             )
         }
     }
@@ -275,6 +325,7 @@ class CalendarViewModel(
                 visibleMonthStartMillis = startOfMonth(weekStart),
                 visibleYear = yearOf(weekStart),
                 selectedDayStartMillis = null,
+                showHourlyDay = false,
                 error = null,
             )
         }
@@ -338,24 +389,46 @@ class CalendarViewModel(
         }
     }
 
-    fun openCreate() {
+    fun openCreate(atMillis: Long? = null) {
         val day = _ui.value.selectedDayStartMillis
             ?: startOfDay(System.currentTimeMillis())
-        val start = day + 10 * 60 * 60 * 1000L // 10:00 local-ish from day start
+        val start = atMillis ?: (day + 10 * 60 * 60 * 1000L) // default 10:00
+        openCreatePrefilled(
+            title = "",
+            description = "",
+            location = "",
+            beginMillis = start,
+            endMillis = start + DEFAULT_DURATION_MS,
+        )
+    }
+
+    fun openCreatePrefilled(
+        title: String = "",
+        description: String = "",
+        location: String = "",
+        beginMillis: Long? = null,
+        endMillis: Long? = null,
+    ) {
+        val day = _ui.value.selectedDayStartMillis
+            ?: startOfDay(System.currentTimeMillis())
+        val start = beginMillis ?: (day + 10 * 60 * 60 * 1000L)
+        val end = endMillis?.coerceAtLeast(start + MIN_DURATION_MS) ?: (start + DEFAULT_DURATION_MS)
         val cols = collections.value.filter { it.supportsVevent || it.supportsVtodo }
         _ui.update {
             it.copy(
                 showEditor = true,
                 editingEventId = null,
-                editorSummary = "",
+                editorSummary = title,
                 editorStartMillis = start,
-                editorEndMillis = start + DEFAULT_DURATION_MS,
-                editorLocation = "",
-                editorDescription = "",
+                editorEndMillis = end,
+                editorLocation = location,
+                editorDescription = description,
                 editorCollectionId = it.collectionFilter
                     ?: cols.firstOrNull()?.id,
                 editorRecurrence = EventRecurrence.EditState(),
-                error = null,
+                error = if (cols.isEmpty()) "No calendar available — set up Syncing first." else null,
+                selectedDayStartMillis = startOfDay(start),
+                showHourlyDay = false,
             )
         }
     }
@@ -444,9 +517,9 @@ class CalendarViewModel(
                         updateRrule = true,
                     )
                 }
-                repository.tryPushLocalChanges()
                 CalDavSyncWorker.enqueueNow(app)
                 _ui.update { it.copy(showEditor = false, editingEventId = null, error = null) }
+                repository.tryPushLocalChanges()
             } catch (e: Exception) {
                 _ui.update { it.copy(error = e.message) }
             }
@@ -458,9 +531,9 @@ class CalendarViewModel(
             val id = _ui.value.editingEventId ?: return@launch
             try {
                 repository.deleteEvent(id)
-                repository.tryPushLocalChanges()
                 CalDavSyncWorker.enqueueNow(app)
                 _ui.update { it.copy(showEditor = false, editingEventId = null, error = null) }
+                repository.tryPushLocalChanges()
             } catch (e: Exception) {
                 _ui.update { it.copy(error = e.message) }
             }

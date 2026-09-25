@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -50,9 +51,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.taskdav.ui.common.ItemShare
 import app.taskdav.ui.common.TagsEditor
 import app.taskdav.ui.common.joinCategories
 import app.taskdav.ui.common.parseCategories
@@ -240,6 +243,7 @@ fun NoteEditorScreen(
     val knownTags by viewModel.knownTags.collectAsStateWithLifecycle()
     var tagDraft by remember { mutableStateOf("") }
     val tags = parseCategories(state.categories)
+    val context = LocalContext.current
 
     LaunchedEffect(state.saved) {
         if (state.saved) onBack()
@@ -255,6 +259,22 @@ fun NoteEditorScreen(
                     }
                 },
                 actions = {
+                    if (state.ready && state.summary.isNotBlank()) {
+                        IconButton(
+                            onClick = {
+                                ItemShare.shareNoteDraft(
+                                    context = context,
+                                    uid = state.uid,
+                                    summary = state.summary,
+                                    description = state.description,
+                                    categories = state.categories,
+                                    dtStartMillis = null,
+                                )
+                            },
+                        ) {
+                            Icon(Icons.Default.Share, contentDescription = "Share")
+                        }
+                    }
                     TextButton(
                         onClick = { viewModel.save(tagDraft) },
                         enabled = state.ready && !state.saving,

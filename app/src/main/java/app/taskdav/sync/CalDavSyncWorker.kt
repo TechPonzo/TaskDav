@@ -20,7 +20,7 @@ class CalDavSyncWorker(
     override suspend fun doWork(): Result {
         val app = applicationContext as TaskDavApp
         return try {
-            if (!app.repository.accountConfigured()) {
+            if (!app.repository.isCalDavMode() || !app.repository.accountConfigured()) {
                 return Result.success()
             }
             app.repository.syncNow()
@@ -53,6 +53,8 @@ class CalDavSyncWorker(
         }
 
         fun enqueueNow(context: Context) {
+            val app = context.applicationContext
+            if (app is TaskDavApp && !app.repository.isCalDavMode()) return
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .build()
@@ -65,6 +67,12 @@ class CalDavSyncWorker(
                 ExistingWorkPolicy.APPEND_OR_REPLACE,
                 request,
             )
+        }
+
+        fun cancelAll(context: Context) {
+            val wm = WorkManager.getInstance(context)
+            wm.cancelUniqueWork(UNIQUE_ONCE)
+            wm.cancelUniqueWork(UNIQUE_PERIODIC)
         }
     }
 }

@@ -45,6 +45,8 @@ data class HomeUiState(
     val todayEvents: List<HomeAgendaItem> = emptyList(),
     val dueToday: List<HomeAgendaItem> = emptyList(),
     val overdue: List<HomeAgendaItem> = emptyList(),
+    val thisWeekEvents: List<HomeAgendaItem> = emptyList(),
+    val thisWeekTasks: List<HomeAgendaItem> = emptyList(),
     val upcomingEvents: List<HomeAgendaItem> = emptyList(),
     val upcomingTasks: List<HomeAgendaItem> = emptyList(),
     val recentNotes: List<HomeAgendaItem> = emptyList(),
@@ -70,7 +72,9 @@ class HomeViewModel(
         val now = System.currentTimeMillis()
         val todayStart = CalendarViewModel.startOfDay(now)
         val tomorrowStart = todayStart + TimeUnit.DAYS.toMillis(1)
-        val weekEnd = todayStart + TimeUnit.DAYS.toMillis(7)
+        // Remaining days in the current Mon–Sun week (excludes today).
+        val thisWeekEnd = CalendarViewModel.startOfWeek(todayStart) + TimeUnit.DAYS.toMillis(7)
+        val comingUpEnd = thisWeekEnd + TimeUnit.DAYS.toMillis(14)
 
         val actionable = tasks.filter { !it.isCategory && !it.deleted }
         val open = actionable.filter { !TaskTreeBuilder.isCompleted(it) }
@@ -86,15 +90,27 @@ class HomeViewModel(
         val dueTodayTasks = open.filter { dueDay(it) == todayStart }
             .sortedBy { it.dueMillis ?: Long.MAX_VALUE }
 
+        val thisWeekDue = open.filter { task ->
+            val d = dueDay(task) ?: return@filter false
+            d in tomorrowStart until thisWeekEnd
+        }.sortedBy { it.dueMillis }
+
         val upcomingDue = open.filter { task ->
             val d = dueDay(task) ?: return@filter false
-            d in tomorrowStart until weekEnd
-        }.sortedBy { it.dueMillis }.take(6)
+            d in thisWeekEnd until comingUpEnd
+        }.sortedBy { it.dueMillis }.take(8)
 
         val todayEv = EventRecurrence.expandAll(events, todayStart, tomorrowStart)
             .sortedBy { it.dtStartMillis ?: Long.MAX_VALUE }
 
-        val upcomingEv = EventRecurrence.expandAll(events, tomorrowStart, weekEnd)
+        val thisWeekEv = if (tomorrowStart < thisWeekEnd) {
+            EventRecurrence.expandAll(events, tomorrowStart, thisWeekEnd)
+                .sortedBy { it.dtStartMillis }
+        } else {
+            emptyList()
+        }
+
+        val upcomingEv = EventRecurrence.expandAll(events, thisWeekEnd, comingUpEnd)
             .sortedBy { it.dtStartMillis }
             .take(8)
 
@@ -112,6 +128,8 @@ class HomeViewModel(
             todayEvents = todayEv.map { it.toAgenda() },
             dueToday = dueTodayTasks.map { it.toAgenda() },
             overdue = overdueTasks.take(8).map { it.toAgenda() },
+            thisWeekEvents = thisWeekEv.map { it.toAgenda() },
+            thisWeekTasks = thisWeekDue.map { it.toAgenda() },
             upcomingEvents = upcomingEv.map { it.toAgenda() },
             upcomingTasks = upcomingDue.map { it.toAgenda() },
             recentNotes = notes

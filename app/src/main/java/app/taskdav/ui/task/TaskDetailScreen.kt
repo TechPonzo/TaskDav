@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -42,7 +43,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.taskdav.data.TaskEntity
 import app.taskdav.domain.TaskTreeBuilder
 import app.taskdav.ui.common.DateFormats
-import app.taskdav.ui.common.DateTimePickerDialog
+import app.taskdav.ui.common.InlineDateTimePicker
+import app.taskdav.ui.common.ItemShare
 import app.taskdav.ui.common.LinkedCalendarSection
 import app.taskdav.ui.common.parseCategories
 
@@ -58,8 +60,6 @@ fun TaskDetailScreen(
     val task = ui.task
     val context = LocalContext.current
     var showDeleteConfirm by remember { mutableStateOf(false) }
-    var showEventStartPicker by remember { mutableStateOf(false) }
-    var showEventEndPicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(ui.deleted) {
         if (ui.deleted) onBack()
@@ -84,6 +84,9 @@ fun TaskDetailScreen(
                 },
                 actions = {
                     if (task != null) {
+                        IconButton(onClick = { ItemShare.shareTask(context, task) }) {
+                            Icon(Icons.Default.Share, contentDescription = "Share")
+                        }
                         IconButton(onClick = onEdit) {
                             Icon(Icons.Default.Edit, contentDescription = "Edit")
                         }
@@ -295,14 +298,16 @@ fun TaskDetailScreen(
                         label = { Text("Title") },
                         singleLine = true,
                     )
-                    Text("Starts: ${DateFormats.dateTime(context, ui.eventStartMillis)}")
-                    OutlinedButton(onClick = { showEventStartPicker = true }) {
-                        Text("Pick start")
-                    }
-                    Text("Ends: ${DateFormats.dateTime(context, ui.eventEndMillis)}")
-                    OutlinedButton(onClick = { showEventEndPicker = true }) {
-                        Text("Pick end")
-                    }
+                    InlineDateTimePicker(
+                        label = "Starts",
+                        valueMillis = ui.eventStartMillis,
+                        onValueChange = viewModel::setEventStart,
+                    )
+                    InlineDateTimePicker(
+                        label = "Ends",
+                        valueMillis = ui.eventEndMillis,
+                        onValueChange = viewModel::setEventEnd,
+                    )
                     OutlinedTextField(
                         value = ui.eventLocation,
                         onValueChange = viewModel::setEventLocation,
@@ -323,27 +328,6 @@ fun TaskDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.setShowEditEvent(false) }) { Text("Cancel") }
-            },
-        )
-    }
-
-    if (showEventStartPicker) {
-        DateTimePickerDialog(
-            initialMillis = ui.eventStartMillis,
-            onDismiss = { showEventStartPicker = false },
-            onConfirm = {
-                viewModel.setEventStart(it)
-                showEventStartPicker = false
-            },
-        )
-    }
-    if (showEventEndPicker) {
-        DateTimePickerDialog(
-            initialMillis = ui.eventEndMillis,
-            onDismiss = { showEventEndPicker = false },
-            onConfirm = {
-                viewModel.setEventEnd(it)
-                showEventEndPicker = false
             },
         )
     }

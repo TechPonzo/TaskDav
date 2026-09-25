@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -69,7 +70,8 @@ import app.taskdav.data.CollectionEntity
 import app.taskdav.data.EventEntity
 import app.taskdav.domain.EventRecurrence
 import app.taskdav.ui.common.DateFormats
-import app.taskdav.ui.common.DateTimePickerDialog
+import app.taskdav.ui.common.InlineDateTimePicker
+import app.taskdav.ui.common.ItemShare
 import app.taskdav.ui.common.openLocationInMaps
 import app.taskdav.ui.theme.collectionColorOrDefault
 import java.util.Calendar
@@ -91,9 +93,6 @@ fun CalendarScreen(
     val yearMonths by viewModel.yearMonths.collectAsStateWithLifecycle()
     val collections by viewModel.collections.collectAsStateWithLifecycle()
     val context = LocalContext.current
-
-    var showStartPicker by remember { mutableStateOf(false) }
-    var showEndPicker by remember { mutableStateOf(false) }
 
     val eventCollections = remember(collections) {
         collections.filter { it.enabled && (it.supportsVevent || it.supportsVtodo) }
@@ -309,6 +308,24 @@ fun CalendarScreen(
         }
     }
 
+    if (ui.showHourlyDay) {
+        val day = ui.selectedDayStartMillis
+            ?: CalendarViewModel.startOfDay(System.currentTimeMillis())
+        HourlyDaySchedule(
+            dayStartMillis = day,
+            items = dayItems,
+            onBack = viewModel::dismissHourlyDay,
+            onPrevDay = {
+                viewModel.shiftDay(-1)
+            },
+            onNextDay = {
+                viewModel.shiftDay(1)
+            },
+            onCreateAt = { viewModel.openCreate(atMillis = it) },
+            onEdit = { viewModel.openEdit(it.event) },
+        )
+    }
+
     if (ui.showViewPicker) {
         CalendarViewPickerDialog(
             selected = ui.viewMode,
@@ -334,32 +351,33 @@ fun CalendarScreen(
             onLocation = viewModel::setEditorLocation,
             onCollection = viewModel::setEditorCollection,
             onRecurrence = viewModel::setEditorRecurrence,
-            onPickStart = { showStartPicker = true },
-            onPickEnd = { showEndPicker = true },
+            onStart = viewModel::setEditorStart,
+            onEnd = viewModel::setEditorEnd,
             onDismiss = viewModel::dismissEditor,
             onSave = viewModel::saveEditor,
             onDelete = if (ui.editingEventId != null) viewModel::deleteEditing else null,
-        )
-    }
-
-    if (showStartPicker) {
-        DateTimePickerDialog(
-            initialMillis = ui.editorStartMillis,
-            onDismiss = { showStartPicker = false },
-            onConfirm = {
-                viewModel.setEditorStart(it)
-                showStartPicker = false
-            },
-        )
-    }
-    if (showEndPicker) {
-        DateTimePickerDialog(
-            initialMillis = ui.editorEndMillis,
-            onDismiss = { showEndPicker = false },
-            onConfirm = {
-                viewModel.setEditorEnd(it)
-                showEndPicker = false
-            },
+            onShare = {
+                val matched = listOf(dayItems, weekItems, upcomingItems)
+                    .flatten()
+                    .map { it.event }
+                    .find { it.id == ui.editingEventId }
+                val event = matched ?: EventEntity(
+                    id = ui.editingEventId ?: 0,
+                    uid = "share-draft",
+                    href = null,
+                    etag = null,
+                    collectionId = ui.editorCollectionId ?: 0,
+                    summary = ui.editorSummary.ifBlank { "Event" },
+                    description = ui.editorDescription.ifBlank { null },
+                    location = ui.editorLocation.ifBlank { null },
+                    dtStartMillis = ui.editorStartMillis,
+                    dtEndMillis = ui.editorEndMillis,
+                    allDay = false,
+                    rrule = ui.editorRecurrence.toRrule(),
+                    icsRaw = null,
+                )
+                ItemShare.shareEvent(context, event)
+            }.takeIf { ui.editingEventId != null },
         )
     }
 }
@@ -470,6 +488,7 @@ private fun LazyListScope.eventRows(
                 onOpenLocation = item.event.location
                     ?.takeIf { it.isNotBlank() }
                     ?.let { loc -> { openLocationInMaps(context, loc) } },
+                onShare = { ItemShare.shareEvent(context, item.event) },
                 modifier = Modifier.padding(horizontal = 12.dp),
             )
         }
@@ -723,6 +742,7 @@ private fun EventRow(
     onClick: () -> Unit,
     onOpenTask: (() -> Unit)?,
     onOpenLocation: (() -> Unit)?,
+    onShare: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -782,10 +802,15 @@ private fun EventRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            if (onOpenTask != null || onOpenLocation != null) {
+            if (onOpenTask != null || onOpenLocation != null || onShare != null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (onOpenTask != null) {
                         TextButton(onClick = onOpenTask) { Text("Open task") }
+                    }
+                    if (onShare != null) {
+                        IconButton(onClick = onShare, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.Share, contentDescription = "Share")
+                        }
                     }
                     if (onOpenLocation != null) {
                         IconButton(onClick = onOpenLocation, modifier = Modifier.size(36.dp)) {
@@ -816,13 +841,13 @@ private fun EventEditorDialog(
     onLocation: (String) -> Unit,
     onCollection: (Long) -> Unit,
     onRecurrence: (EventRecurrence.EditState) -> Unit,
-    onPickStart: () -> Unit,
-    onPickEnd: () -> Unit,
+    onStart: (Long) -> Unit,
+    onEnd: (Long) -> Unit,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
     onDelete: (() -> Unit)?,
+    onShare: (() -> Unit)? = null,
 ) {
-    val context = LocalContext.current
     var collectionExpanded by remember { mutableStateOf(false) }
     val selected = collections.find { it.id == collectionId }
     val repeats = recurrence.mode != EventRecurrence.Mode.NONE
@@ -880,10 +905,16 @@ private fun EventEditorDialog(
                         }
                     }
                 }
-                Text("Starts: ${DateFormats.dateTime(context, startMillis)}")
-                OutlinedButton(onClick = onPickStart) { Text("Pick start") }
-                Text("Ends: ${DateFormats.dateTime(context, endMillis)}")
-                OutlinedButton(onClick = onPickEnd) { Text("Pick end") }
+                InlineDateTimePicker(
+                    label = "Starts",
+                    valueMillis = startMillis,
+                    onValueChange = onStart,
+                )
+                InlineDateTimePicker(
+                    label = "Ends",
+                    valueMillis = endMillis,
+                    onValueChange = onEnd,
+                )
 
                 Text("Repeat", style = MaterialTheme.typography.titleSmall)
                 Row(
@@ -1009,6 +1040,17 @@ private fun EventEditorDialog(
         },
         dismissButton = {
             Row {
+                if (onShare != null) {
+                    TextButton(onClick = onShare) {
+                        Icon(
+                            Icons.Default.Share,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Share")
+                    }
+                }
                 if (onDelete != null) {
                     TextButton(onClick = onDelete) {
                         Text("Delete", color = MaterialTheme.colorScheme.error)

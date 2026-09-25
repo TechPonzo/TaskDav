@@ -209,7 +209,7 @@ class NoteEditorViewModel(
             }
             _state.update { it.copy(categories = categories, saving = true, error = null) }
             try {
-                val id = repository.createOrUpdateNote(
+                repository.createOrUpdateNote(
                     id = s.id ?: noteId,
                     uid = s.uid,
                     collectionId = s.collectionId,
@@ -217,9 +217,9 @@ class NoteEditorViewModel(
                     description = s.description,
                     categories = categories,
                 )
-                repository.tryPushLocalChanges()
                 CalDavSyncWorker.enqueueNow(app)
                 _state.update { it.copy(saving = false, saved = true, error = null) }
+                repository.tryPushLocalChanges()
             } catch (e: Exception) {
                 _state.update { it.copy(saving = false, error = e.message) }
             }

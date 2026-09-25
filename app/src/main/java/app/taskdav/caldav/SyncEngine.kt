@@ -65,6 +65,7 @@ class SyncEngine(
         // Drop local calendars that no longer exist on the server — but never destroy
         // unpublished (dirty) rows; those must be pushed or kept until the user deletes them.
         for (local in existing) {
+            if (local.href.startsWith("local://", ignoreCase = true)) continue
             if (normalizeHref(local.href) in remoteNorms) continue
             val dirtyTasks = db.tasks().getByCollection(local.id).any { it.dirty || it.deleted }
             val dirtyEvents = db.events().getByCollection(local.id).any { it.dirty || it.deleted }
@@ -121,6 +122,7 @@ class SyncEngine(
             }
 
             for (collection in db.collections().getEnabledTodoCollections()) {
+                if (collection.isLocalOnly()) continue
                 try {
                     tasksPulled += pullTodos(client, collection, pushedTaskUids)
                 } catch (e: Exception) {
@@ -129,6 +131,7 @@ class SyncEngine(
             }
             for (collection in db.collections().getEnabled()) {
                 // Task lists often host linked VEVENTs too (Radicale); don't require supportsVevent
+                if (collection.isLocalOnly()) continue
                 if (!collection.supportsVevent && !collection.supportsVtodo) continue
                 try {
                     eventsPulled += pullEvents(client, collection, pushedEventUids)
@@ -137,6 +140,7 @@ class SyncEngine(
                 }
             }
             for (collection in db.collections().getEnabledJournalCollections()) {
+                if (collection.isLocalOnly()) continue
                 try {
                     notesPulled += pullNotes(client, collection, pushedNoteUids)
                 } catch (e: Exception) {
@@ -329,6 +333,7 @@ class SyncEngine(
                         dtEndMillis = parsed.dtEndMillis,
                         allDay = parsed.allDay,
                         rrule = parsed.rrule,
+                        systemEventId = existing?.systemEventId,
                         icsRaw = obj.ics,
                         dirty = false,
                         deleted = false,
@@ -615,6 +620,7 @@ class SyncEngine(
             dtEndMillis = parsed.dtEndMillis,
             allDay = parsed.allDay,
             rrule = parsed.rrule,
+            systemEventId = existing?.systemEventId,
             icsRaw = parsed.icsRaw,
             dirty = false,
             deleted = false,
@@ -721,6 +727,7 @@ class SyncEngine(
                     errors += "Task ${latest.uid}: collection missing"
                     continue
                 }
+                if (collection.isLocalOnly()) continue
                 pushPutTask(client, latest, collection, errors, pushedUids)
             } catch (e: Exception) {
                 errors += "Task ${task.uid}: ${e.message ?: e.javaClass.simpleName}"
@@ -849,6 +856,7 @@ class SyncEngine(
                     errors += "Event ${event.uid}: collection missing"
                     continue
                 }
+                if (collection.isLocalOnly()) continue
                 if (event.deleted) {
                     val href = event.href
                     if (href.isNullOrBlank()) {
@@ -941,6 +949,7 @@ class SyncEngine(
                     errors += "Note ${note.uid}: collection missing"
                     continue
                 }
+                if (collection.isLocalOnly()) continue
                 if (note.deleted) {
                     val href = note.href
                     if (href.isNullOrBlank()) {
@@ -1016,3 +1025,6 @@ class SyncEngine(
         return errors
     }
 }
+
+private fun CollectionEntity.isLocalOnly(): Boolean =
+    href.startsWith("local://", ignoreCase = true)

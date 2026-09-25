@@ -1,5 +1,9 @@
 package app.taskdav.domain
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import app.taskdav.calendar.SystemCalendarMirror
 import app.taskdav.caldav.IcalMapper
 import app.taskdav.caldav.SyncEngine
 import app.taskdav.caldav.SyncMode
@@ -7,10 +11,13 @@ import app.taskdav.data.AccountCredentials
 import app.taskdav.data.AccountStore
 import app.taskdav.data.CollectionEntity
 import app.taskdav.data.EventEntity
+import app.taskdav.data.SyncBackend
 import app.taskdav.data.TaskDavDatabase
 import app.taskdav.data.TaskEntity
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.withContext
 
 data class PushOutcome(
     /** True when nothing dirty remains after the attempt. */
@@ -22,6 +29,8 @@ class TaskRepository(
     private val db: TaskDavDatabase,
     private val accountStore: AccountStore,
     private val syncEngine: SyncEngine,
+    private val appContext: Context,
+    private val systemCalendarMirror: SystemCalendarMirror? = null,
 ) {
     fun observeCollections(): Flow<List<CollectionEntity>> = db.collections().observeAll()
 
@@ -79,26 +88,75 @@ class TaskRepository(
 
     fun accountConfigured(): Boolean = accountStore.isConfigured()
 
+    fun syncBackend() = accountStore.syncBackend()
+
+    fun isCalDavMode(): Boolean = accountStore.isCalDavMode()
+
+    fun setSyncBackend(backend: SyncBackend) {
+        accountStore.setSyncBackend(backend)
+    }
+
     fun loadAccount(): AccountCredentials? = accountStore.load()
 
     fun lastSyncMessage(): String? = accountStore.lastSyncMessage()
 
     fun lastSyncAt(): Long = accountStore.lastSyncAt()
 
+    /**
+     * Ensures a single on-device calendar that accepts tasks, events, and notes.
+     * Used when [SyncBackend.LOCAL] is selected.
+     */
+    suspend fun ensureLocalWorkspace(): Long {
+        val existing = db.collections().getByHref(LOCAL_COLLECTION_HREF)
+        if (existing != null) {
+            if (!existing.enabled) {
+                db.collections().setEnabled(existing.id, true)
+            }
+            return existing.id
+        }
+        return db.collections().upsert(
+            CollectionEntity(
+                href = LOCAL_COLLECTION_HREF,
+                displayName = "On this device",
+                colorArgb = 0xFF546E7A.toInt(),
+                supportsVtodo = true,
+                supportsVevent = true,
+                supportsVjournal = true,
+                enabled = true,
+            ),
+        )
+    }
+
     suspend fun discoverAndSave(): String {
         val result = syncEngine.refreshCollections()
         return "Found ${result.collections.size} collections"
     }
 
-    suspend fun syncNow(mode: SyncMode = SyncMode.FULL): String = syncEngine.syncAll(mode).message
+    suspend fun syncNow(mode: SyncMode = SyncMode.FULL): String {
+        if (!isCalDavMode()) return "Local-only mode — nothing to sync."
+        return syncEngine.syncAll(mode).message
+    }
 
-    suspend fun pushLocalChanges(): String = syncEngine.syncAll(SyncMode.PUSH_ONLY).message
+    suspend fun pushLocalChanges(): String {
+        if (!isCalDavMode()) return "Local-only mode — nothing to sync."
+        return syncEngine.syncAll(SyncMode.PUSH_ONLY).message
+    }
 
     /**
      * Best-effort upload after a local edit. Never throws for network errors —
      * local Room rows stay dirty until a later sync succeeds.
+     * Returns immediately when local-only or there is no usable network.
      */
     suspend fun tryPushLocalChanges(): PushOutcome {
+        if (!isCalDavMode()) {
+            return PushOutcome(fullyUploaded = true, message = "Saved on this device.")
+        }
+        if (!hasUsableNetwork()) {
+            return PushOutcome(
+                fullyUploaded = false,
+                message = "Saved on device. Will sync when online.",
+            )
+        }
         return try {
             val result = syncEngine.syncAll(SyncMode.PUSH_ONLY)
             val pending = countPendingUploads()
@@ -115,6 +173,18 @@ class TaskRepository(
                 message = "Saved on device. Will sync when online.",
             )
         }
+    }
+
+    private fun hasUsableNetwork(): Boolean {
+        val cm = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+
+    companion object {
+        const val LOCAL_COLLECTION_HREF = "local://on-device/"
     }
 
     suspend fun countPendingUploads(): Int {
@@ -346,6 +416,8 @@ class TaskRepository(
             deleted = false,
         )
         db.events().upsert(event)
+        val stored = db.events().getByUid(uid) ?: event
+        mirrorEvent(stored)
         db.tasks().update(
             task.copy(
                 linkedEventUid = uid,
@@ -354,6 +426,48 @@ class TaskRepository(
             )
         )
         return uid
+    }
+
+    fun setPhoneCalendarMirrorEnabled(enabled: Boolean) {
+        accountStore.setPhoneCalendarMirrorEnabled(enabled)
+    }
+
+    fun phoneCalendarMirrorEnabled(): Boolean = accountStore.phoneCalendarMirrorEnabled()
+
+    fun hasPhoneCalendarPermission(): Boolean =
+        systemCalendarMirror?.hasPermission() == true
+
+    /** Push all local events into the phone calendar (after enabling + granting permission). */
+    suspend fun backfillPhoneCalendar(): Int = withContext(Dispatchers.IO) {
+        val mirror = systemCalendarMirror ?: return@withContext 0
+        if (!accountStore.phoneCalendarMirrorEnabled() || !mirror.hasPermission()) return@withContext 0
+        var count = 0
+        for (event in db.events().getActive()) {
+            val sysId = runCatching { mirror.upsertEvent(event) }.getOrNull() ?: continue
+            if (event.systemEventId != sysId) {
+                db.events().update(event.copy(systemEventId = sysId))
+            }
+            count++
+        }
+        count
+    }
+
+    private suspend fun mirrorEvent(event: EventEntity) {
+        val mirror = systemCalendarMirror ?: return
+        if (!accountStore.phoneCalendarMirrorEnabled() || !mirror.hasPermission()) return
+        val sysId = runCatching { mirror.upsertEvent(event) }.getOrNull() ?: return
+        if (event.systemEventId != sysId) {
+            db.events().update(event.copy(systemEventId = sysId))
+        }
+    }
+
+    private fun unmirrorEvent(event: EventEntity) {
+        val mirror = systemCalendarMirror ?: return
+        if (!mirror.hasPermission()) return
+        runCatching {
+            if (event.systemEventId != null) mirror.deleteEvent(event.systemEventId)
+            else mirror.deleteByUid(event.uid)
+        }
     }
 
     suspend fun updateEvent(
@@ -367,19 +481,19 @@ class TaskRepository(
         updateRrule: Boolean = false,
     ) {
         val existing = db.events().getByUid(uid) ?: throw IllegalStateException("Event missing")
-        db.events().update(
-            existing.copy(
-                summary = summary.trim().ifBlank { existing.summary },
-                location = location?.trim()?.ifBlank { null },
-                description = description?.trim()?.ifBlank { null },
-                dtStartMillis = startMillis,
-                dtEndMillis = endMillis,
-                rrule = if (updateRrule) rrule?.trim()?.ifBlank { null } else existing.rrule,
-                icsRaw = null,
-                dirty = true,
-                updatedAt = System.currentTimeMillis(),
-            ),
+        val updated = existing.copy(
+            summary = summary.trim().ifBlank { existing.summary },
+            location = location?.trim()?.ifBlank { null },
+            description = description?.trim()?.ifBlank { null },
+            dtStartMillis = startMillis,
+            dtEndMillis = endMillis,
+            rrule = if (updateRrule) rrule?.trim()?.ifBlank { null } else existing.rrule,
+            icsRaw = null,
+            dirty = true,
+            updatedAt = System.currentTimeMillis(),
         )
+        db.events().update(updated)
+        mirrorEvent(updated)
     }
 
     suspend fun createEvent(
@@ -392,29 +506,31 @@ class TaskRepository(
         rrule: String? = null,
     ): String {
         val uid = IcalMapper.newUid()
-        db.events().upsert(
-            EventEntity(
-                uid = uid,
-                href = null,
-                etag = null,
-                collectionId = collectionId,
-                summary = summary.trim().ifBlank { "Untitled" },
-                description = description?.trim()?.ifBlank { null },
-                location = location?.trim()?.ifBlank { null },
-                dtStartMillis = startMillis,
-                dtEndMillis = endMillis,
-                allDay = false,
-                rrule = rrule?.trim()?.ifBlank { null },
-                icsRaw = null,
-                dirty = true,
-                deleted = false,
-            ),
+        val entity = EventEntity(
+            uid = uid,
+            href = null,
+            etag = null,
+            collectionId = collectionId,
+            summary = summary.trim().ifBlank { "Untitled" },
+            description = description?.trim()?.ifBlank { null },
+            location = location?.trim()?.ifBlank { null },
+            dtStartMillis = startMillis,
+            dtEndMillis = endMillis,
+            allDay = false,
+            rrule = rrule?.trim()?.ifBlank { null },
+            icsRaw = null,
+            dirty = true,
+            deleted = false,
         )
+        val id = db.events().upsert(entity)
+        val stored = entity.copy(id = id)
+        mirrorEvent(stored)
         return uid
     }
 
     suspend fun deleteEvent(eventId: Long) {
         val event = db.events().getById(eventId) ?: return
+        unmirrorEvent(event)
         // Unlink tasks that pointed at this event
         val linked = db.tasks().getActive().filter {
             it.linkedEventUid.equals(event.uid, ignoreCase = true)
@@ -429,7 +545,7 @@ class TaskRepository(
             db.events().deleteById(event.id)
         } else {
             db.events().update(
-                event.copy(deleted = true, dirty = true, updatedAt = now),
+                event.copy(deleted = true, dirty = true, updatedAt = now, systemEventId = null),
             )
         }
     }

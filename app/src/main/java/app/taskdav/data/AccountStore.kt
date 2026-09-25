@@ -11,6 +11,17 @@ data class AccountCredentials(
     val calendarHome: String? = null,
 )
 
+enum class SyncBackend(val id: String, val badgeLabel: String) {
+    LOCAL("local", "LOCAL"),
+    CALDAV("caldav", "CALDAV"),
+    ;
+
+    companion object {
+        fun fromId(id: String?): SyncBackend =
+            entries.find { it.id == id } ?: LOCAL
+    }
+}
+
 class AccountStore(context: Context) {
     private val prefs = EncryptedSharedPreferences.create(
         context,
@@ -19,6 +30,29 @@ class AccountStore(context: Context) {
         EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
     )
+
+    /**
+     * Where data lives. Defaults to CalDAV if credentials already exist (upgrade path),
+     * otherwise Local-only.
+     */
+    fun syncBackend(): SyncBackend {
+        val stored = prefs.getString(KEY_SYNC_BACKEND, null)
+        if (stored != null) return SyncBackend.fromId(stored)
+        return if (isConfigured()) SyncBackend.CALDAV else SyncBackend.LOCAL
+    }
+
+    fun setSyncBackend(backend: SyncBackend) {
+        prefs.edit().putString(KEY_SYNC_BACKEND, backend.id).apply()
+    }
+
+    fun isCalDavMode(): Boolean = syncBackend() == SyncBackend.CALDAV
+
+    fun phoneCalendarMirrorEnabled(): Boolean =
+        prefs.getBoolean(KEY_PHONE_CALENDAR_MIRROR, false)
+
+    fun setPhoneCalendarMirrorEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PHONE_CALENDAR_MIRROR, enabled).apply()
+    }
 
     fun isConfigured(): Boolean {
         val url = prefs.getString(KEY_BASE_URL, null)
@@ -71,5 +105,7 @@ class AccountStore(context: Context) {
         private const val KEY_CALENDAR_HOME = "calendar_home"
         private const val KEY_LAST_SYNC_AT = "last_sync_at"
         private const val KEY_LAST_SYNC_MSG = "last_sync_msg"
+        private const val KEY_SYNC_BACKEND = "sync_backend"
+        private const val KEY_PHONE_CALENDAR_MIRROR = "phone_calendar_mirror"
     }
 }

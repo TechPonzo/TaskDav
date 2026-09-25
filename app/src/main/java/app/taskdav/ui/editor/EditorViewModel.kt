@@ -238,7 +238,6 @@ class EditorViewModel(
                     location = state.eventLocation,
                 )
                 val event = repository.getEventByUid(uid)
-                repository.tryPushLocalChanges()
                 CalDavSyncWorker.enqueueNow(app)
                 _ui.update {
                     it.copy(
@@ -248,6 +247,7 @@ class EditorViewModel(
                         error = null,
                     )
                 }
+                repository.tryPushLocalChanges()
             } catch (e: Exception) {
                 _ui.update { it.copy(error = e.message) }
             }
@@ -272,9 +272,8 @@ class EditorViewModel(
                     location = state.eventLocation,
                     description = event.description,
                 )
-                repository.tryPushLocalChanges()
-                CalDavSyncWorker.enqueueNow(app)
                 val updated = repository.getEventByUid(event.uid)
+                CalDavSyncWorker.enqueueNow(app)
                 _ui.update {
                     it.copy(
                         editor = editor.copy(linkedEvent = updated),
@@ -282,6 +281,7 @@ class EditorViewModel(
                         error = null,
                     )
                 }
+                repository.tryPushLocalChanges()
             } catch (e: Exception) {
                 _ui.update { it.copy(error = e.message) }
             }
@@ -298,10 +298,10 @@ class EditorViewModel(
             val withTag = mergePendingTag(editor, pendingTag)
             _ui.update { it.copy(editor = withTag, saving = true, error = null) }
             try {
-                val id = repository.createOrUpdateTask(
+                repository.createOrUpdateTask(
                     withTag.copy(id = withTag.id ?: taskId),
                 )
-                repository.tryPushLocalChanges()
+                // Dismiss immediately after local write; push must not block the UI.
                 CalDavSyncWorker.enqueueNow(app)
                 _ui.update {
                     it.copy(
@@ -310,6 +310,7 @@ class EditorViewModel(
                         error = null,
                     )
                 }
+                repository.tryPushLocalChanges()
             } catch (e: Exception) {
                 _ui.update { it.copy(saving = false, error = e.message) }
             }

@@ -76,6 +76,8 @@ data class EventEntity(
     val allDay: Boolean = false,
     /** iCalendar RRULE value without the property name, e.g. FREQ=WEEKLY;INTERVAL=2 */
     val rrule: String? = null,
+    /** Row id in [android.provider.CalendarContract.Events] when mirrored to the phone calendar. */
+    val systemEventId: Long? = null,
     val icsRaw: String?,
     val dirty: Boolean = false,
     val deleted: Boolean = false,

@@ -38,11 +38,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.taskdav.ui.common.DateFormats
-import app.taskdav.ui.common.DateTimePickerDialog
+import app.taskdav.ui.common.InlineDateTimePicker
 import app.taskdav.ui.common.LinkedCalendarSection
 import app.taskdav.ui.common.TagsEditor
 import app.taskdav.ui.common.joinCategories
@@ -59,11 +57,7 @@ fun EditorScreen(
     val events by viewModel.events.collectAsStateWithLifecycle()
     val knownTags by viewModel.knownTags.collectAsStateWithLifecycle()
     val editor = ui.editor
-    val context = LocalContext.current
 
-    var showDuePicker by remember { mutableStateOf(false) }
-    var showEventStartPicker by remember { mutableStateOf(false) }
-    var showEventEndPicker by remember { mutableStateOf(false) }
     var tagDraft by remember { mutableStateOf("") }
 
     LaunchedEffect(ui.saved) {
@@ -228,14 +222,22 @@ fun EditorScreen(
                 }
 
                 Text("Due", style = MaterialTheme.typography.titleSmall)
-                Text(
-                    editor.dueMillis?.let { DateFormats.dateTime(context, it) }
-                        ?: "No due date",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { showDuePicker = true }) { Text("Pick date & time") }
+                if (editor.dueMillis != null) {
+                    InlineDateTimePicker(
+                        label = "Due date & time",
+                        valueMillis = editor.dueMillis,
+                        onValueChange = viewModel::updateDue,
+                    )
                     OutlinedButton(onClick = { viewModel.updateDue(null) }) { Text("Clear due") }
+                } else {
+                    Text(
+                        "No due date",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    )
+                    OutlinedButton(
+                        onClick = { viewModel.updateDue(System.currentTimeMillis()) },
+                    ) { Text("Set due date") }
                 }
 
                 Text("Calendar link", style = MaterialTheme.typography.titleMedium)
@@ -277,17 +279,6 @@ fun EditorScreen(
                 )
             }
         }
-    }
-
-    if (showDuePicker) {
-        DateTimePickerDialog(
-            initialMillis = editor?.dueMillis ?: System.currentTimeMillis(),
-            onDismiss = { showDuePicker = false },
-            onConfirm = {
-                viewModel.updateDue(it)
-                showDuePicker = false
-            },
-        )
     }
 
     if (ui.showEventPicker) {
@@ -345,14 +336,16 @@ fun EditorScreen(
                         label = { Text("Title") },
                         singleLine = true,
                     )
-                    Text("Starts: ${DateFormats.dateTime(context, ui.eventStartMillis)}")
-                    OutlinedButton(onClick = { showEventStartPicker = true }) {
-                        Text("Pick start")
-                    }
-                    Text("Ends: ${DateFormats.dateTime(context, ui.eventEndMillis)}")
-                    OutlinedButton(onClick = { showEventEndPicker = true }) {
-                        Text("Pick end")
-                    }
+                    InlineDateTimePicker(
+                        label = "Starts",
+                        valueMillis = ui.eventStartMillis,
+                        onValueChange = viewModel::setEventStart,
+                    )
+                    InlineDateTimePicker(
+                        label = "Ends",
+                        valueMillis = ui.eventEndMillis,
+                        onValueChange = viewModel::setEventEnd,
+                    )
                     OutlinedTextField(
                         value = ui.eventLocation,
                         onValueChange = viewModel::setEventLocation,
@@ -388,14 +381,16 @@ fun EditorScreen(
                         label = { Text("Title") },
                         singleLine = true,
                     )
-                    Text("Starts: ${DateFormats.dateTime(context, ui.eventStartMillis)}")
-                    OutlinedButton(onClick = { showEventStartPicker = true }) {
-                        Text("Pick start")
-                    }
-                    Text("Ends: ${DateFormats.dateTime(context, ui.eventEndMillis)}")
-                    OutlinedButton(onClick = { showEventEndPicker = true }) {
-                        Text("Pick end")
-                    }
+                    InlineDateTimePicker(
+                        label = "Starts",
+                        valueMillis = ui.eventStartMillis,
+                        onValueChange = viewModel::setEventStart,
+                    )
+                    InlineDateTimePicker(
+                        label = "Ends",
+                        valueMillis = ui.eventEndMillis,
+                        onValueChange = viewModel::setEventEnd,
+                    )
                     OutlinedTextField(
                         value = ui.eventLocation,
                         onValueChange = viewModel::setEventLocation,
@@ -413,27 +408,6 @@ fun EditorScreen(
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.setShowEditEvent(false) }) { Text("Cancel") }
-            },
-        )
-    }
-
-    if (showEventStartPicker) {
-        DateTimePickerDialog(
-            initialMillis = ui.eventStartMillis,
-            onDismiss = { showEventStartPicker = false },
-            onConfirm = {
-                viewModel.setEventStart(it)
-                showEventStartPicker = false
-            },
-        )
-    }
-    if (showEventEndPicker) {
-        DateTimePickerDialog(
-            initialMillis = ui.eventEndMillis,
-            onDismiss = { showEventEndPicker = false },
-            onConfirm = {
-                viewModel.setEventEnd(it)
-                showEventEndPicker = false
             },
         )
     }

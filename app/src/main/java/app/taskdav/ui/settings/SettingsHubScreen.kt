@@ -8,12 +8,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -30,8 +29,7 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsHubScreen(
-    onAccount: () -> Unit,
-    onCollections: () -> Unit,
+    onSyncing: () -> Unit,
     onAppearance: () -> Unit,
     onExport: () -> Unit,
     onPrivacy: () -> Unit,
@@ -59,18 +57,10 @@ fun SettingsHubScreen(
         ) {
             item {
                 SettingsRow(
-                    title = "Account",
-                    subtitle = "Server URL and credentials",
-                    icon = { Icon(Icons.Default.Person, contentDescription = null) },
-                    onClick = onAccount,
-                )
-            }
-            item {
-                SettingsRow(
-                    title = "Collections to sync",
-                    subtitle = "Choose task lists, calendars, and notes",
-                    icon = { Icon(Icons.Default.Folder, contentDescription = null) },
-                    onClick = onCollections,
+                    title = "Syncing",
+                    subtitle = "Local-only or CalDAV sync",
+                    icon = { Icon(Icons.Default.Sync, contentDescription = null) },
+                    onClick = onSyncing,
                 )
             }
             item {

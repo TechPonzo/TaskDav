@@ -162,9 +162,9 @@ class TaskDetailViewModel(
     fun deleteTask() {
         viewModelScope.launch {
             repository.deleteTask(taskId)
-            repository.tryPushLocalChanges()
             CalDavSyncWorker.enqueueNow(app)
             deleted.value = true
+            repository.tryPushLocalChanges()
         }
     }
 
@@ -213,9 +213,9 @@ class TaskDetailViewModel(
                     location = e.location,
                     description = event.description,
                 )
-                repository.tryPushLocalChanges()
                 CalDavSyncWorker.enqueueNow(app)
                 edit.update { it.copy(show = false, error = null) }
+                repository.tryPushLocalChanges()
             } catch (ex: Exception) {
                 edit.update { it.copy(error = ex.message) }
             }
