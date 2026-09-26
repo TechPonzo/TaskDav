@@ -4,14 +4,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -27,6 +28,9 @@ fun LinkedCalendarSection(
 ) {
     if (event == null && fallbackTitle.isNullOrBlank()) return
     val context = LocalContext.current
+    val linkAction = remember(event?.location, event?.description) {
+        resolveEventLink(event?.location, event?.description)
+    }
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
@@ -69,31 +73,46 @@ fun LinkedCalendarSection(
         }
 
         val location = event?.location?.takeIf { it.isNotBlank() }
-        if (location != null) {
-            LocationRow(location = location, onOpenMap = { openLocationInMaps(context, location) })
+        if (location != null || linkAction != null) {
+            LocationRow(
+                locationText = location ?: linkAction?.label.orEmpty(),
+                linkAction = linkAction,
+                onOpen = {
+                    openEventLink(context, event?.location, event?.description)
+                },
+            )
         }
     }
 }
 
 @Composable
 fun LocationRow(
-    location: String,
-    onOpenMap: () -> Unit,
+    locationText: String,
+    linkAction: EventLinkAction?,
+    onOpen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text("Location", style = MaterialTheme.typography.labelMedium)
-            Text(location, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                linkAction?.label ?: "Location",
+                style = MaterialTheme.typography.labelMedium,
+            )
+            if (locationText.isNotBlank()) {
+                Text(locationText, style = MaterialTheme.typography.bodyMedium)
+            }
         }
-        IconButton(onClick = onOpenMap) {
-            Icon(
-                Icons.Default.Place,
-                contentDescription = "Open in maps",
-                tint = MaterialTheme.colorScheme.primary,
+        if (linkAction != null) {
+            EventActionIconButton(
+                icon = linkAction.icon,
+                contentDescription = linkAction.label,
+                onClick = onOpen,
             )
         }
     }

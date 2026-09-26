@@ -40,7 +40,7 @@ fun CreditsSettingsScreen(onBack: () -> Unit) {
                 
                 Contributors:
                 
-                • TechPonzo (@TechPonzo) — https://github.com/TechPonzo
+                • Juan Curti (@TechPonzo) — https://github.com/TechPonzo
                 
                 Built with:
                 

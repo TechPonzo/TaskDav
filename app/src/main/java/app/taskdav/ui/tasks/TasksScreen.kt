@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Folder
@@ -40,10 +41,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import app.taskdav.ui.common.CompactHeader
+import app.taskdav.ui.common.ConfirmDeleteDialog
 import app.taskdav.ui.common.DockScrollPadding
 import app.taskdav.ui.common.ExpressiveEmptyState
 import app.taskdav.ui.common.ExpressiveExtendedFab
 import app.taskdav.ui.common.ExpressiveFilterChip
+import app.taskdav.ui.common.SwipeRevealAction
+import app.taskdav.ui.common.SwipeRevealRow
 import app.taskdav.ui.common.SyncLoadingBanner
 import app.taskdav.ui.common.TagFilterIconButton
 import app.taskdav.ui.theme.TaskDavRadii
@@ -86,6 +90,7 @@ fun TasksScreen(
 
     var displayList by remember { mutableStateOf(syncedFlat) }
     var dragging by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<TaskNode?>(null) }
 
     LaunchedEffect(syncedFlat, dragging) {
         if (!dragging) {
@@ -96,6 +101,23 @@ fun TasksScreen(
     val lazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
         displayList = moveSiblingSubtree(displayList, from.index, to.index)
+    }
+
+    pendingDelete?.let { node ->
+        val label = if (node.task.isCategory) "category" else "task"
+        ConfirmDeleteDialog(
+            title = "Delete $label?",
+            body = if (node.task.isCategory) {
+                "This permanently removes the category and its nested tasks from the app and the server."
+            } else {
+                "This permanently removes “${node.task.summary}” from the app and the server."
+            },
+            onConfirm = {
+                viewModel.deleteTask(node.task.id)
+                pendingDelete = null
+            },
+            onDismiss = { pendingDelete = null },
+        )
     }
 
     Scaffold(
@@ -210,6 +232,7 @@ fun TasksScreen(
                                     onAddChild = {
                                         onAddSubtask(node.task.uid, node.task.collectionId)
                                     },
+                                    onDelete = { pendingDelete = node },
                                 )
                             }
                         }
@@ -280,105 +303,123 @@ private fun TaskRow(
     onToggle: () -> Unit,
     onOpen: () -> Unit,
     onAddChild: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     val completed = TaskTreeBuilder.isCompleted(node.task)
     val isCategory = node.task.isCategory
     val color = collectionColorOrDefault(node.collection?.colorArgb)
     val context = LocalContext.current
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpen)
-            .padding(start = (16 + node.depth * 14).dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    SwipeRevealRow(
+        contentColor = MaterialTheme.colorScheme.background,
+        cornerRadius = 0.dp,
+        actions = { close ->
+            SwipeRevealAction(
+                icon = Icons.Default.Delete,
+                contentDescription = "Delete task",
+                onClick = {
+                    onDelete()
+                    close()
+                },
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+            )
+        },
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .width(3.dp)
-                .height(28.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(color),
-        )
-        if (isCategory) {
-            Icon(
-                Icons.Default.Folder,
-                contentDescription = "Category",
-                modifier = Modifier
-                    .padding(horizontal = 8.dp)
-                    .size(18.dp),
-                tint = color,
-            )
-        } else {
-            Checkbox(checked = completed, onCheckedChange = { onToggle() })
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                node.task.summary,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                textDecoration = if (!isCategory && completed) TextDecoration.LineThrough else null,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            val started = !isCategory && TaskTreeBuilder.isStarted(node.task)
-            val endLabel = node.task.completedMillis?.let { millis ->
-                DateFormats.time(context, millis)
-            }
-            val meta = buildList {
-                if (isCategory) add("category")
-                when {
-                    completed -> add(if (endLabel != null) "Done · $endLabel" else "Done")
-                    started -> add("Started")
-                }
-                node.collection?.displayName?.let { add(it) }
-                val tags = parseCategories(node.task.categories)
-                if (tags.isNotEmpty()) add(tags.joinToString(", "))
-                node.task.dueMillis?.let { due ->
-                    add("Due ${DateFormats.dateTime(context, due)}")
-                }
-                val eventStart = linkedEvent?.dtStartMillis
-                when {
-                    eventStart != null -> {
-                        val end = linkedEvent?.dtEndMillis
-                        add(
-                            buildString {
-                                append(DateFormats.dateTime(context, eventStart))
-                                if (end != null) {
-                                    append(" – ")
-                                    append(DateFormats.time(context, end))
-                                }
-                            },
-                        )
-                    }
-                    !node.task.linkedEventUid.isNullOrBlank() -> add("linked event")
-                }
-                if (node.children.isNotEmpty()) {
-                    add("${node.children.size} ${if (isCategory) "tasks" else "sub"}")
-                }
-            }.joinToString(" · ")
-            if (meta.isNotEmpty()) {
-                Text(meta, style = MaterialTheme.typography.labelSmall)
-            }
-        }
-        if (!node.task.linkedEventUid.isNullOrBlank()) {
-            Icon(
-                Icons.Default.Event,
-                contentDescription = "Linked calendar item",
-                modifier = Modifier.size(18.dp),
-                tint = color,
-            )
-        }
-        IconButton(onClick = onAddChild) {
-            Icon(
-                Icons.Default.Add,
-                contentDescription = if (isCategory) "Add task in category" else "Add subtask",
-            )
-        }
-        IconButton(
-            onClick = {},
-            modifier = dragHandleModifier,
+                .fillMaxWidth()
+                .clickable(onClick = onOpen)
+                .padding(start = (16 + node.depth * 14).dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Default.DragHandle, contentDescription = "Reorder")
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(28.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(color),
+            )
+            if (isCategory) {
+                Icon(
+                    Icons.Default.Folder,
+                    contentDescription = "Category",
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp)
+                        .size(18.dp),
+                    tint = color,
+                )
+            } else {
+                Checkbox(checked = completed, onCheckedChange = { onToggle() })
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    node.task.summary,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textDecoration = if (!isCategory && completed) TextDecoration.LineThrough else null,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                val started = !isCategory && TaskTreeBuilder.isStarted(node.task)
+                val endLabel = node.task.completedMillis?.let { millis ->
+                    DateFormats.time(context, millis)
+                }
+                val meta = buildList {
+                    if (isCategory) add("category")
+                    when {
+                        completed -> add(if (endLabel != null) "Done · $endLabel" else "Done")
+                        started -> add("Started")
+                    }
+                    node.collection?.displayName?.let { add(it) }
+                    val tags = parseCategories(node.task.categories)
+                    if (tags.isNotEmpty()) add(tags.joinToString(", "))
+                    node.task.dueMillis?.let { due ->
+                        add("Due ${DateFormats.dateTime(context, due)}")
+                    }
+                    val eventStart = linkedEvent?.dtStartMillis
+                    when {
+                        eventStart != null -> {
+                            val end = linkedEvent?.dtEndMillis
+                            add(
+                                buildString {
+                                    append(DateFormats.dateTime(context, eventStart))
+                                    if (end != null) {
+                                        append(" – ")
+                                        append(DateFormats.time(context, end))
+                                    }
+                                },
+                            )
+                        }
+                        !node.task.linkedEventUid.isNullOrBlank() -> add("linked event")
+                    }
+                    if (node.children.isNotEmpty()) {
+                        add("${node.children.size} ${if (isCategory) "tasks" else "sub"}")
+                    }
+                }.joinToString(" · ")
+                if (meta.isNotEmpty()) {
+                    Text(meta, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            if (!node.task.linkedEventUid.isNullOrBlank()) {
+                Icon(
+                    Icons.Default.Event,
+                    contentDescription = "Linked calendar item",
+                    modifier = Modifier.size(18.dp),
+                    tint = color,
+                )
+            }
+            IconButton(onClick = onAddChild) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = if (isCategory) "Add task in category" else "Add subtask",
+                )
+            }
+            IconButton(
+                onClick = {},
+                modifier = dragHandleModifier,
+            ) {
+                Icon(Icons.Default.DragHandle, contentDescription = "Reorder")
+            }
         }
     }
 }

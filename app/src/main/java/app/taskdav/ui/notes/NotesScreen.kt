@@ -57,11 +57,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.taskdav.ui.common.CompactHeader
+import app.taskdav.ui.common.ConfirmDeleteDialog
 import app.taskdav.ui.common.DockScrollPadding
 import app.taskdav.ui.common.ExpressiveEmptyState
 import app.taskdav.ui.common.ExpressiveExtendedFab
 import app.taskdav.ui.common.ExpressiveFilterChip
 import app.taskdav.ui.common.ItemShare
+import app.taskdav.ui.common.SwipeRevealAction
+import app.taskdav.ui.common.SwipeRevealRow
 import app.taskdav.ui.common.SyncLoadingBanner
 import app.taskdav.ui.common.TagFilterIconButton
 import app.taskdav.ui.common.TagsEditor
@@ -79,6 +82,22 @@ fun NotesScreen(
     val collections by viewModel.collections.collectAsStateWithLifecycle()
     val journalCollections = remember(collections) {
         collections.filter { it.enabled && it.supportsVjournal }
+    }
+    var pendingDeleteId by remember { mutableStateOf<Long?>(null) }
+    val pendingDeleteNote = remember(ui.notes, pendingDeleteId) {
+        ui.notes.find { it.id == pendingDeleteId }
+    }
+
+    pendingDeleteNote?.let { note ->
+        ConfirmDeleteDialog(
+            title = "Delete note?",
+            body = "This permanently removes “${note.summary}” from the app and the server.",
+            onConfirm = {
+                viewModel.deleteNote(note.id)
+                pendingDeleteId = null
+            },
+            onDismiss = { pendingDeleteId = null },
+        )
     }
 
     Scaffold(
@@ -168,35 +187,49 @@ fun NotesScreen(
                         contentPadding = DockScrollPadding,
                     ) {
                         items(ui.notes, key = { it.id }) { note ->
-                            Row(
-                                modifier = Modifier
-                                    .animateItem()
-                                    .fillMaxWidth()
-                                    .clickable { onEditNote(note.id) }
-                                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
+                            SwipeRevealRow(
+                                modifier = Modifier.animateItem(),
+                                contentColor = MaterialTheme.colorScheme.background,
+                                cornerRadius = 0.dp,
+                                actions = { close ->
+                                    SwipeRevealAction(
+                                        icon = Icons.Default.Delete,
+                                        contentDescription = "Delete note",
+                                        onClick = {
+                                            pendingDeleteId = note.id
+                                            close()
+                                        },
+                                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                    )
+                                },
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(note.summary, style = MaterialTheme.typography.bodyLarge)
-                                    val tags = parseCategories(note.categories)
-                                    if (tags.isNotEmpty()) {
-                                        Text(
-                                            tags.joinToString(", "),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    } else if (!note.description.isNullOrBlank()) {
-                                        Text(
-                                            note.description,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onEditNote(note.id) }
+                                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(note.summary, style = MaterialTheme.typography.bodyLarge)
+                                        val tags = parseCategories(note.categories)
+                                        if (tags.isNotEmpty()) {
+                                            Text(
+                                                tags.joinToString(", "),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        } else if (!note.description.isNullOrBlank()) {
+                                            Text(
+                                                note.description,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
                                     }
-                                }
-                                IconButton(onClick = { viewModel.deleteNote(note.id) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete")
                                 }
                             }
                         }

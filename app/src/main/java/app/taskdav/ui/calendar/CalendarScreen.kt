@@ -26,24 +26,21 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Apps
-import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -76,8 +73,12 @@ import app.taskdav.ui.common.ExpressiveExtendedFab
 import app.taskdav.ui.common.ExpressiveFilterChip
 import app.taskdav.ui.common.InlineDateTimePicker
 import app.taskdav.ui.common.ItemShare
+import app.taskdav.ui.common.ConfirmDeleteDialog
+import app.taskdav.ui.common.SwipeRevealAction
+import app.taskdav.ui.common.SwipeRevealRow
 import app.taskdav.ui.common.SyncLoadingBanner
-import app.taskdav.ui.common.openLocationInMaps
+import app.taskdav.ui.common.openEventLink
+import app.taskdav.ui.common.resolveEventLink
 import app.taskdav.ui.theme.TaskDavRadii
 import app.taskdav.ui.theme.collectionColorOrDefault
 import java.util.Calendar
@@ -112,6 +113,54 @@ fun CalendarScreen(
         if (ui.selectedDayStartMillis == null && ui.viewMode == CalendarViewMode.DAILY) {
             viewModel.goToday()
         }
+    }
+
+    if (ui.showEditor) {
+        EventEditorScreen(
+            isNew = ui.editingEventId == null,
+            summary = ui.editorSummary,
+            description = ui.editorDescription,
+            location = ui.editorLocation,
+            startMillis = ui.editorStartMillis,
+            endMillis = ui.editorEndMillis,
+            collectionId = ui.editorCollectionId,
+            collections = eventCollections,
+            recurrence = ui.editorRecurrence,
+            error = ui.error,
+            onSummary = viewModel::setEditorSummary,
+            onDescription = viewModel::setEditorDescription,
+            onLocation = viewModel::setEditorLocation,
+            onCollection = viewModel::setEditorCollection,
+            onRecurrence = viewModel::setEditorRecurrence,
+            onStart = viewModel::setEditorStart,
+            onEnd = viewModel::setEditorEnd,
+            onDismiss = viewModel::dismissEditor,
+            onSave = viewModel::saveEditor,
+            onDelete = if (ui.editingEventId != null) viewModel::deleteEditing else null,
+            onShare = {
+                val matched = listOf(dayItems, weekItems, upcomingItems)
+                    .flatten()
+                    .map { it.event }
+                    .find { it.id == ui.editingEventId }
+                val event = matched ?: EventEntity(
+                    id = ui.editingEventId ?: 0,
+                    uid = "share-draft",
+                    href = null,
+                    etag = null,
+                    collectionId = ui.editorCollectionId ?: 0,
+                    summary = ui.editorSummary.ifBlank { "Event" },
+                    description = ui.editorDescription.ifBlank { null },
+                    location = ui.editorLocation.ifBlank { null },
+                    dtStartMillis = ui.editorStartMillis,
+                    dtEndMillis = ui.editorEndMillis,
+                    allDay = false,
+                    rrule = ui.editorRecurrence.toRrule(),
+                    icsRaw = null,
+                )
+                ItemShare.shareEvent(context, event)
+            }.takeIf { ui.editingEventId != null },
+        )
+        return
     }
 
     Scaffold(
@@ -338,53 +387,6 @@ fun CalendarScreen(
             onDismiss = viewModel::dismissViewPicker,
         )
     }
-
-    if (ui.showEditor) {
-        EventEditorDialog(
-            isNew = ui.editingEventId == null,
-            summary = ui.editorSummary,
-            description = ui.editorDescription,
-            location = ui.editorLocation,
-            startMillis = ui.editorStartMillis,
-            endMillis = ui.editorEndMillis,
-            collectionId = ui.editorCollectionId,
-            collections = eventCollections,
-            recurrence = ui.editorRecurrence,
-            error = ui.error,
-            onSummary = viewModel::setEditorSummary,
-            onDescription = viewModel::setEditorDescription,
-            onLocation = viewModel::setEditorLocation,
-            onCollection = viewModel::setEditorCollection,
-            onRecurrence = viewModel::setEditorRecurrence,
-            onStart = viewModel::setEditorStart,
-            onEnd = viewModel::setEditorEnd,
-            onDismiss = viewModel::dismissEditor,
-            onSave = viewModel::saveEditor,
-            onDelete = if (ui.editingEventId != null) viewModel::deleteEditing else null,
-            onShare = {
-                val matched = listOf(dayItems, weekItems, upcomingItems)
-                    .flatten()
-                    .map { it.event }
-                    .find { it.id == ui.editingEventId }
-                val event = matched ?: EventEntity(
-                    id = ui.editingEventId ?: 0,
-                    uid = "share-draft",
-                    href = null,
-                    etag = null,
-                    collectionId = ui.editorCollectionId ?: 0,
-                    summary = ui.editorSummary.ifBlank { "Event" },
-                    description = ui.editorDescription.ifBlank { null },
-                    location = ui.editorLocation.ifBlank { null },
-                    dtStartMillis = ui.editorStartMillis,
-                    dtEndMillis = ui.editorEndMillis,
-                    allDay = false,
-                    rrule = ui.editorRecurrence.toRrule(),
-                    icsRaw = null,
-                )
-                ItemShare.shareEvent(context, event)
-            }.takeIf { ui.editingEventId != null },
-        )
-    }
 }
 
 @Composable
@@ -475,9 +477,6 @@ private fun LazyListScope.eventRows(
                 item = item,
                 onClick = { onEdit(item) },
                 onOpenTask = item.linkedTask?.let { task -> { onOpenTask(task.id) } },
-                onOpenLocation = item.event.location
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let { loc -> { openLocationInMaps(context, loc) } },
                 onShare = { ItemShare.shareEvent(context, item.event) },
                 modifier = Modifier.padding(horizontal = 12.dp),
             )
@@ -722,92 +721,124 @@ private fun EventRow(
     item: CalendarDayItem,
     onClick: () -> Unit,
     onOpenTask: (() -> Unit)?,
-    onOpenLocation: (() -> Unit)?,
     onShare: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val event = item.event
     val color = collectionColorOrDefault(item.collection?.colorArgb)
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp, horizontal = 12.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Box(
+    val linkAction = remember(event.location, event.description) {
+        resolveEventLink(event.location, event.description)
+    }
+    val hasRevealActions = onShare != null || linkAction != null
+
+    val cardContent: @Composable () -> Unit = {
+        Row(
             modifier = Modifier
-                .padding(top = 2.dp, end = 12.dp)
-                .width(5.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(color)
-                .padding(vertical = 28.dp),
-        )
-        Column(modifier = Modifier.weight(1f)) {
-            Text(event.summary, style = MaterialTheme.typography.titleMedium, maxLines = 2)
-            Text(
-                timeLabel(context, event),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(vertical = 8.dp, horizontal = 12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 2.dp, end = 12.dp)
+                    .width(5.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(color)
+                    .padding(vertical = 28.dp),
             )
-            event.description?.takeIf { it.isNotBlank() }?.let { details ->
+            Column(modifier = Modifier.weight(1f)) {
+                Text(event.summary, style = MaterialTheme.typography.titleMedium, maxLines = 2)
                 Text(
-                    details,
+                    timeLabel(context, event),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
                 )
-            }
-            val meta = buildList {
-                item.collection?.displayName?.let { add(it) }
-                item.linkedTask?.let { add("Task: ${it.summary}") }
-            }.joinToString(" · ")
-            if (meta.isNotEmpty()) {
-                Text(
-                    meta,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            event.location?.takeIf { it.isNotBlank() }?.let { loc ->
-                Text(
-                    loc,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            if (onOpenTask != null || onOpenLocation != null || onShare != null) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (onOpenTask != null) {
-                        TextButton(onClick = onOpenTask) { Text("Open task") }
-                    }
-                    if (onShare != null) {
-                        IconButton(onClick = onShare, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Default.Share, contentDescription = "Share")
-                        }
-                    }
-                    if (onOpenLocation != null) {
-                        IconButton(onClick = onOpenLocation, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Default.Place, contentDescription = "Open in maps")
-                        }
+                event.description?.takeIf { it.isNotBlank() }?.let { details ->
+                    Text(
+                        details,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                val meta = buildList {
+                    item.collection?.displayName?.let { add(it) }
+                    item.linkedTask?.let { add("Task: ${it.summary}") }
+                }.joinToString(" · ")
+                if (meta.isNotEmpty()) {
+                    Text(
+                        meta,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                event.location?.takeIf { it.isNotBlank() }?.let { loc ->
+                    Text(
+                        loc,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (onOpenTask != null) {
+                    TextButton(
+                        onClick = onOpenTask,
+                        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+                    ) {
+                        Text("Open task")
                     }
                 }
             }
+        }
+    }
+
+    if (hasRevealActions) {
+        SwipeRevealRow(
+            modifier = modifier,
+            actions = { close ->
+                if (onShare != null) {
+                    SwipeRevealAction(
+                        icon = Icons.Default.Share,
+                        contentDescription = "Share",
+                        onClick = {
+                            onShare()
+                            close()
+                        },
+                    )
+                }
+                if (linkAction != null) {
+                    SwipeRevealAction(
+                        icon = linkAction.icon,
+                        contentDescription = linkAction.label,
+                        onClick = {
+                            openEventLink(context, event.location, event.description)
+                            close()
+                        },
+                    )
+                }
+            },
+            content = cardContent,
+        )
+    } else {
+        Box(
+            modifier = modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
+        ) {
+            cardContent()
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EventEditorDialog(
+private fun EventEditorScreen(
     isNew: Boolean,
     summary: String,
     description: String,
@@ -831,222 +862,255 @@ private fun EventEditorDialog(
     onShare: (() -> Unit)? = null,
 ) {
     var collectionExpanded by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     val selected = collections.find { it.id == collectionId }
     val repeats = recurrence.mode != EventRecurrence.Mode.NONE
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (isNew) "New event" else "Edit event") },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedTextField(
-                    value = summary,
-                    onValueChange = onSummary,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Title") },
-                    singleLine = true,
-                )
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = onDescription,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Description") },
-                    minLines = 3,
-                )
-                if (isNew && collections.isNotEmpty()) {
-                    ExposedDropdownMenuBox(
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            TopAppBar(
+                title = { Text(if (isNew) "New event" else "Edit event") },
+                navigationIcon = {
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (onShare != null) {
+                        IconButton(onClick = onShare) {
+                            Icon(Icons.Default.Share, contentDescription = "Share")
+                        }
+                    }
+                    TextButton(onClick = onSave) {
+                        Text("Save")
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            OutlinedTextField(
+                value = summary,
+                onValueChange = onSummary,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Title") },
+                singleLine = true,
+            )
+            OutlinedTextField(
+                value = description,
+                onValueChange = onDescription,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Description") },
+                minLines = 3,
+            )
+            if (isNew && collections.isNotEmpty()) {
+                ExposedDropdownMenuBox(
+                    expanded = collectionExpanded,
+                    onExpandedChange = { collectionExpanded = it },
+                ) {
+                    OutlinedTextField(
+                        value = selected?.displayName ?: "Calendar",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Calendar") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(collectionExpanded) },
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth(),
+                    )
+                    ExposedDropdownMenu(
                         expanded = collectionExpanded,
-                        onExpandedChange = { collectionExpanded = it },
+                        onDismissRequest = { collectionExpanded = false },
                     ) {
-                        OutlinedTextField(
-                            value = selected?.displayName ?: "Calendar",
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Calendar") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(collectionExpanded) },
-                            modifier = Modifier
-                                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                                .fillMaxWidth(),
-                        )
-                        ExposedDropdownMenu(
-                            expanded = collectionExpanded,
-                            onDismissRequest = { collectionExpanded = false },
-                        ) {
-                            collections.forEach { col ->
-                                DropdownMenuItem(
-                                    text = { Text(col.displayName) },
-                                    onClick = {
-                                        onCollection(col.id)
-                                        collectionExpanded = false
-                                    },
-                                )
-                            }
+                        collections.forEach { col ->
+                            DropdownMenuItem(
+                                text = { Text(col.displayName) },
+                                onClick = {
+                                    onCollection(col.id)
+                                    collectionExpanded = false
+                                },
+                            )
                         }
                     }
                 }
-                InlineDateTimePicker(
-                    label = "Starts",
-                    valueMillis = startMillis,
-                    onValueChange = onStart,
-                )
-                InlineDateTimePicker(
-                    label = "Ends",
-                    valueMillis = endMillis,
-                    onValueChange = onEnd,
-                )
+            }
 
-                Text("Repeat", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "When",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            InlineDateTimePicker(
+                label = "Starts",
+                valueMillis = startMillis,
+                onValueChange = onStart,
+            )
+            InlineDateTimePicker(
+                label = "Ends",
+                valueMillis = endMillis,
+                onValueChange = onEnd,
+            )
+
+            Text(
+                "Repeat",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                ExpressiveFilterChip(
+                    label = "Never",
+                    selected = recurrence.mode == EventRecurrence.Mode.NONE,
+                    onClick = {
+                        onRecurrence(recurrence.copy(mode = EventRecurrence.Mode.NONE))
+                    },
+                )
+                ExpressiveFilterChip(
+                    label = "Weekly",
+                    selected = recurrence.mode == EventRecurrence.Mode.WEEKLY,
+                    onClick = {
+                        onRecurrence(recurrence.copy(mode = EventRecurrence.Mode.WEEKLY))
+                    },
+                )
+                ExpressiveFilterChip(
+                    label = "Every 2 weeks",
+                    selected = recurrence.mode == EventRecurrence.Mode.EVERY_2_WEEKS,
+                    onClick = {
+                        onRecurrence(recurrence.copy(mode = EventRecurrence.Mode.EVERY_2_WEEKS))
+                    },
+                )
+                ExpressiveFilterChip(
+                    label = "Every N weeks",
+                    selected = recurrence.mode == EventRecurrence.Mode.EVERY_N_WEEKS,
+                    onClick = {
+                        onRecurrence(
+                            recurrence.copy(
+                                mode = EventRecurrence.Mode.EVERY_N_WEEKS,
+                                intervalWeeks = recurrence.intervalWeeks.coerceAtLeast(3),
+                            ),
+                        )
+                    },
+                )
+                if (recurrence.mode == EventRecurrence.Mode.OTHER) {
+                    ExpressiveFilterChip(
+                        label = "Custom",
+                        selected = true,
+                        onClick = {},
+                    )
+                }
+            }
+            if (recurrence.mode == EventRecurrence.Mode.EVERY_N_WEEKS) {
+                OutlinedTextField(
+                    value = recurrence.intervalWeeks.toString(),
+                    onValueChange = { raw ->
+                        val n = raw.filter { it.isDigit() }.toIntOrNull()?.coerceIn(1, 52) ?: 1
+                        onRecurrence(recurrence.copy(intervalWeeks = n))
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Repeat every (weeks)") },
+                    singleLine = true,
+                )
+            }
+            if (recurrence.mode == EventRecurrence.Mode.OTHER) {
+                Text(
+                    recurrence.otherRrule.orEmpty(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                )
+                TextButton(
+                    onClick = {
+                        onRecurrence(EventRecurrence.EditState())
+                    },
+                ) { Text("Clear custom rule") }
+            }
+            if (repeats && recurrence.mode != EventRecurrence.Mode.OTHER) {
+                Text(
+                    "Ends",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    FilterChip(
-                        selected = recurrence.mode == EventRecurrence.Mode.NONE,
-                        onClick = {
-                            onRecurrence(recurrence.copy(mode = EventRecurrence.Mode.NONE))
-                        },
-                        label = { Text("Never") },
+                    ExpressiveFilterChip(
+                        label = "Never",
+                        selected = recurrence.count == null,
+                        onClick = { onRecurrence(recurrence.copy(count = null)) },
                     )
-                    FilterChip(
-                        selected = recurrence.mode == EventRecurrence.Mode.WEEKLY,
+                    ExpressiveFilterChip(
+                        label = "After N times",
+                        selected = recurrence.count != null,
                         onClick = {
-                            onRecurrence(recurrence.copy(mode = EventRecurrence.Mode.WEEKLY))
+                            onRecurrence(recurrence.copy(count = recurrence.count ?: 10))
                         },
-                        label = { Text("Weekly") },
                     )
-                    FilterChip(
-                        selected = recurrence.mode == EventRecurrence.Mode.EVERY_2_WEEKS,
-                        onClick = {
-                            onRecurrence(recurrence.copy(mode = EventRecurrence.Mode.EVERY_2_WEEKS))
-                        },
-                        label = { Text("Every 2 weeks") },
-                    )
-                    FilterChip(
-                        selected = recurrence.mode == EventRecurrence.Mode.EVERY_N_WEEKS,
-                        onClick = {
-                            onRecurrence(
-                                recurrence.copy(
-                                    mode = EventRecurrence.Mode.EVERY_N_WEEKS,
-                                    intervalWeeks = recurrence.intervalWeeks.coerceAtLeast(3),
-                                ),
-                            )
-                        },
-                        label = { Text("Every N weeks") },
-                    )
-                    if (recurrence.mode == EventRecurrence.Mode.OTHER) {
-                        FilterChip(
-                            selected = true,
-                            onClick = {},
-                            label = { Text("Custom") },
-                        )
-                    }
                 }
-                if (recurrence.mode == EventRecurrence.Mode.EVERY_N_WEEKS) {
+                if (recurrence.count != null) {
                     OutlinedTextField(
-                        value = recurrence.intervalWeeks.toString(),
+                        value = recurrence.count.toString(),
                         onValueChange = { raw ->
-                            val n = raw.filter { it.isDigit() }.toIntOrNull()?.coerceIn(1, 52) ?: 1
-                            onRecurrence(recurrence.copy(intervalWeeks = n))
+                            val n = raw.filter { it.isDigit() }.toIntOrNull()?.coerceIn(1, 999)
+                            onRecurrence(recurrence.copy(count = n ?: 1))
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Repeat every (weeks)") },
+                        label = { Text("Number of occurrences") },
                         singleLine = true,
                     )
                 }
-                if (recurrence.mode == EventRecurrence.Mode.OTHER) {
-                    Text(
-                        recurrence.otherRrule.orEmpty(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                    )
-                    TextButton(
-                        onClick = {
-                            onRecurrence(EventRecurrence.EditState())
-                        },
-                    ) { Text("Clear custom rule") }
-                }
-                if (repeats && recurrence.mode != EventRecurrence.Mode.OTHER) {
-                    Text("Ends", style = MaterialTheme.typography.titleSmall)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        FilterChip(
-                            selected = recurrence.count == null,
-                            onClick = { onRecurrence(recurrence.copy(count = null)) },
-                            label = { Text("Never") },
-                        )
-                        FilterChip(
-                            selected = recurrence.count != null,
-                            onClick = {
-                                onRecurrence(recurrence.copy(count = recurrence.count ?: 10))
-                            },
-                            label = { Text("After N times") },
-                        )
-                    }
-                    if (recurrence.count != null) {
-                        OutlinedTextField(
-                            value = recurrence.count.toString(),
-                            onValueChange = { raw ->
-                                val n = raw.filter { it.isDigit() }.toIntOrNull()?.coerceIn(1, 999)
-                                onRecurrence(recurrence.copy(count = n ?: 1))
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Number of occurrences") },
-                            singleLine = true,
-                        )
-                    }
-                }
+            }
 
-                OutlinedTextField(
-                    value = location,
-                    onValueChange = onLocation,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Location") },
-                    singleLine = true,
-                )
-                error?.let {
-                    Text(it, color = MaterialTheme.colorScheme.error)
+            Text(
+                "Location",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                value = location,
+                onValueChange = onLocation,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Location or meeting link") },
+                singleLine = true,
+                placeholder = { Text("Address, Meet, Zoom…") },
+            )
+            error?.let {
+                Text(it, color = MaterialTheme.colorScheme.error)
+            }
+            if (onDelete != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(onClick = { showDeleteConfirm = true }) {
+                    Text("Delete event", color = MaterialTheme.colorScheme.error)
                 }
             }
-        },
-        confirmButton = {
-            androidx.compose.material3.Button(
-                onClick = onSave,
-                shape = RoundedCornerShape(TaskDavRadii.chip),
-            ) {
-                Text("Save", style = MaterialTheme.typography.labelLarge)
-            }
-        },
-        dismissButton = {
-            Row {
-                if (onShare != null) {
-                    TextButton(onClick = onShare) {
-                        Icon(
-                            Icons.Default.Share,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Share")
-                    }
-                }
-                if (onDelete != null) {
-                    TextButton(onClick = onDelete) {
-                        Text("Delete", color = MaterialTheme.colorScheme.error)
-                    }
-                }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
-            }
-        },
-    )
+            Spacer(modifier = Modifier.height(48.dp))
+        }
+    }
+
+    if (showDeleteConfirm && onDelete != null) {
+        ConfirmDeleteDialog(
+            title = "Delete event?",
+            body = "This permanently removes the event from the app and the server.",
+            onConfirm = {
+                showDeleteConfirm = false
+                onDelete()
+            },
+            onDismiss = { showDeleteConfirm = false },
+        )
+    }
 }
 
 private fun timeLabel(context: android.content.Context, event: EventEntity): String {
