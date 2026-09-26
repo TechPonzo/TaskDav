@@ -38,6 +38,10 @@ fun CreditsSettingsScreen(onBack: () -> Unit) {
                 Copyright © TaskDav contributors
                 Licensed under the GNU General Public License v3.0 (GPLv3)
                 
+                Contributors:
+                
+                • TechPonzo (@TechPonzo) — https://github.com/TechPonzo
+                
                 Built with:
                 
                 • dav4jvm (bitfireAT) — WebDAV / CalDAV client library

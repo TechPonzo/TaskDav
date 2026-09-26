@@ -46,6 +46,9 @@ class TaskDavApp : Application() {
     private val _syncBackend = MutableStateFlow(SyncBackend.LOCAL)
     val syncBackend: StateFlow<SyncBackend> = _syncBackend.asStateFlow()
 
+    private val _isOnline = MutableStateFlow(false)
+    val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
+
     private val _pendingEventCompose = MutableSharedFlow<PendingEventCompose>(
         replay = 0,
         extraBufferCapacity = 8,
@@ -122,17 +125,47 @@ class TaskDavApp : Application() {
     /** When connectivity returns, push any dirty local edits and pull updates. */
     private fun registerReconnectSync() {
         val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
+        fun refreshOnline(caps: NetworkCapabilities? = cm.getNetworkCapabilities(cm.activeNetwork)) {
+            _isOnline.value = caps != null &&
+                caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        }
+        refreshOnline()
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
+                refreshOnline(cm.getNetworkCapabilities(network))
                 if (accountStore.isCalDavMode() && accountStore.isConfigured()) {
                     CalDavSyncWorker.enqueueNow(this@TaskDavApp)
                 }
             }
+
+            override fun onLost(network: Network) {
+                // Default network may have switched; re-check active.
+                refreshOnline()
+            }
+
+            override fun onCapabilitiesChanged(
+                network: Network,
+                networkCapabilities: NetworkCapabilities,
+            ) {
+                refreshOnline(networkCapabilities)
+            }
+
+            override fun onUnavailable() {
+                _isOnline.value = false
+            }
         }
         networkCallback = callback
-        runCatching { cm.registerNetworkCallback(request, callback) }
+        // Default-network callback reliably reports the network apps actually use.
+        runCatching { cm.registerDefaultNetworkCallback(callback) }
+            .onFailure {
+                runCatching {
+                    cm.registerNetworkCallback(
+                        NetworkRequest.Builder()
+                            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                            .build(),
+                        callback,
+                    )
+                }
+            }
     }
 }

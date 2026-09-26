@@ -28,7 +28,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -48,25 +47,54 @@ fun CalendarViewPickerDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(vertical = 12.dp),
+                .clip(RoundedCornerShape(28.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            Text(
+                "Calendar view",
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(bottom = 8.dp),
+            )
             CalendarViewMode.entries.forEach { mode ->
+                val isSelected = mode == selected
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surface
+                            },
+                        )
                         .clickable { onSelect(mode) }
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     RadioButton(
-                        selected = mode == selected,
+                        selected = isSelected,
                         onClick = { onSelect(mode) },
                     )
-                    Text(mode.label, style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        mode.label,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                    )
                 }
+            }
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.align(Alignment.End),
+            ) {
+                Text("Close")
             }
         }
     }
@@ -204,7 +232,7 @@ private fun MiniMonth(
                                         when {
                                             isToday -> Modifier
                                                 .clip(CircleShape)
-                                                .background(Color(0xFF111111))
+                                                .background(MaterialTheme.colorScheme.primaryContainer)
                                             selected -> Modifier
                                                 .clip(CircleShape)
                                                 .background(
@@ -225,7 +253,7 @@ private fun MiniMonth(
                                         FontWeight.Normal
                                     },
                                     color = when {
-                                        isToday -> Color.White
+                                        isToday -> MaterialTheme.colorScheme.onPrimaryContainer
                                         hasEvents -> MaterialTheme.colorScheme.primary
                                         else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
                                     },
@@ -272,7 +300,7 @@ fun WeekStrip(
                     .clip(RoundedCornerShape(10.dp))
                     .then(
                         when {
-                            isToday -> Modifier.background(Color(0xFF111111))
+                            isToday -> Modifier.background(MaterialTheme.colorScheme.primaryContainer)
                             selected -> Modifier.background(
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
                             )
@@ -286,14 +314,18 @@ fun WeekStrip(
                 Text(
                     label,
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (isToday) Color.White
+                    color = if (isToday) MaterialTheme.colorScheme.onPrimaryContainer
                     else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 )
                 Text(
                     cal.get(Calendar.DAY_OF_MONTH).toString(),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (isToday) Color.White else MaterialTheme.colorScheme.onSurface,
+                    color = if (isToday) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                 )
                 if (day in eventDays) {
                     Box(
@@ -302,7 +334,7 @@ fun WeekStrip(
                             .size(5.dp)
                             .clip(CircleShape)
                             .background(
-                                if (isToday) Color.White
+                                if (isToday) MaterialTheme.colorScheme.onPrimaryContainer
                                 else MaterialTheme.colorScheme.primary,
                             ),
                     )

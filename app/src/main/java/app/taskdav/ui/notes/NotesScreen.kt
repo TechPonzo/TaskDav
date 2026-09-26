@@ -13,14 +13,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -32,8 +34,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -51,15 +51,23 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.taskdav.ui.common.CompactHeader
+import app.taskdav.ui.common.DockScrollPadding
+import app.taskdav.ui.common.ExpressiveEmptyState
+import app.taskdav.ui.common.ExpressiveExtendedFab
+import app.taskdav.ui.common.ExpressiveFilterChip
 import app.taskdav.ui.common.ItemShare
+import app.taskdav.ui.common.SyncLoadingBanner
+import app.taskdav.ui.common.TagFilterIconButton
 import app.taskdav.ui.common.TagsEditor
 import app.taskdav.ui.common.joinCategories
 import app.taskdav.ui.common.parseCategories
-import app.taskdav.ui.theme.collectionColorOrDefault
+import app.taskdav.ui.theme.TaskDavRadii
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -74,104 +82,68 @@ fun NotesScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("Notes")
-                        val subtitle = ui.error ?: ui.syncMessage
-                        if (!subtitle.isNullOrBlank()) {
-                            Text(
-                                subtitle,
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                },
-                actions = {
-                    IconButton(onClick = viewModel::syncNow, enabled = !ui.syncing) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Sync")
-                    }
-                },
-            )
-        },
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         floatingActionButton = {
-            FloatingActionButton(onClick = { onEditNote(null) }) {
-                Icon(Icons.Default.Add, contentDescription = "Add note")
+            Box(modifier = Modifier.navigationBarsPadding().padding(bottom = 72.dp)) {
+                ExpressiveExtendedFab(
+                    text = "New note",
+                    icon = Icons.Default.Add,
+                    onClick = { onEditNote(null) },
+                )
             }
         },
-    ) { padding ->
+    ) { _ ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier = Modifier.fillMaxSize(),
         ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(end = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CompactHeader(
+                    title = "Notes",
+                    modifier = Modifier.weight(1f),
+                )
+                TagFilterIconButton(
+                    availableTags = ui.availableTags,
+                    selectedTag = ui.tagFilter,
+                    onSelectTag = viewModel::setTagFilter,
+                )
+                IconButton(onClick = viewModel::syncNow, enabled = !ui.syncing) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Sync")
+                }
+            }
+            if (ui.syncing) {
+                SyncLoadingBanner(
+                    message = ui.syncMessage?.takeIf { it.isNotBlank() }
+                        ?: "Syncing notes…",
+                )
+            }
             if (journalCollections.isNotEmpty()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    FilterChip(
+                    ExpressiveFilterChip(
+                        label = "All",
                         selected = ui.collectionFilter == null,
                         onClick = { viewModel.setCollectionFilter(null) },
-                        label = { Text("All") },
                     )
                     journalCollections.forEach { col ->
-                        FilterChip(
+                        ExpressiveFilterChip(
+                            label = col.displayName,
                             selected = ui.collectionFilter == col.id,
                             onClick = {
                                 viewModel.setCollectionFilter(
                                     if (ui.collectionFilter == col.id) null else col.id,
                                 )
                             },
-                            label = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(10.dp)
-                                            .background(
-                                                collectionColorOrDefault(col.colorArgb),
-                                                CircleShape,
-                                            ),
-                                    )
-                                    Text(col.displayName)
-                                }
-                            },
-                        )
-                    }
-                }
-            }
-
-            if (ui.availableTags.isNotEmpty()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    FilterChip(
-                        selected = ui.tagFilter == null,
-                        onClick = { viewModel.setTagFilter(null) },
-                        label = { Text("All tags") },
-                    )
-                    ui.availableTags.forEach { tag ->
-                        FilterChip(
-                            selected = ui.tagFilter == tag,
-                            onClick = {
-                                viewModel.setTagFilter(
-                                    if (ui.tagFilter == tag) null else tag,
-                                )
-                            },
-                            label = { Text(tag) },
                         )
                     }
                 }
@@ -184,15 +156,16 @@ fun NotesScreen(
                 modifier = Modifier.fillMaxSize(),
             ) { empty ->
                 if (empty) {
-                    Box(
+                    ExpressiveEmptyState(
+                        title = "No notes yet",
+                        body = "Sync or add a note to get started.",
+                        actionLabel = "New note",
+                        onAction = { onEditNote(null) },
                         modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text("No notes yet. Sync or add one.")
-                    }
+                    )
                 } else {
                     LazyColumn(
-                        contentPadding = PaddingValues(bottom = 88.dp),
+                        contentPadding = DockScrollPadding,
                     ) {
                         items(ui.notes, key = { it.id }) { note ->
                             Row(
@@ -200,7 +173,7 @@ fun NotesScreen(
                                     .animateItem()
                                     .fillMaxWidth()
                                     .clickable { onEditNote(note.id) }
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    .padding(horizontal = 20.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
@@ -209,14 +182,16 @@ fun NotesScreen(
                                     if (tags.isNotEmpty()) {
                                         Text(
                                             tags.joinToString(", "),
-                                            style = MaterialTheme.typography.labelSmall,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     } else if (!note.description.isNullOrBlank()) {
                                         Text(
                                             note.description,
                                             style = MaterialTheme.typography.bodySmall,
-                                            maxLines = 2,
+                                            maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
                                 }

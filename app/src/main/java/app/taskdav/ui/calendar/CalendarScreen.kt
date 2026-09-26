@@ -9,10 +9,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,7 +39,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -58,7 +59,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -69,15 +69,19 @@ import app.taskdav.data.CalendarViewMode
 import app.taskdav.data.CollectionEntity
 import app.taskdav.data.EventEntity
 import app.taskdav.domain.EventRecurrence
+import app.taskdav.ui.common.CompactHeader
 import app.taskdav.ui.common.DateFormats
+import app.taskdav.ui.common.DockScrollPadding
+import app.taskdav.ui.common.ExpressiveExtendedFab
+import app.taskdav.ui.common.ExpressiveFilterChip
 import app.taskdav.ui.common.InlineDateTimePicker
 import app.taskdav.ui.common.ItemShare
+import app.taskdav.ui.common.SyncLoadingBanner
 import app.taskdav.ui.common.openLocationInMaps
+import app.taskdav.ui.theme.TaskDavRadii
 import app.taskdav.ui.theme.collectionColorOrDefault
 import java.util.Calendar
 import java.util.Locale
-
-private val TodayCellBlack = Color(0xFF111111)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,46 +115,47 @@ fun CalendarScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("Calendar")
-                        val subtitle = ui.error ?: ui.syncMessage
-                        if (!subtitle.isNullOrBlank()) {
-                            Text(
-                                subtitle,
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                },
-                actions = {
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        floatingActionButton = {
+            Box(modifier = Modifier.navigationBarsPadding().padding(bottom = 72.dp)) {
+                ExpressiveExtendedFab(
+                    text = "New event",
+                    icon = Icons.Default.Add,
+                    onClick = viewModel::openCreate,
+                )
+            }
+        },
+    ) { _ ->
+        PullToRefreshBox(
+            isRefreshing = ui.syncing,
+            onRefresh = viewModel::syncNow,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(end = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CompactHeader(
+                        title = "Calendar",
+                        modifier = Modifier.weight(1f),
+                    )
                     IconButton(onClick = viewModel::openViewPicker) {
                         Icon(Icons.Default.Apps, contentDescription = "Calendar view")
                     }
                     IconButton(onClick = viewModel::syncNow, enabled = !ui.syncing) {
                         Icon(Icons.Default.Refresh, contentDescription = "Sync")
                     }
-                },
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = viewModel::openCreate) {
-                Icon(Icons.Default.Add, contentDescription = "Add event")
-            }
-        },
-    ) { padding ->
-        PullToRefreshBox(
-            isRefreshing = ui.syncing,
-            onRefresh = viewModel::syncNow,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+                }
+                if (ui.syncing) {
+                    SyncLoadingBanner(
+                        message = ui.syncMessage?.takeIf { it.isNotBlank() }
+                            ?: "Syncing calendar…",
+                    )
+                }
                 CollectionFilterRow(
                     collections = eventCollections,
                     collectionFilter = ui.collectionFilter,
@@ -158,7 +163,7 @@ fun CalendarScreen(
                 )
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 88.dp),
+                    contentPadding = DockScrollPadding,
                 ) {
                     when (ui.viewMode) {
                         CalendarViewMode.YEARLY -> {
@@ -396,32 +401,17 @@ private fun CollectionFilterRow(
             .padding(horizontal = 12.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        FilterChip(
+        ExpressiveFilterChip(
+            label = "All",
             selected = collectionFilter == null,
             onClick = { onFilter(null) },
-            label = { Text("All") },
         )
         collections.forEach { col ->
-            FilterChip(
+            ExpressiveFilterChip(
+                label = col.displayName,
                 selected = collectionFilter == col.id,
                 onClick = {
                     onFilter(if (collectionFilter == col.id) null else col.id)
-                },
-                label = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(10.dp)
-                                .background(
-                                    collectionColorOrDefault(col.colorArgb),
-                                    CircleShape,
-                                ),
-                        )
-                        Text(col.displayName)
-                    }
                 },
             )
         }
@@ -667,12 +657,12 @@ private fun MonthDayCellView(
         modifier = modifier
             .aspectRatio(1f)
             .padding(2.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(TaskDavRadii.chip))
             .then(
                 when {
-                    isToday -> Modifier.background(TodayCellBlack)
-                    selected -> Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
-                    else -> Modifier
+                    isToday -> Modifier.background(MaterialTheme.colorScheme.primary)
+                    selected -> Modifier.background(MaterialTheme.colorScheme.primaryContainer)
+                    else -> Modifier.background(MaterialTheme.colorScheme.surfaceContainerLowest)
                 },
             )
             .clickable(onClick = onClick),
@@ -681,27 +671,18 @@ private fun MonthDayCellView(
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .size(28.dp)
-                .then(
-                    when {
-                        isToday -> Modifier
-                        selected -> Modifier
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
-                        else -> Modifier
-                    },
-                ),
+                .size(32.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 cell.dayOfMonth.toString(),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (isToday || selected) FontWeight.Bold else FontWeight.Normal,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (isToday || selected) FontWeight.Bold else FontWeight.Medium,
                 textAlign = TextAlign.Center,
                 color = when {
-                    isToday -> Color.White
-                    selected -> MaterialTheme.colorScheme.onPrimary
-                    muted -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
+                    isToday -> MaterialTheme.colorScheme.onPrimary
+                    selected -> MaterialTheme.colorScheme.onPrimaryContainer
+                    muted -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)
                     else -> MaterialTheme.colorScheme.onSurface
                 },
             )
@@ -751,15 +732,16 @@ private fun EventRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .clickable(onClick = onClick)
-            .padding(vertical = 4.dp),
+            .padding(vertical = 8.dp, horizontal = 12.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Box(
             modifier = Modifier
-                .padding(top = 4.dp, end = 10.dp)
-                .width(4.dp)
+                .padding(top = 2.dp, end = 12.dp)
+                .width(5.dp)
                 .clip(RoundedCornerShape(2.dp))
                 .background(color)
                 .padding(vertical = 28.dp),
@@ -1036,7 +1018,12 @@ private fun EventEditorDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onSave) { Text("Save") }
+            androidx.compose.material3.Button(
+                onClick = onSave,
+                shape = RoundedCornerShape(TaskDavRadii.chip),
+            ) {
+                Text("Save", style = MaterialTheme.typography.labelLarge)
+            }
         },
         dismissButton = {
             Row {

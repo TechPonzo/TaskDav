@@ -1,44 +1,43 @@
 package app.taskdav.ui.home
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Event
-import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.taskdav.ui.common.DateFormats
+import app.taskdav.ui.common.DenseAgendaRow
+import app.taskdav.ui.common.DockScrollPadding
+import app.taskdav.ui.common.EmptyLine
+import app.taskdav.ui.common.PeekCard
+import app.taskdav.ui.common.PulseChip
+import app.taskdav.ui.common.SectionLabel
+import app.taskdav.ui.theme.collectionColorOrDefault
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
@@ -52,361 +51,233 @@ fun HomeScreen(
     val context = LocalContext.current
     val todayBusy = ui.todayEvents.isNotEmpty() || ui.dueToday.isNotEmpty()
     val hasThisWeek = ui.thisWeekEvents.isNotEmpty() || ui.thisWeekTasks.isNotEmpty()
-    val hasUpcoming = ui.upcomingEvents.isNotEmpty() || ui.upcomingTasks.isNotEmpty()
+    val comingUpPeeks = remember(ui.upcomingEvents, ui.upcomingTasks) {
+        (ui.upcomingEvents + ui.upcomingTasks).take(8)
+    }
+    val thisWeekPeeks = remember(ui.thisWeekEvents, ui.thisWeekTasks) {
+        (ui.thisWeekEvents + ui.thisWeekTasks).take(10)
+    }
+    val dateLabel = remember {
+        SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date())
+    }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(ui.greeting)
-                        val syncLine = when {
-                            !ui.syncMessage.isNullOrBlank() -> ui.syncMessage
-                            ui.lastSyncAt > 0L -> "Synced ${DateFormats.dateTime(context, ui.lastSyncAt)}"
-                            else -> null
-                        }
-                        if (!syncLine.isNullOrBlank()) {
-                            Text(
-                                syncLine,
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                            )
-                        }
-                    }
-                },
-            )
-        },
-    ) { padding ->
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+    ) { _ ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(bottom = 32.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = DockScrollPadding,
         ) {
             item {
-                StatsRow(
-                    stats = ui.stats,
-                    onOpenTasks = onSeeAllTasks,
-                    onOpenCalendar = onSeeCalendar,
-                    onOpenNotes = onSeeAllNotes,
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            ui.greeting,
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onBackground,
+                        )
+                        Text(
+                            dateLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        buildString {
+                            append(ui.stats.openTasks)
+                            append(" open")
+                            if (ui.stats.overdueTasks > 0) {
+                                append(" · ")
+                                append(ui.stats.overdueTasks)
+                                append(" late")
+                            }
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (ui.stats.overdueTasks > 0) {
+                        PulseChip(
+                            text = "${ui.stats.overdueTasks} overdue",
+                            onClick = onSeeAllTasks,
+                            alert = true,
+                        )
+                    }
+                    PulseChip(
+                        text = "${ui.stats.dueTodayTasks} due today",
+                        onClick = onSeeAllTasks,
+                    )
+                    PulseChip(
+                        text = "${ui.stats.todayEvents} events",
+                        onClick = onSeeCalendar,
+                    )
+                    PulseChip(
+                        text = "${ui.stats.notes} notes",
+                        onClick = onSeeAllNotes,
+                    )
+                }
             }
 
             if (ui.overdue.isNotEmpty()) {
                 item {
-                    SectionHeader(
-                        title = "Overdue",
-                        actionLabel = "Tasks",
-                        onAction = onSeeAllTasks,
-                    )
+                    SectionLabel(title = "Needs attention", actionLabel = "All", onAction = onSeeAllTasks)
                 }
-                items(ui.overdue, key = { "od-${it.id}" }) { item ->
-                    AgendaRow(
-                        item = item,
-                        emphasis = true,
-                        timeLabel = item.atMillis?.let { DateFormats.date(context, it) },
+                items(ui.overdue.take(4), key = { "od-${it.id}" }) { item ->
+                    DenseAgendaRow(
+                        title = item.title,
+                        meta = item.subtitle,
+                        trailing = item.atMillis?.let { DateFormats.date(context, it) },
                         onClick = { onOpenTask(item.id) },
+                        accent = collectionColorOrDefault(item.colorArgb),
+                        emphasis = true,
                     )
                 }
             }
 
             item {
-                SectionHeader(
-                    title = "Today",
-                    actionLabel = "Calendar",
-                    onAction = onSeeCalendar,
-                )
+                Spacer(modifier = Modifier.height(8.dp))
+                SectionLabel(title = "Today", actionLabel = "Calendar", onAction = onSeeCalendar)
             }
             if (!todayBusy) {
-                item {
-                    EmptyHint("Nothing scheduled for today.")
-                }
+                item { EmptyLine("Clear day.") }
             } else {
                 items(ui.todayEvents, key = { "te-${it.id}" }) { item ->
-                    AgendaRow(
-                        item = item,
-                        timeLabel = eventTimeLabel(context, item),
+                    DenseAgendaRow(
+                        title = item.title,
+                        meta = listOfNotNull("Event", item.subtitle).joinToString(" · "),
+                        trailing = eventTimeLabel(context, item),
                         onClick = onSeeCalendar,
+                        accent = collectionColorOrDefault(item.colorArgb),
                     )
                 }
                 items(ui.dueToday, key = { "td-${it.id}" }) { item ->
-                    AgendaRow(
-                        item = item,
-                        timeLabel = item.atMillis?.let { DateFormats.time(context, it) } ?: "Due today",
+                    DenseAgendaRow(
+                        title = item.title,
+                        meta = listOfNotNull("Task", item.subtitle).joinToString(" · "),
+                        trailing = item.atMillis?.let { DateFormats.time(context, it) } ?: "Due",
                         onClick = { onOpenTask(item.id) },
+                        accent = collectionColorOrDefault(item.colorArgb),
                     )
                 }
             }
 
             item {
-                SectionHeader(
-                    title = "This week",
-                    actionLabel = "Calendar",
-                    onAction = onSeeCalendar,
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
                 )
+                Spacer(modifier = Modifier.height(4.dp))
+                SectionLabel(title = "This week", actionLabel = "Calendar", onAction = onSeeCalendar)
             }
             if (!hasThisWeek) {
-                item {
-                    EmptyHint("Nothing else this week.")
-                }
+                item { EmptyLine("Nothing else this week.") }
             } else {
-                items(ui.thisWeekEvents, key = { "we-${it.id}-${it.atMillis}" }) { item ->
-                    AgendaRow(
-                        item = item,
-                        timeLabel = item.atMillis?.let { DateFormats.dateTime(context, it) },
-                        onClick = onSeeCalendar,
-                    )
-                }
-                items(ui.thisWeekTasks, key = { "wt-${it.id}" }) { item ->
-                    AgendaRow(
-                        item = item,
-                        timeLabel = item.atMillis?.let { "Due ${DateFormats.date(context, it)}" },
-                        onClick = { onOpenTask(item.id) },
-                    )
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 20.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        thisWeekPeeks.forEach { item ->
+                            PeekCard(
+                                title = item.title,
+                                meta = item.atMillis?.let { DateFormats.date(context, it) }
+                                    ?: item.subtitle,
+                                onClick = {
+                                    when (item.kind) {
+                                        HomeItemKind.TASK -> onOpenTask(item.id)
+                                        HomeItemKind.NOTE -> onOpenNote(item.id)
+                                        HomeItemKind.EVENT -> onSeeCalendar()
+                                    }
+                                },
+                                accent = collectionColorOrDefault(item.colorArgb),
+                            )
+                        }
+                    }
                 }
             }
 
-            if (hasUpcoming) {
+            if (comingUpPeeks.isNotEmpty()) {
                 item {
-                    SectionHeader(
-                        title = "Coming up",
-                        actionLabel = null,
-                        onAction = null,
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    SectionLabel(title = "Coming up", actionLabel = "Calendar", onAction = onSeeCalendar)
                 }
-                items(ui.upcomingEvents, key = { "ue-${it.id}-${it.atMillis}" }) { item ->
-                    AgendaRow(
-                        item = item,
-                        timeLabel = item.atMillis?.let { DateFormats.dateTime(context, it) },
-                        onClick = onSeeCalendar,
-                    )
-                }
-                items(ui.upcomingTasks, key = { "ut-${it.id}" }) { item ->
-                    AgendaRow(
-                        item = item,
-                        timeLabel = item.atMillis?.let { "Due ${DateFormats.date(context, it)}" },
-                        onClick = { onOpenTask(item.id) },
-                    )
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 20.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        comingUpPeeks.forEach { item ->
+                            PeekCard(
+                                title = item.title,
+                                meta = item.atMillis?.let { DateFormats.date(context, it) }
+                                    ?: item.subtitle,
+                                onClick = {
+                                    when (item.kind) {
+                                        HomeItemKind.TASK -> onOpenTask(item.id)
+                                        HomeItemKind.NOTE -> onOpenNote(item.id)
+                                        HomeItemKind.EVENT -> onSeeCalendar()
+                                    }
+                                },
+                                accent = collectionColorOrDefault(item.colorArgb),
+                            )
+                        }
+                    }
                 }
             }
 
             item {
-                SectionHeader(
-                    title = "Recent notes",
-                    actionLabel = "See all",
-                    onAction = onSeeAllNotes,
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
                 )
+                Spacer(modifier = Modifier.height(4.dp))
+                SectionLabel(title = "Notes", actionLabel = "All", onAction = onSeeAllNotes)
             }
             if (ui.recentNotes.isEmpty()) {
-                item { EmptyHint("No notes yet.") }
+                item { EmptyLine("No notes yet.") }
             } else {
-                items(ui.recentNotes, key = { "n-${it.id}" }) { item ->
-                    AgendaRow(
-                        item = item,
-                        timeLabel = item.atMillis?.let { DateFormats.date(context, it) },
+                items(ui.recentNotes.take(3), key = { "n-${it.id}" }) { item ->
+                    DenseAgendaRow(
+                        title = item.title,
+                        meta = item.subtitle,
+                        trailing = item.atMillis?.let { DateFormats.date(context, it) },
                         onClick = { onOpenNote(item.id) },
+                        accent = collectionColorOrDefault(item.colorArgb),
                     )
                 }
             }
         }
     }
-}
-
-@Composable
-private fun StatsRow(
-    stats: HomeStats,
-    onOpenTasks: () -> Unit,
-    onOpenCalendar: () -> Unit,
-    onOpenNotes: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        StatTile(
-            label = "Open",
-            value = stats.openTasks.toString(),
-            icon = Icons.Outlined.CheckCircle,
-            onClick = onOpenTasks,
-        )
-        if (stats.overdueTasks > 0) {
-            StatTile(
-                label = "Overdue",
-                value = stats.overdueTasks.toString(),
-                icon = Icons.Outlined.WarningAmber,
-                tintError = true,
-                onClick = onOpenTasks,
-            )
-        }
-        StatTile(
-            label = "Due today",
-            value = stats.dueTodayTasks.toString(),
-            icon = Icons.Outlined.CheckCircle,
-            onClick = onOpenTasks,
-        )
-        StatTile(
-            label = "Today",
-            value = stats.todayEvents.toString(),
-            icon = Icons.Outlined.Event,
-            onClick = onOpenCalendar,
-        )
-        StatTile(
-            label = "Notes",
-            value = stats.notes.toString(),
-            icon = Icons.Outlined.Description,
-            onClick = onOpenNotes,
-        )
-    }
-}
-
-@Composable
-private fun StatTile(
-    label: String,
-    value: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
-    tintError: Boolean = false,
-) {
-    val contentColor = if (tintError) {
-        MaterialTheme.colorScheme.error
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
-    Surface(
-        onClick = onClick,
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    tint = contentColor.copy(alpha = 0.8f),
-                )
-                Text(
-                    value,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = contentColor,
-                )
-            }
-            Text(
-                label,
-                style = MaterialTheme.typography.labelMedium,
-                color = contentColor.copy(alpha = 0.7f),
-            )
-        }
-    }
-}
-
-@Composable
-private fun SectionHeader(
-    title: String,
-    actionLabel: String?,
-    onAction: (() -> Unit)?,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 16.dp, end = 4.dp, top = 20.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.weight(1f),
-        )
-        if (actionLabel != null && onAction != null) {
-            TextButton(onClick = onAction) { Text(actionLabel) }
-        }
-    }
-}
-
-@Composable
-private fun AgendaRow(
-    item: HomeAgendaItem,
-    timeLabel: String?,
-    onClick: () -> Unit,
-    emphasis: Boolean = false,
-) {
-    val kindLabel = when (item.kind) {
-        HomeItemKind.EVENT -> "Event"
-        HomeItemKind.TASK -> "Task"
-        HomeItemKind.NOTE -> "Note"
-    }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    item.title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    color = if (emphasis) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
-                )
-                val detail = listOfNotNull(kindLabel, item.subtitle)
-                    .joinToString(" · ")
-                Text(
-                    detail,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            if (!timeLabel.isNullOrBlank()) {
-                Text(
-                    timeLabel,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (emphasis) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
-                    },
-                )
-            }
-        }
-    }
-    HorizontalDivider(
-        modifier = Modifier.padding(horizontal = 16.dp),
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-    )
-}
-
-@Composable
-private fun EmptyHint(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-    )
 }
 
 private fun eventTimeLabel(context: android.content.Context, item: HomeAgendaItem): String {

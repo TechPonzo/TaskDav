@@ -258,7 +258,7 @@ private fun HourRow(hour: Int, onClick: () -> Unit) {
                 .fillMaxHeight(),
         ) {
             HorizontalDivider(
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f),
             )
         }
     }
@@ -287,14 +287,14 @@ private fun TimedEventBlock(
             .padding(end = 8.dp)
             .offset(y = top)
             .height(height)
-            .clip(RoundedCornerShape(6.dp)),
+            .clip(RoundedCornerShape(12.dp)),
         color = color.copy(alpha = 0.22f),
-        shape = RoundedCornerShape(6.dp),
+        shape = RoundedCornerShape(12.dp),
     ) {
         Row(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
-                    .width(4.dp)
+                    .width(5.dp)
                     .fillMaxHeight()
                     .background(color),
             )
@@ -347,6 +347,7 @@ private fun AllDayEventChip(item: CalendarDayItem, onClick: () -> Unit) {
 
 @Composable
 private fun NowLine(top: Dp) {
+    val accent = MaterialTheme.colorScheme.tertiary
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -358,13 +359,13 @@ private fun NowLine(top: Dp) {
                 .width(8.dp)
                 .height(8.dp)
                 .clip(RoundedCornerShape(50))
-                .background(Color(0xFFE53935)),
+                .background(accent),
         )
         Box(
             modifier = Modifier
                 .weight(1f)
                 .height(2.dp)
-                .background(Color(0xFFE53935)),
+                .background(accent),
         )
     }
 }

@@ -1,6 +1,10 @@
 package app.taskdav.ui.settings
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,20 +17,22 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import app.taskdav.ui.common.CompactHeader
+import app.taskdav.ui.common.DockScrollPadding
+import app.taskdav.ui.common.SettingsGlyph
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsHubScreen(
     onSyncing: () -> Unit,
@@ -37,85 +43,85 @@ fun SettingsHubScreen(
     onBack: (() -> Unit)? = null,
 ) {
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Settings") },
-                navigationIcon = {
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+    ) { _ ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = DockScrollPadding,
+        ) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     if (onBack != null) {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
                     }
-                },
-            )
-        },
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-        ) {
+                    CompactHeader(title = "Settings", modifier = Modifier.weight(1f))
+                }
+            }
             item {
-                SettingsRow(
-                    title = "Syncing",
-                    subtitle = "Local-only or CalDAV sync",
-                    icon = { Icon(Icons.Default.Sync, contentDescription = null) },
-                    onClick = onSyncing,
+                SettingsHubItem("Syncing", "Local or CalDAV", Icons.Default.Sync, onSyncing)
+            }
+            item {
+                SettingsHubItem("Appearance", "Theme & dates", Icons.Default.Palette, onAppearance)
+            }
+            item {
+                SettingsHubItem("Export", "Share as ICS", Icons.Default.Share, onExport)
+            }
+            item {
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
                 )
             }
             item {
-                SettingsRow(
-                    title = "Appearance",
-                    subtitle = "App color theme",
-                    icon = { Icon(Icons.Default.Palette, contentDescription = null) },
-                    onClick = onAppearance,
-                )
+                SettingsHubItem("Privacy", "Data & license", Icons.Default.Lock, onPrivacy)
             }
             item {
-                SettingsRow(
-                    title = "Export",
-                    subtitle = "Share calendars as ICS files",
-                    icon = { Icon(Icons.Default.Share, contentDescription = null) },
-                    onClick = onExport,
-                )
-            }
-            item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
-            item {
-                SettingsRow(
-                    title = "Privacy & license",
-                    subtitle = "How TaskDav handles your data",
-                    icon = { Icon(Icons.Default.Lock, contentDescription = null) },
-                    onClick = onPrivacy,
-                )
-            }
-            item {
-                SettingsRow(
-                    title = "Credits",
-                    subtitle = "Open-source acknowledgements",
-                    icon = { Icon(Icons.Default.Info, contentDescription = null) },
-                    onClick = onCredits,
-                )
+                SettingsHubItem("Credits", "Open source", Icons.Default.Info, onCredits)
             }
         }
     }
 }
 
 @Composable
-private fun SettingsRow(
+private fun SettingsHubItem(
     title: String,
     subtitle: String,
-    icon: @Composable () -> Unit,
+    icon: ImageVector,
     onClick: () -> Unit,
 ) {
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(subtitle, style = MaterialTheme.typography.bodySmall) },
-        leadingContent = icon,
-        trailingContent = {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-    )
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.background,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            SettingsGlyph(icon = icon)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier,
+            )
+        }
+    }
 }

@@ -20,7 +20,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.taskdav.TaskDavApp
 import app.taskdav.data.SyncBackend
+import app.taskdav.ui.common.ExpressiveFilterChip
 import app.taskdav.ui.setup.SetupViewModel
 import kotlinx.coroutines.launch
 
@@ -120,17 +120,19 @@ fun AccountSettingsScreen(
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                FilterChip(
+                ExpressiveFilterChip(
+                    label = "This device only",
                     selected = isLocal,
                     onClick = { viewModel.selectSyncBackend(SyncBackend.LOCAL) },
-                    label = { Text("This device only") },
+                    modifier = Modifier.weight(1f),
                 )
-                FilterChip(
+                ExpressiveFilterChip(
+                    label = "CalDAV sync",
                     selected = !isLocal,
                     onClick = { viewModel.selectSyncBackend(SyncBackend.CALDAV) },
-                    label = { Text("CalDAV sync") },
+                    modifier = Modifier.weight(1f),
                 )
             }
 

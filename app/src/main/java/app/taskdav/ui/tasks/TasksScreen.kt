@@ -8,8 +8,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,8 +32,6 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +39,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import app.taskdav.ui.common.CompactHeader
+import app.taskdav.ui.common.DockScrollPadding
+import app.taskdav.ui.common.ExpressiveEmptyState
+import app.taskdav.ui.common.ExpressiveExtendedFab
+import app.taskdav.ui.common.ExpressiveFilterChip
+import app.taskdav.ui.common.SyncLoadingBanner
+import app.taskdav.ui.common.TagFilterIconButton
+import app.taskdav.ui.theme.TaskDavRadii
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -90,23 +99,34 @@ fun TasksScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("Tasks")
-                        val subtitle = ui.error ?: ui.syncMessage
-                        if (!subtitle.isNullOrBlank()) {
-                            Text(
-                                subtitle,
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                },
-                actions = {
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        floatingActionButton = {
+            Box(modifier = Modifier.navigationBarsPadding().padding(bottom = 72.dp)) {
+                ExpressiveExtendedFab(
+                    text = "New task",
+                    icon = Icons.Default.Add,
+                    onClick = { onEditTask(null, false, ui.collectionFilter) },
+                )
+            }
+        },
+    ) { _ ->
+        PullToRefreshBox(
+            isRefreshing = ui.syncing,
+            onRefresh = viewModel::syncNow,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(end = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CompactHeader(
+                        title = "Tasks",
+                        modifier = Modifier.weight(1f),
+                    )
                     IconButton(onClick = { viewModel.setShowCompleted(!ui.showCompleted) }) {
                         if (ui.showCompleted) {
                             Icon(
@@ -120,107 +140,57 @@ fun TasksScreen(
                             )
                         }
                     }
+                    TagFilterIconButton(
+                        availableTags = ui.availableTags,
+                        selectedTag = ui.tagFilter,
+                        onSelectTag = viewModel::setTagFilter,
+                    )
                     IconButton(
                         onClick = viewModel::syncNow,
                         enabled = !ui.syncing,
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = "Sync")
                     }
-                },
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { onEditTask(null, false, ui.collectionFilter) }) {
-                Icon(Icons.Default.Add, contentDescription = "Add task")
-            }
-        },
-    ) { padding ->
-        PullToRefreshBox(
-            isRefreshing = ui.syncing,
-            onRefresh = viewModel::syncNow,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+                }
+                if (ui.syncing) {
+                    SyncLoadingBanner(
+                        message = ui.syncMessage?.takeIf { it.isNotBlank() }
+                            ?: "Syncing tasks and calendars…",
+                    )
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    FilterChip(
+                    ExpressiveFilterChip(
+                        label = "All",
                         selected = ui.collectionFilter == null,
                         onClick = { viewModel.setCollectionFilter(null) },
-                        label = { Text("All") },
                     )
                     collections.filter { it.enabled && it.supportsVtodo }.forEach { col ->
-                        FilterChip(
+                        ExpressiveFilterChip(
+                            label = col.displayName,
                             selected = ui.collectionFilter == col.id,
                             onClick = { viewModel.setCollectionFilter(col.id) },
-                            label = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(10.dp)
-                                            .background(
-                                                collectionColorOrDefault(col.colorArgb),
-                                                CircleShape,
-                                            ),
-                                    )
-                                    Text(col.displayName)
-                                }
-                            },
                         )
-                    }
-                }
-
-                if (ui.availableTags.isNotEmpty()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 12.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        FilterChip(
-                            selected = ui.tagFilter == null,
-                            onClick = { viewModel.setTagFilter(null) },
-                            label = { Text("All tags") },
-                        )
-                        ui.availableTags.forEach { tag ->
-                            FilterChip(
-                                selected = ui.tagFilter == tag,
-                                onClick = {
-                                    viewModel.setTagFilter(
-                                        if (ui.tagFilter == tag) null else tag,
-                                    )
-                                },
-                                label = { Text(tag) },
-                            )
-                        }
                     }
                 }
 
                 if (displayList.isEmpty()) {
-                    Box(
+                    ExpressiveEmptyState(
+                        title = "No tasks yet",
+                        body = "Create a task to get started.",
+                        actionLabel = "New task",
+                        onAction = { onEditTask(null, false, ui.collectionFilter) },
                         modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            "No tasks yet. Tap + to add a task.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        )
-                    }
+                    )
                 } else {
                     LazyColumn(
                         state = lazyListState,
-                        contentPadding = PaddingValues(bottom = 88.dp),
+                        contentPadding = DockScrollPadding,
                     ) {
                         items(displayList, key = { it.task.id }) { node ->
                             ReorderableItem(reorderableState, key = node.task.id) {
@@ -319,24 +289,23 @@ private fun TaskRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onOpen)
-            .padding(start = (12 + node.depth * 20).dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+            .padding(start = (16 + node.depth * 14).dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
-                .width(4.dp)
-                .padding(vertical = 4.dp)
+                .width(3.dp)
+                .height(28.dp)
                 .clip(RoundedCornerShape(2.dp))
-                .background(color)
-                .padding(vertical = 14.dp),
+                .background(color),
         )
         if (isCategory) {
             Icon(
                 Icons.Default.Folder,
                 contentDescription = "Category",
                 modifier = Modifier
-                    .padding(horizontal = 10.dp)
-                    .size(22.dp),
+                    .padding(horizontal = 8.dp)
+                    .size(18.dp),
                 tint = color,
             )
         } else {
@@ -346,8 +315,9 @@ private fun TaskRow(
             Text(
                 node.task.summary,
                 style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
                 textDecoration = if (!isCategory && completed) TextDecoration.LineThrough else null,
-                maxLines = 2,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             val started = !isCategory && TaskTreeBuilder.isStarted(node.task)

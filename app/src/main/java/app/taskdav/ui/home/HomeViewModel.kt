@@ -33,6 +33,8 @@ data class HomeAgendaItem(
     val atMillis: Long?,
     val allDay: Boolean = false,
     val subtitle: String? = null,
+    /** Collection accent ARGB, when known. */
+    val colorArgb: Int? = null,
 )
 
 enum class HomeItemKind { EVENT, TASK, NOTE }
@@ -60,19 +62,21 @@ class HomeViewModel(
         repository.observeTasks(),
         repository.observeEvents(),
         repository.observeNotes(),
-    ) { tasks, events, notes ->
-        buildState(tasks, events, notes)
+        repository.observeCollections(),
+    ) { tasks, events, notes, collections ->
+        val colors = collections.associate { it.id to it.colorArgb }
+        buildState(tasks, events, notes, colors)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
     private fun buildState(
         tasks: List<TaskEntity>,
         events: List<EventEntity>,
         notes: List<NoteEntity>,
+        colors: Map<Long, Int?>,
     ): HomeUiState {
         val now = System.currentTimeMillis()
         val todayStart = CalendarViewModel.startOfDay(now)
         val tomorrowStart = todayStart + TimeUnit.DAYS.toMillis(1)
-        // Remaining days in the current Mon–Sun week (excludes today).
         val thisWeekEnd = CalendarViewModel.startOfWeek(todayStart) + TimeUnit.DAYS.toMillis(7)
         val comingUpEnd = thisWeekEnd + TimeUnit.DAYS.toMillis(14)
 
@@ -81,6 +85,25 @@ class HomeViewModel(
 
         fun dueDay(task: TaskEntity): Long? =
             task.dueMillis?.let(CalendarViewModel::startOfDay)
+
+        fun TaskEntity.toAgenda() = HomeAgendaItem(
+            id = id,
+            kind = HomeItemKind.TASK,
+            title = summary,
+            atMillis = dueMillis,
+            subtitle = null,
+            colorArgb = colors[collectionId],
+        )
+
+        fun EventEntity.toAgenda() = HomeAgendaItem(
+            id = id,
+            kind = HomeItemKind.EVENT,
+            title = summary,
+            atMillis = dtStartMillis,
+            allDay = allDay,
+            subtitle = location?.takeIf { it.isNotBlank() },
+            colorArgb = colors[collectionId],
+        )
 
         val overdueTasks = open.filter { due ->
             val d = dueDay(due) ?: return@filter false
@@ -143,27 +166,11 @@ class HomeViewModel(
                         atMillis = it.updatedAt,
                         subtitle = it.description?.takeIf { d -> d.isNotBlank() }
                             ?.lineSequence()?.firstOrNull()?.take(80),
+                        colorArgb = colors[it.collectionId],
                     )
                 },
         )
     }
-
-    private fun EventEntity.toAgenda() = HomeAgendaItem(
-        id = id,
-        kind = HomeItemKind.EVENT,
-        title = summary,
-        atMillis = dtStartMillis,
-        allDay = allDay,
-        subtitle = location?.takeIf { it.isNotBlank() },
-    )
-
-    private fun TaskEntity.toAgenda() = HomeAgendaItem(
-        id = id,
-        kind = HomeItemKind.TASK,
-        title = summary,
-        atMillis = dueMillis,
-        subtitle = null,
-    )
 
     private fun greetingForHour(hour: Int): String = when (hour) {
         in 5..11 -> "Good morning"

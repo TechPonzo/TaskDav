@@ -75,6 +75,7 @@ fun TaskDetailScreen(
                             task.isCategory -> "Category"
                             else -> "Task"
                         },
+                        style = MaterialTheme.typography.headlineSmall,
                     )
                 },
                 navigationIcon = {
