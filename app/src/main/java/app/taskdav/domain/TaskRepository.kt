@@ -133,8 +133,13 @@ class TaskRepository(
     }
 
     suspend fun syncNow(mode: SyncMode = SyncMode.FULL): String {
-        if (!isCalDavMode()) return "Local-only mode — nothing to sync."
-        return syncEngine.syncAll(mode).message
+        if (!isCalDavMode()) {
+            (appContext.applicationContext as? app.taskdav.TaskDavApp)?.notifyWidgetsChanged()
+            return "Local-only mode — nothing to sync."
+        }
+        val message = syncEngine.syncAll(mode).message
+        (appContext.applicationContext as? app.taskdav.TaskDavApp)?.notifyWidgetsChanged()
+        return message
     }
 
     suspend fun pushLocalChanges(): String {
@@ -300,6 +305,7 @@ class TaskRepository(
             )
         }
         db.tasks().update(updated)
+        (appContext.applicationContext as? app.taskdav.TaskDavApp)?.notifyWidgetsChanged()
     }
 
     suspend fun startTask(taskId: Long) {

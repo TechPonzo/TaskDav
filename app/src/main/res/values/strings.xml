@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">TaskDav</string>
+    <string name="widget_loading">TaskDav</string>
+    <string name="widget_calendar_description">Today’s calendar events</string>
+    <string name="widget_agenda_description">This week or month’s events</string>
+    <string name="widget_tasks_description">Open tasks with due dates</string>
+    <string name="widget_notes_description">Recent notes</string>
+    <string name="widget_calendar_label">TaskDav Today</string>
+    <string name="widget_agenda_label">TaskDav Week / Month</string>
+    <string name="widget_tasks_label">TaskDav Tasks</string>
+    <string name="widget_notes_label">TaskDav Notes</string>
 </resources>

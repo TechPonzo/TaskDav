@@ -60,6 +60,7 @@ class AppearanceStore(private val context: Context) {
             it[KEY_SEED_COLOR] = argb
             it.remove(KEY_THEME)
         }
+        (context.applicationContext as? app.taskdav.TaskDavApp)?.notifyWidgetsChanged()
     }
 
     suspend fun setDateOrder(id: String) {

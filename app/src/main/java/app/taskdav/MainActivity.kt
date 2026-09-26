@@ -103,9 +103,14 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val app = application as TaskDavApp
         val fromCalendarIntent = app.consumeCalendarIntent(intent)
+        val widgetNav = app.parseWidgetIntent(intent)
         setContent {
             TaskDavTheme {
-                TaskDavNav(app, preferCalendarTab = fromCalendarIntent)
+                TaskDavNav(
+                    app = app,
+                    preferCalendarTab = fromCalendarIntent,
+                    initialWidgetNav = widgetNav,
+                )
             }
         }
     }
@@ -113,17 +118,26 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        (application as TaskDavApp).consumeCalendarIntent(intent)
+        val app = application as TaskDavApp
+        app.consumeCalendarIntent(intent)
+        app.parseWidgetIntent(intent)?.let { app.offerWidgetNavigation(it) }
     }
 }
 
 @Composable
-private fun TaskDavNav(app: TaskDavApp, preferCalendarTab: Boolean = false) {
+private fun TaskDavNav(
+    app: TaskDavApp,
+    preferCalendarTab: Boolean = false,
+    initialWidgetNav: WidgetNavigation? = null,
+) {
     val navController = rememberNavController()
     val start = when {
         preferCalendarTab &&
             (app.repository.syncBackend() == SyncBackend.LOCAL || app.repository.accountConfigured()) ->
             "home/calendar"
+        initialWidgetNav != null &&
+            (app.repository.syncBackend() == SyncBackend.LOCAL || app.repository.accountConfigured()) ->
+            "home/${initialWidgetNav.tab}"
         app.repository.syncBackend() == SyncBackend.LOCAL -> "home/home"
         app.repository.accountConfigured() -> "home/home"
         else -> "settings/account"
@@ -135,6 +149,22 @@ private fun TaskDavNav(app: TaskDavApp, preferCalendarTab: Boolean = false) {
                 launchSingleTop = true
             }
         }
+    }
+
+    LaunchedEffect(Unit) {
+        fun applyWidgetNav(nav: WidgetNavigation) {
+            navController.navigate("home/${nav.tab}") {
+                launchSingleTop = true
+            }
+            when {
+                nav.taskId != null -> navController.navigate("task/${nav.taskId}")
+                nav.noteId != null -> navController.navigate("noteEditor?noteId=${nav.noteId}")
+            }
+        }
+        if (initialWidgetNav?.taskId != null || initialWidgetNav?.noteId != null) {
+            applyWidgetNav(initialWidgetNav)
+        }
+        app.widgetNavigation.collect { applyWidgetNav(it) }
     }
 
     NavHost(navController = navController, startDestination = start) {

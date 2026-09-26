@@ -17,6 +17,8 @@ import app.taskdav.data.SyncBackend
 import app.taskdav.data.TaskDavDatabase
 import app.taskdav.domain.TaskRepository
 import app.taskdav.sync.CalDavSyncWorker
+import app.taskdav.widget.WidgetIntents
+import app.taskdav.widget.WidgetUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -26,7 +28,14 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+
+data class WidgetNavigation(
+    val tab: String,
+    val taskId: Long? = null,
+    val noteId: Long? = null,
+)
 
 class TaskDavApp : Application() {
     lateinit var database: TaskDavDatabase
@@ -61,6 +70,9 @@ class TaskDavApp : Application() {
     private val _navigateToCalendar = MutableSharedFlow<Unit>(extraBufferCapacity = 8)
     val navigateToCalendar: SharedFlow<Unit> = _navigateToCalendar.asSharedFlow()
 
+    private val _widgetNavigation = MutableSharedFlow<WidgetNavigation>(extraBufferCapacity = 8)
+    val widgetNavigation: SharedFlow<WidgetNavigation> = _widgetNavigation.asSharedFlow()
+
     private val _phoneCalendarMirror = MutableStateFlow(false)
     val phoneCalendarMirror: StateFlow<Boolean> = _phoneCalendarMirror.asStateFlow()
 
@@ -70,6 +82,10 @@ class TaskDavApp : Application() {
 
     fun notifyPhoneCalendarMirrorChanged() {
         _phoneCalendarMirror.value = accountStore.phoneCalendarMirrorEnabled()
+    }
+
+    fun notifyWidgetsChanged() {
+        WidgetUpdater.updateAll(this)
     }
 
     fun offerPendingEventCompose(pending: PendingEventCompose) {
@@ -89,6 +105,19 @@ class TaskDavApp : Application() {
         offerPendingEventCompose(pending)
         _navigateToCalendar.tryEmit(Unit)
         return true
+    }
+
+    /** Parse widget extras without enqueueing (cold start). */
+    fun parseWidgetIntent(intent: Intent?): WidgetNavigation? {
+        val tab = intent?.getStringExtra(WidgetIntents.EXTRA_NAV_TAB) ?: return null
+        val taskId = intent.getLongExtra(WidgetIntents.EXTRA_TASK_ID, -1L).takeIf { it >= 0 }
+        val noteId = intent.getLongExtra(WidgetIntents.EXTRA_NOTE_ID, -1L).takeIf { it >= 0 }
+        return WidgetNavigation(tab = tab, taskId = taskId, noteId = noteId)
+    }
+
+    /** Enqueue widget navigation for an already-running activity (warm start). */
+    fun offerWidgetNavigation(nav: WidgetNavigation) {
+        _widgetNavigation.tryEmit(nav)
     }
 
     override fun onCreate() {
@@ -120,6 +149,17 @@ class TaskDavApp : Application() {
             }
         }
         registerReconnectSync()
+        observeSeedForWidgets()
+    }
+
+    private fun observeSeedForWidgets() {
+        appScope.launch {
+            appearanceStore.seedColorArgb
+                .distinctUntilChanged()
+                .collect {
+                    WidgetUpdater.updateAllNow(this@TaskDavApp)
+                }
+        }
     }
 
     /** When connectivity returns, push any dirty local edits and pull updates. */

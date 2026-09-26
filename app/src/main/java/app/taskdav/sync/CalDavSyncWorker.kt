@@ -24,6 +24,7 @@ class CalDavSyncWorker(
                 return Result.success()
             }
             app.repository.syncNow()
+            app.notifyWidgetsChanged()
             Result.success()
         } catch (e: Exception) {
             app.accountStore.setLastSync(
