@@ -22,8 +22,11 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            // Local/CI can install this APK; F-Droid rebuilds and signs with their key.
-            signingConfig = signingConfigs.getByName("debug")
+            // F-Droid signs its own builds. For a local installable release APK:
+            //   ./gradlew assembleRelease -PuseDebugKeystore
+            if (project.hasProperty("useDebugKeystore")) {
+                signingConfig = signingConfigs.getByName("debug")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
