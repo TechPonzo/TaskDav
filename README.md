@@ -6,7 +6,8 @@ TaskDav is a free and open-source Android app for people who want their planning
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-green.svg)](#requirements)
-[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
+[![CI](https://github.com/TechPonzo/TaskDav/actions/workflows/ci.yml/badge.svg)](https://github.com/TechPonzo/TaskDav/actions/workflows/ci.yml)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 <p align="center">
   <img src="docs/screenshots/01-home.png" width="160" alt="Home — today, overdue, and upcoming" />
@@ -119,13 +120,53 @@ See **Settings → Privacy** in the app for the full notice.
 - Recurring events: series edits only (no single-occurrence exceptions yet)
 - Recurring tasks are not edited in-app (existing `RRULE`s may be preserved on rewrite when possible)
 
+## Roadmap / TODOs
+
+Help wanted — pick an item, open an issue (or claim an existing one), and send a PR to `develop`.
+
+### Near term
+
+- [ ] **F-Droid metadata** — Fastlane/`metadata/` descriptions, changelogs, and store screenshots
+- [ ] **Signed release builds** — reproducible / R8 release flavor suitable for F-Droid
+- [ ] **Automated tests** — unit tests for iCal mapping + sync conflict helpers; a few Compose smoke tests
+- [ ] **Search** — find tasks, notes, and events from Home / lists
+- [ ] **ICS import** — open a `.ics` file into the local or CalDAV collection
+
+### Sync & calendar
+
+- [ ] **Recurring event exceptions** — edit / delete a single occurrence (`RECURRENCE-ID`)
+- [ ] **Recurring tasks** — create and edit `VTODO` + `RRULE` in the UI
+- [ ] **Clearer sync conflicts** — surface “server wins / keep mine” instead of silent newer-wins only
+- [ ] **Shared / invited calendars** — read-only collections and invite UX where the server supports them
+
+### Polish
+
+- [ ] **More languages** — string catalogs beyond EN / ES / IT
+- [ ] **Widget theming** — follow dark mode / brand color more closely
+- [ ] **Quick add** — natural-language or one-field capture for tasks
+- [ ] **CI on PRs** — already building `assembleDebug`; extend with lint + unit tests when those land
+
+Cross out items in PRs as they land; feel free to propose new ones via a feature request.
+
 ## Contributing
 
-Pull requests and issues are welcome.
+Pull requests and issues are welcome. See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the branch model and PR checklist.
 
-1. Fork [TechPonzo/TaskDav](https://github.com/TechPonzo/TaskDav)
-2. Create a branch for your change
-3. Open a PR with a short description of *why*
+**Short version**
+
+| Branch | Use for |
+|--------|---------|
+| `main` | Stable / releases |
+| `develop` | Next release integration |
+| `feature/…`, `fix/…` | Your work → PR into `develop` |
+
+```bash
+git checkout develop
+git pull
+git checkout -b feature/my-change
+# … commit …
+# open a PR targeting develop
+```
 
 Useful entry points: `app/src/main/java/app/taskdav/`, string catalogs under `app/src/main/res/values*/strings.xml`.
 
