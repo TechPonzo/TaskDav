@@ -25,6 +25,7 @@ object WidgetUpdater {
         withContext(Dispatchers.Default) {
             CalendarWidget().updateAll(appContext)
             AgendaCalendarWidget().updateAll(appContext)
+            LockAgendaCalendarWidget().updateAll(appContext)
             TasksWidget().updateAll(appContext)
             NotesWidget().updateAll(appContext)
         }
