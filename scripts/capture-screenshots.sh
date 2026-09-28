@@ -39,5 +39,14 @@ sleep 1.8
 adb exec-out screencap -p > "$OUT/06-appearance.png"
 echo "wrote 06-appearance.png"
 
+# Home-screen widgets (assumes TaskDav widgets are already placed)
+adb shell input keyevent KEYCODE_HOME
+sleep 1.5
+# Swipe to a secondary home page if widgets live there (no-op if already on it)
+adb shell input swipe 900 1200 200 1200 300
+sleep 1.2
+adb exec-out screencap -p > "$OUT/07-widgets-home.png"
+echo "wrote 07-widgets-home.png"
+
 adb shell am broadcast -a com.android.systemui.demo -e command exit >/dev/null || true
 echo "Done → $OUT"
