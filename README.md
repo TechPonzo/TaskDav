@@ -17,6 +17,12 @@ TaskDav is a free and open-source Android app for people who want their planning
   <img src="docs/screenshots/06-appearance.png" width="160" alt="Appearance — language and brand color" />
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/07-widgets-home.png" width="320" alt="Home screen widgets — notes, tasks, today, and week/month agenda" />
+</p>
+
+<p align="center"><em>Home-screen widgets for notes, tasks, today’s events, and a week/month agenda.</em></p>
+
 ## Why TaskDav?
 
 Most “productivity” apps want a proprietary cloud. TaskDav speaks plain CalDAV:
@@ -35,7 +41,7 @@ Most “productivity” apps want a proprietary cloud. TaskDav speaks plain CalD
 - Home dashboard: overdue, due today, today’s agenda, recent notes
 - Calendar views (day / week / month / year / list)
 - Themes from a single brand color; UI in **English**, **Spanish**, and **Italian**
-- Home-screen widgets for today, week/month agenda, tasks, and notes
+- Home-screen widgets for today, week/month agenda, tasks, and notes (plus a compact agenda size)
 - Share tasks, events, or notes as text + `.ics`; export collections
 - Optional mirror / import with the phone calendar (`CalendarContract`)
 - Handles “add event” / ICS intents so TaskDav can be a calendar target

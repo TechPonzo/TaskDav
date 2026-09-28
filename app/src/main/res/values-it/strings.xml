@@ -80,12 +80,12 @@
     <string name="widget_loading">TaskDav</string>
     <string name="widget_calendar_description">Eventi del calendario di oggi</string>
     <string name="widget_agenda_description">Eventi di questa settimana o mese</string>
-    <string name="widget_lock_agenda_description">Agenda compatta settimana o mese per la schermata di blocco</string>
+    <string name="widget_lock_agenda_description">Agenda compatta settimana o mese (schermata di blocco con LockStar)</string>
     <string name="widget_tasks_description">Attività aperte con scadenza</string>
     <string name="widget_notes_description">Note recenti</string>
     <string name="widget_calendar_label">TaskDav Oggi</string>
     <string name="widget_agenda_label">TaskDav Settimana / Mese</string>
-    <string name="widget_lock_agenda_label">TaskDav Agenda blocco</string>
+    <string name="widget_lock_agenda_label">TaskDav Agenda compatta</string>
     <string name="widget_tasks_label">TaskDav Attività</string>
     <string name="widget_notes_label">TaskDav Note</string>
 

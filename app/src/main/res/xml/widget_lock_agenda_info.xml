@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  LockStar / Good Lock hosts regular home_screen widgets on the lock screen.
+  Do not rely on keyguard alone — Samsung's picker filters those out.
+-->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="110dp"
-    android:minHeight="40dp"
+    android:minHeight="110dp"
     android:targetCellWidth="2"
-    android:targetCellHeight="1"
-    android:minResizeWidth="110dp"
-    android:minResizeHeight="40dp"
+    android:targetCellHeight="2"
     android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/widget_loading"
+    android:initialKeyguardLayout="@layout/widget_loading"
     android:previewLayout="@layout/widget_lock_agenda_preview"
     android:resizeMode="horizontal|vertical"
-    android:widgetCategory="home_screen|keyguard"
+    android:widgetCategory="home_screen"
     android:description="@string/widget_lock_agenda_description" />
