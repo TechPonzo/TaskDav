@@ -1,6 +1,64 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">TaskDav</string>
+    <string name="back">Back</string>
+    <string name="continue_action">Continue</string>
+    <string name="skip">Skip</string>
+    <string name="get_started">Get started</string>
+    <string name="next">Next</string>
+
+    <!-- Tabs -->
+    <string name="tab_home">Home</string>
+    <string name="tab_calendar">Cal</string>
+    <string name="tab_tasks">Tasks</string>
+    <string name="tab_notes">Notes</string>
+    <string name="tab_more">More</string>
+
+    <!-- Settings hub -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_syncing">Syncing</string>
+    <string name="settings_syncing_sub">Local or CalDAV</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_appearance_sub">Theme, dates &amp; language</string>
+    <string name="settings_export">Export</string>
+    <string name="settings_export_sub">Share as ICS</string>
+    <string name="settings_privacy">Privacy</string>
+    <string name="settings_privacy_sub">Data &amp; license</string>
+    <string name="settings_credits">Credits</string>
+    <string name="settings_credits_sub">Open source</string>
+
+    <!-- Language -->
+    <string name="language_title">Language</string>
+    <string name="language_subtitle">Choose how TaskDav speaks to you</string>
+    <string name="language_system">Phone language</string>
+    <string name="language_english">English</string>
+    <string name="language_spanish">Español</string>
+    <string name="language_italian">Italiano</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_welcome_title">Welcome to TaskDav</string>
+    <string name="onboarding_welcome_body">Tasks, calendar, and notes — on your phone or synced to your CalDAV server. No Google Play Services required.</string>
+    <string name="onboarding_welcome_pick_language">Pick a language</string>
+
+    <string name="onboarding_sync_title">Yours first</string>
+    <string name="onboarding_sync_body">Stay local-only on this device, or connect the same CalDAV server you already use with DAVx⁵. Switch anytime in Settings.</string>
+
+    <string name="onboarding_tasks_title">Tasks that nest</string>
+    <string name="onboarding_tasks_body">Organize with nestable category folders, subtasks, due dates, tags, and smooth reordering. Everything stays offline-first.</string>
+
+    <string name="onboarding_calendar_title">Calendar that fits</string>
+    <string name="onboarding_calendar_body">Day, week, and month views for your events. Optionally share with the phone Calendar app — no DAVx⁵ required for local use.</string>
+
+    <string name="onboarding_notes_title">Notes alongside</string>
+    <string name="onboarding_notes_body">Capture ideas as notes with tags. They sync as VJOURNAL when you use CalDAV, and live on-device when you stay local.</string>
+
+    <string name="onboarding_ready_title">Ready when you are</string>
+    <string name="onboarding_ready_body">We’ll set up on-device storage so you can start right away. Connect CalDAV later from Settings → Syncing.</string>
+
+    <string name="caldav_error_auth">Username or password is wrong, or this account is not allowed on the server.</string>
+    <string name="caldav_error_network">Could not reach the server. Check the URL and your network connection.</string>
+    <string name="caldav_error_generic">Could not connect to the CalDAV server.</string>
+    <string name="caldav_error_invalid_url">That server URL does not look valid.</string>
     <string name="widget_loading">TaskDav</string>
     <string name="widget_calendar_description">Today’s calendar events</string>
     <string name="widget_agenda_description">This week or month’s events</string>

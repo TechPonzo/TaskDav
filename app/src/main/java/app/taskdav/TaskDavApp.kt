@@ -9,14 +9,18 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import app.taskdav.calendar.CalendarIntentHandler
 import app.taskdav.calendar.PendingEventCompose
+import app.taskdav.calendar.SystemCalendarImport
 import app.taskdav.calendar.SystemCalendarMirror
 import app.taskdav.caldav.SyncEngine
 import app.taskdav.data.AccountStore
 import app.taskdav.data.AppearanceStore
+import app.taskdav.data.LocaleHelper
+import app.taskdav.data.OnboardingStore
 import app.taskdav.data.SyncBackend
 import app.taskdav.data.TaskDavDatabase
 import app.taskdav.domain.TaskRepository
 import app.taskdav.sync.CalDavSyncWorker
+import app.taskdav.sync.PhoneCalendarImportWorker
 import app.taskdav.widget.WidgetIntents
 import app.taskdav.widget.WidgetUpdater
 import kotlinx.coroutines.CoroutineScope
@@ -44,9 +48,13 @@ class TaskDavApp : Application() {
         private set
     lateinit var appearanceStore: AppearanceStore
         private set
+    lateinit var onboardingStore: OnboardingStore
+        private set
     lateinit var repository: TaskRepository
         private set
     lateinit var systemCalendarMirror: SystemCalendarMirror
+        private set
+    lateinit var systemCalendarImport: SystemCalendarImport
         private set
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -76,12 +84,25 @@ class TaskDavApp : Application() {
     private val _phoneCalendarMirror = MutableStateFlow(false)
     val phoneCalendarMirror: StateFlow<Boolean> = _phoneCalendarMirror.asStateFlow()
 
+    private val _phoneCalendarImport = MutableStateFlow(false)
+    val phoneCalendarImport: StateFlow<Boolean> = _phoneCalendarImport.asStateFlow()
+
     fun notifySyncBackendChanged() {
         _syncBackend.value = accountStore.syncBackend()
     }
 
     fun notifyPhoneCalendarMirrorChanged() {
         _phoneCalendarMirror.value = accountStore.phoneCalendarMirrorEnabled()
+    }
+
+    fun notifyPhoneCalendarImportChanged() {
+        _phoneCalendarImport.value = accountStore.phoneCalendarImportEnabled()
+        if (accountStore.phoneCalendarImportEnabled()) {
+            PhoneCalendarImportWorker.enqueuePeriodic(this)
+            PhoneCalendarImportWorker.enqueueNow(this)
+        } else {
+            PhoneCalendarImportWorker.cancelAll(this)
+        }
     }
 
     fun notifyWidgetsChanged() {
@@ -122,10 +143,13 @@ class TaskDavApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        LocaleHelper.applyStored(this)
         database = TaskDavDatabase.get(this)
         accountStore = AccountStore(this)
         appearanceStore = AppearanceStore(this)
+        onboardingStore = OnboardingStore(this)
         systemCalendarMirror = SystemCalendarMirror(this)
+        systemCalendarImport = SystemCalendarImport(this)
         val syncEngine = SyncEngine(database, accountStore)
         repository = TaskRepository(
             database,
@@ -133,9 +157,12 @@ class TaskDavApp : Application() {
             syncEngine,
             this,
             systemCalendarMirror,
+            systemCalendarImport,
         )
         _syncBackend.value = accountStore.syncBackend()
         _phoneCalendarMirror.value = accountStore.phoneCalendarMirrorEnabled()
+        _phoneCalendarImport.value = accountStore.phoneCalendarImportEnabled()
+        appScope.launch { onboardingStore.migrateIfNeeded(database) }
         when (accountStore.syncBackend()) {
             SyncBackend.LOCAL -> {
                 CalDavSyncWorker.cancelAll(this)
@@ -147,6 +174,10 @@ class TaskDavApp : Application() {
                     CalDavSyncWorker.enqueueNow(this)
                 }
             }
+        }
+        if (accountStore.phoneCalendarImportEnabled()) {
+            PhoneCalendarImportWorker.enqueuePeriodic(this)
+            PhoneCalendarImportWorker.enqueueNow(this)
         }
         registerReconnectSync()
         observeSeedForWidgets()

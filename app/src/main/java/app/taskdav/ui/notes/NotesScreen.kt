@@ -203,7 +203,7 @@ fun NotesScreen(
                                         contentColor = MaterialTheme.colorScheme.onErrorContainer,
                                     )
                                 },
-                            ) {
+                            ) { _ ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()

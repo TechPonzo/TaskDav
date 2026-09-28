@@ -166,6 +166,15 @@ interface EventDao {
     @Query("DELETE FROM events WHERE collectionId = :collectionId AND dirty = 0 AND deleted = 0")
     suspend fun deleteCleanForCollection(collectionId: Long)
 
+    @Query(
+        """
+        DELETE FROM events
+        WHERE collectionId = :collectionId AND dirty = 0 AND deleted = 0
+          AND uid NOT IN (:keepUids)
+        """,
+    )
+    suspend fun deleteMissingImported(collectionId: Long, keepUids: List<String>)
+
     @Query("DELETE FROM events WHERE collectionId = :collectionId")
     suspend fun deleteAllForCollection(collectionId: Long)
 }

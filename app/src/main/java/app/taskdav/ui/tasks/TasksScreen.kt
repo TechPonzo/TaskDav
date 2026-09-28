@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -69,6 +70,7 @@ import app.taskdav.domain.TaskNode
 import app.taskdav.domain.TaskTreeBuilder
 import androidx.compose.ui.platform.LocalContext
 import app.taskdav.ui.common.DateFormats
+import app.taskdav.ui.common.LocalDateOrder
 import app.taskdav.ui.common.parseCategories
 import app.taskdav.ui.theme.collectionColorOrDefault
 import sh.calvin.reorderable.ReorderableItem
@@ -85,22 +87,26 @@ fun TasksScreen(
     val forest by viewModel.taskForest.collectAsStateWithLifecycle()
     val collections by viewModel.collections.collectAsStateWithLifecycle()
     val events by viewModel.events.collectAsStateWithLifecycle()
+    val collapsedCategoryUids by viewModel.collapsedCategoryUids.collectAsStateWithLifecycle()
     val eventsByUid = remember(events) { events.associateBy { it.uid } }
     val syncedFlat = remember(forest) { TaskTreeBuilder.flatten(forest) }
+    val visibleFlat = remember(syncedFlat, collapsedCategoryUids) {
+        filterCollapsedCategories(syncedFlat, collapsedCategoryUids)
+    }
 
-    var displayList by remember { mutableStateOf(syncedFlat) }
+    var displayList by remember { mutableStateOf(visibleFlat) }
     var dragging by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<TaskNode?>(null) }
 
-    LaunchedEffect(syncedFlat, dragging) {
+    LaunchedEffect(visibleFlat, dragging) {
         if (!dragging) {
-            displayList = syncedFlat
+            displayList = visibleFlat
         }
     }
 
     val lazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
-        displayList = moveSiblingSubtree(displayList, from.index, to.index)
+        displayList = relocateTaskSubtree(displayList, from.index, to.index)
     }
 
     pendingDelete?.let { node ->
@@ -219,6 +225,7 @@ fun TasksScreen(
                                 TaskRow(
                                     node = node,
                                     linkedEvent = node.task.linkedEventUid?.let { eventsByUid[it] },
+                                    collapsed = node.task.uid in collapsedCategoryUids,
                                     dragHandleModifier = Modifier.draggableHandle(
                                         onDragStarted = { dragging = true },
                                         onDragStopped = {
@@ -233,6 +240,9 @@ fun TasksScreen(
                                         onAddSubtask(node.task.uid, node.task.collectionId)
                                     },
                                     onDelete = { pendingDelete = node },
+                                    onToggleCollapse = {
+                                        viewModel.toggleCategoryCollapsed(node.task.uid)
+                                    },
                                 )
                             }
                         }
@@ -244,8 +254,148 @@ fun TasksScreen(
 }
 
 /**
+ * Hide descendants of collapsed categories in a depth-ordered flat list.
+ */
+internal fun filterCollapsedCategories(
+    flat: List<TaskNode>,
+    collapsedUids: Set<String>,
+): List<TaskNode> {
+    if (collapsedUids.isEmpty()) return flat
+    val out = ArrayList<TaskNode>(flat.size)
+    var skipDeeperThan: Int? = null
+    for (node in flat) {
+        val skipUntil = skipDeeperThan
+        if (skipUntil != null) {
+            if (node.depth > skipUntil) continue
+            skipDeeperThan = null
+        }
+        out += node
+        if (node.task.isCategory &&
+            node.task.uid in collapsedUids &&
+            node.children.isNotEmpty()
+        ) {
+            skipDeeperThan = node.depth
+        }
+    }
+    return out
+}
+
+/**
+ * Move a task (and its contiguous descendants) in the flat list.
+ *
+ * - Dropping onto a category nests into it as the first child.
+ * - Sliding into an expanded parent's child rows keeps/joins that parent.
+ * - Sliding next to a shallower row moves you out (outdent / new parent).
+ * - Categories always stay at the root.
+ */
+internal fun relocateTaskSubtree(
+    list: List<TaskNode>,
+    fromIndex: Int,
+    toIndex: Int,
+): List<TaskNode> {
+    if (fromIndex !in list.indices || toIndex !in list.indices || fromIndex == toIndex) {
+        return list
+    }
+    val fromNode = list[fromIndex]
+
+    fun subtreeEnd(start: Int, source: List<TaskNode> = list): Int {
+        val depth = source[start].depth
+        var end = start + 1
+        while (end < source.size && source[end].depth > depth) end++
+        return end
+    }
+
+    val fromEnd = subtreeEnd(fromIndex)
+    // Refuse dropping into own descendants.
+    if (toIndex in (fromIndex + 1) until fromEnd) return list
+
+    val movingUids = list.subList(fromIndex, fromEnd).mapTo(HashSet()) { it.task.uid }
+    val rawTarget = list[toIndex]
+
+    // Drop onto a category, or onto a task that already has visible children → nest.
+    fun hasVisibleChildren(index: Int): Boolean {
+        val depth = list[index].depth
+        return index + 1 < list.size && list[index + 1].depth > depth
+    }
+    val nestIntoTarget = !fromNode.task.isCategory &&
+        rawTarget.task.uid !in movingUids &&
+        (rawTarget.task.isCategory || hasVisibleChildren(toIndex))
+
+    val block = list.subList(fromIndex, fromEnd).toList()
+    val mutable = list.toMutableList()
+    mutable.subList(fromIndex, fromEnd).clear()
+
+    if (nestIntoTarget) {
+        val targetIdx = mutable.indexOfFirst { it.task.uid == rawTarget.task.uid }
+        if (targetIdx < 0) return list
+        val newParent = rawTarget.task.uid
+        val newDepth = rawTarget.depth + 1
+        val depthDelta = newDepth - fromNode.depth
+        mutable.addAll(targetIdx + 1, reparentBlock(block, newParent, depthDelta))
+        return mutable
+    }
+
+    val insertAt = (if (toIndex > fromIndex) toIndex - block.size else toIndex)
+        .coerceIn(0, mutable.size)
+
+    val prev = mutable.getOrNull(insertAt - 1)
+    val next = mutable.getOrNull(insertAt)
+
+    val (newParent, newDepth) = inferParentAndDepth(
+        movingCategory = fromNode.task.isCategory,
+        prev = prev,
+        next = next,
+    )
+    if (newParent != null && newParent in movingUids) return list
+
+    val depthDelta = newDepth - fromNode.depth
+    mutable.addAll(insertAt, reparentBlock(block, newParent, depthDelta))
+    return mutable
+}
+
+private fun reparentBlock(
+    block: List<TaskNode>,
+    newParentUid: String?,
+    depthDelta: Int,
+): List<TaskNode> =
+    block.mapIndexed { index, node ->
+        val task = if (index == 0) {
+            node.task.copy(parentUid = newParentUid)
+        } else {
+            node.task
+        }
+        node.copy(
+            task = task,
+            depth = (node.depth + depthDelta).coerceAtLeast(0),
+        )
+    }
+
+private fun inferParentAndDepth(
+    movingCategory: Boolean,
+    prev: TaskNode?,
+    next: TaskNode?,
+): Pair<String?, Int> {
+    if (movingCategory) return null to 0
+    if (prev == null) return null to 0
+
+    // Inserting into the child region under prev (next is deeper than prev).
+    if (next != null && next.depth > prev.depth) {
+        return next.task.parentUid to next.depth
+    }
+
+    // Nest under a task/category that has no visible children below this slot
+    // when we land immediately after it (into empty / collapsed parent).
+    if (next == null || next.depth <= prev.depth) {
+        // Becoming a sibling of prev — unless we just stepped onto nesting under
+        // an empty parent via category drop (handled separately). Stay sibling.
+        return prev.task.parentUid to prev.depth
+    }
+
+    return prev.task.parentUid to prev.depth
+}
+
+/**
  * Move a task (and its contiguous descendants) among siblings of the same parent.
- * Dragging onto a deeper descendant resolves to that sibling branch root.
  */
 internal fun moveSiblingSubtree(
     list: List<TaskNode>,
@@ -299,16 +449,19 @@ internal fun moveSiblingSubtree(
 private fun TaskRow(
     node: TaskNode,
     linkedEvent: EventEntity?,
+    collapsed: Boolean,
     dragHandleModifier: Modifier,
     onToggle: () -> Unit,
     onOpen: () -> Unit,
     onAddChild: () -> Unit,
     onDelete: () -> Unit,
+    onToggleCollapse: () -> Unit,
 ) {
     val completed = TaskTreeBuilder.isCompleted(node.task)
     val isCategory = node.task.isCategory
     val color = collectionColorOrDefault(node.collection?.colorArgb)
     val context = LocalContext.current
+    val dateOrder = LocalDateOrder.current
     SwipeRevealRow(
         contentColor = MaterialTheme.colorScheme.background,
         cornerRadius = 0.dp,
@@ -324,7 +477,7 @@ private fun TaskRow(
                 contentColor = MaterialTheme.colorScheme.onErrorContainer,
             )
         },
-    ) {
+    ) { _ ->
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -340,14 +493,21 @@ private fun TaskRow(
                     .background(color),
             )
             if (isCategory) {
-                Icon(
-                    Icons.Default.Folder,
-                    contentDescription = "Category",
-                    modifier = Modifier
-                        .padding(horizontal = 8.dp)
-                        .size(18.dp),
-                    tint = color,
-                )
+                IconButton(
+                    onClick = onToggleCollapse,
+                    modifier = Modifier.size(40.dp),
+                ) {
+                    Icon(
+                        if (collapsed) Icons.Default.Folder else Icons.Default.FolderOpen,
+                        contentDescription = if (collapsed) {
+                            "Expand category"
+                        } else {
+                            "Collapse category"
+                        },
+                        modifier = Modifier.size(18.dp),
+                        tint = color,
+                    )
+                }
             } else {
                 Checkbox(checked = completed, onCheckedChange = { onToggle() })
             }
@@ -374,7 +534,7 @@ private fun TaskRow(
                     val tags = parseCategories(node.task.categories)
                     if (tags.isNotEmpty()) add(tags.joinToString(", "))
                     node.task.dueMillis?.let { due ->
-                        add("Due ${DateFormats.dateTime(context, due)}")
+                        add("Due ${DateFormats.dateTime(context, due, dateOrder)}")
                     }
                     val eventStart = linkedEvent?.dtStartMillis
                     when {
@@ -382,7 +542,7 @@ private fun TaskRow(
                             val end = linkedEvent?.dtEndMillis
                             add(
                                 buildString {
-                                    append(DateFormats.dateTime(context, eventStart))
+                                    append(DateFormats.dateTime(context, eventStart, dateOrder))
                                     if (end != null) {
                                         append(" – ")
                                         append(DateFormats.time(context, end))
@@ -393,7 +553,14 @@ private fun TaskRow(
                         !node.task.linkedEventUid.isNullOrBlank() -> add("linked event")
                     }
                     if (node.children.isNotEmpty()) {
-                        add("${node.children.size} ${if (isCategory) "tasks" else "sub"}")
+                        val count = node.children.size
+                        add(
+                            if (collapsed) {
+                                "$count hidden"
+                            } else {
+                                "$count ${if (isCategory) "tasks" else "sub"}"
+                            },
+                        )
                     }
                 }.joinToString(" · ")
                 if (meta.isNotEmpty()) {
@@ -418,7 +585,7 @@ private fun TaskRow(
                 onClick = {},
                 modifier = dragHandleModifier,
             ) {
-                Icon(Icons.Default.DragHandle, contentDescription = "Reorder")
+                Icon(Icons.Default.DragHandle, contentDescription = "Drag to reorder or nest")
             }
         }
     }

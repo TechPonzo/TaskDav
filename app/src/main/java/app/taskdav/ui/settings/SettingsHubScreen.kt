@@ -28,7 +28,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import app.taskdav.R
 import app.taskdav.ui.common.CompactHeader
 import app.taskdav.ui.common.DockScrollPadding
 import app.taskdav.ui.common.SettingsGlyph
@@ -57,20 +59,41 @@ fun SettingsHubScreen(
                 ) {
                     if (onBack != null) {
                         IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.back),
+                            )
                         }
                     }
-                    CompactHeader(title = "Settings", modifier = Modifier.weight(1f))
+                    CompactHeader(
+                        title = stringResource(R.string.settings_title),
+                        modifier = Modifier.weight(1f),
+                    )
                 }
             }
             item {
-                SettingsHubItem("Syncing", "Local or CalDAV", Icons.Default.Sync, onSyncing)
+                SettingsHubItem(
+                    stringResource(R.string.settings_syncing),
+                    stringResource(R.string.settings_syncing_sub),
+                    Icons.Default.Sync,
+                    onSyncing,
+                )
             }
             item {
-                SettingsHubItem("Appearance", "Theme & dates", Icons.Default.Palette, onAppearance)
+                SettingsHubItem(
+                    stringResource(R.string.settings_appearance),
+                    stringResource(R.string.settings_appearance_sub),
+                    Icons.Default.Palette,
+                    onAppearance,
+                )
             }
             item {
-                SettingsHubItem("Export", "Share as ICS", Icons.Default.Share, onExport)
+                SettingsHubItem(
+                    stringResource(R.string.settings_export),
+                    stringResource(R.string.settings_export_sub),
+                    Icons.Default.Share,
+                    onExport,
+                )
             }
             item {
                 HorizontalDivider(
@@ -79,10 +102,20 @@ fun SettingsHubScreen(
                 )
             }
             item {
-                SettingsHubItem("Privacy", "Data & license", Icons.Default.Lock, onPrivacy)
+                SettingsHubItem(
+                    stringResource(R.string.settings_privacy),
+                    stringResource(R.string.settings_privacy_sub),
+                    Icons.Default.Lock,
+                    onPrivacy,
+                )
             }
             item {
-                SettingsHubItem("Credits", "Open source", Icons.Default.Info, onCredits)
+                SettingsHubItem(
+                    stringResource(R.string.settings_credits),
+                    stringResource(R.string.settings_credits_sub),
+                    Icons.Default.Info,
+                    onCredits,
+                )
             }
         }
     }

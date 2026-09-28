@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import app.taskdav.caldav.IcalMapper
+import app.taskdav.data.CategoryCollapseStore
 import app.taskdav.data.CollectionEntity
 import app.taskdav.data.EventEntity
 import app.taskdav.domain.TaskNode
@@ -37,6 +38,11 @@ class TasksViewModel(
     private val app: Application,
     private val repository: TaskRepository,
 ) : ViewModel() {
+    private val collapseStore = CategoryCollapseStore(app)
+
+    private val _collapsedCategoryUids = MutableStateFlow(collapseStore.collapsedUids())
+    val collapsedCategoryUids: StateFlow<Set<String>> = _collapsedCategoryUids.asStateFlow()
+
     private val _ui = MutableStateFlow(
         TasksUiState(syncMessage = repository.lastSyncMessage()),
     )
@@ -136,6 +142,10 @@ class TasksViewModel(
     }
 
     fun newTaskUid(): String = IcalMapper.newUid()
+
+    fun toggleCategoryCollapsed(uid: String) {
+        _collapsedCategoryUids.value = collapseStore.toggle(uid)
+    }
 
     class Factory(
         private val app: Application,

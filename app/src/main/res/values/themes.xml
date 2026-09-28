@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.TaskDav" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.TaskDav" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <!-- Avoid a black window flash while Compose draws. -->
+        <item name="android:windowBackground">@color/taskdav_window_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
 </resources>

@@ -38,6 +38,10 @@ class CollectionDiscoverer(
             val homeHref = propfindHref(client, principalUrl, CalDavXml.CALENDAR_HOME, "calendar-home-set")
                 ?: return null
             MultistatusParser.resolveHref(URI(MultistatusParser.ensureTrailingSlash(principalUrl)), homeHref)
+        } catch (e: CalDavException) {
+            // Wrong username/password must surface — do not fall back to an unauthenticated home.
+            if (e.isAuthFailure) throw e
+            null
         } catch (_: Exception) {
             null
         }

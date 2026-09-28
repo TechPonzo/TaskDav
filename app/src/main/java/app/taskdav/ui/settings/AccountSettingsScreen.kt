@@ -26,6 +26,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -34,8 +35,12 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -61,30 +66,65 @@ fun AccountSettingsScreen(
     val isLocal = state.syncBackend == SyncBackend.LOCAL
     val app = LocalContext.current.applicationContext as TaskDavApp
     val mirrorEnabled by app.phoneCalendarMirror.collectAsStateWithLifecycle()
+    val importEnabled by app.phoneCalendarImport.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    var publishMessage by remember { mutableStateOf<String?>(null) }
+    var statusTick by remember { mutableStateOf(0) }
+    val publishStatus = remember(mirrorEnabled, statusTick) {
+        if (mirrorEnabled) {
+            app.repository.phoneCalendarPublishStatus()
+        } else {
+            null
+        }
+    }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
+    fun runPublish() {
+        scope.launch {
+            val result = app.repository.publishToPhoneCalendar()
+            publishMessage = result.message
+            statusTick += 1
+        }
+    }
+
+    val mirrorPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { grants ->
         val ok = grants.values.all { it }
         if (ok) {
             app.repository.setPhoneCalendarMirrorEnabled(true)
             app.notifyPhoneCalendarMirrorChanged()
-            scope.launch { app.repository.backfillPhoneCalendar() }
+            runPublish()
         } else {
             app.repository.setPhoneCalendarMirrorEnabled(false)
             app.notifyPhoneCalendarMirrorChanged()
+            publishMessage = "Calendar permission denied."
+        }
+    }
+
+    val importPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        val ok = grants[Manifest.permission.READ_CALENDAR] == true
+        if (ok) {
+            app.repository.setPhoneCalendarImportEnabled(true)
+            app.notifyPhoneCalendarImportChanged()
+            scope.launch { app.repository.importPhoneCalendarEvents() }
+        } else {
+            app.repository.setPhoneCalendarImportEnabled(false)
+            app.notifyPhoneCalendarImportChanged()
         }
     }
 
     fun setMirror(enabled: Boolean) {
         if (enabled) {
-            if (app.repository.hasPhoneCalendarPermission()) {
+            if (app.repository.hasPhoneCalendarPermission() &&
+                app.systemCalendarMirror.hasPermission()
+            ) {
                 app.repository.setPhoneCalendarMirrorEnabled(true)
                 app.notifyPhoneCalendarMirrorChanged()
-                scope.launch { app.repository.backfillPhoneCalendar() }
+                runPublish()
             } else {
-                permissionLauncher.launch(
+                mirrorPermissionLauncher.launch(
                     arrayOf(
                         Manifest.permission.READ_CALENDAR,
                         Manifest.permission.WRITE_CALENDAR,
@@ -94,6 +134,36 @@ fun AccountSettingsScreen(
         } else {
             app.repository.setPhoneCalendarMirrorEnabled(false)
             app.notifyPhoneCalendarMirrorChanged()
+            scope.launch {
+                app.repository.clearPhoneCalendarMirror()
+                publishMessage = null
+                statusTick += 1
+            }
+        }
+    }
+
+    LaunchedEffect(mirrorEnabled) {
+        if (mirrorEnabled) statusTick += 1
+    }
+
+    fun setImport(enabled: Boolean) {
+        if (enabled) {
+            if (app.repository.hasPhoneCalendarReadPermission()) {
+                app.repository.setPhoneCalendarImportEnabled(true)
+                app.notifyPhoneCalendarImportChanged()
+                scope.launch { app.repository.importPhoneCalendarEvents() }
+            } else {
+                importPermissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.READ_CALENDAR,
+                        Manifest.permission.WRITE_CALENDAR,
+                    ),
+                )
+            }
+        } else {
+            app.repository.setPhoneCalendarImportEnabled(false)
+            app.notifyPhoneCalendarImportChanged()
+            scope.launch { app.repository.clearPhoneCalendarImport() }
         }
     }
 
@@ -216,6 +286,22 @@ fun AccountSettingsScreen(
                         Text("Save & discover collections")
                     }
                 }
+                state.error?.let { err ->
+                    Text(
+                        text = err,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+                state.message?.let { msg ->
+                    Text(
+                        text = msg,
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
                 if (state.discovered && onOpenCollections != null) {
                     Button(
                         onClick = onOpenCollections,
@@ -230,7 +316,7 @@ fun AccountSettingsScreen(
 
             Text("Phone calendar", style = MaterialTheme.typography.titleSmall)
             Text(
-                "TaskDav can open when other apps create events. Android may ask which calendar app to use — pick TaskDav to prefer it.",
+                "Works without DAVx⁵. Local-only users can still share events with the Android Calendar app.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             )
@@ -239,9 +325,26 @@ fun AccountSettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Show events in phone calendar")
+                    Text("Import into TaskDav")
                     Text(
-                        "Copies TaskDav events into the system calendar so they appear in Google Calendar and similar apps.",
+                        "Pull events from Google Calendar and other calendars on this phone.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                    )
+                }
+                Switch(
+                    checked = importEnabled,
+                    onCheckedChange = { setImport(it) },
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Show TaskDav in Android Calendar")
+                    Text(
+                        "Creates a TaskDav account (like DAVx⁵) and publishes your events. On Samsung: Calendar → ☰ → manage calendars, and also check Settings → Accounts.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
                     )
@@ -251,9 +354,26 @@ fun AccountSettingsScreen(
                     onCheckedChange = { setMirror(it) },
                 )
             }
-
-            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            state.message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
+            if (mirrorEnabled && publishStatus != null) {
+                Text(
+                    publishStatus.message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (publishStatus.calendarId != null) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
+                )
+                OutlinedButton(
+                    onClick = { runPublish() },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Publish events now")
+                }
+            }
+            publishMessage?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall)
+            }
         }
     }
 }

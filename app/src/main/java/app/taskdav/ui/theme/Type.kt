@@ -23,110 +23,116 @@ val ManropeFamily = FontFamily(
 )
 
 /** Compact trendy scale — display reserved for rare moments. */
-val TaskDavTypography = Typography(
-    displayLarge = TextStyle(
-        fontFamily = FrauncesFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 40.sp,
-        lineHeight = 44.sp,
-        letterSpacing = (-0.5).sp,
-    ),
-    displayMedium = TextStyle(
-        fontFamily = FrauncesFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 32.sp,
-        lineHeight = 36.sp,
-        letterSpacing = (-0.25).sp,
-    ),
-    displaySmall = TextStyle(
-        fontFamily = FrauncesFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 26.sp,
-        lineHeight = 30.sp,
-        letterSpacing = 0.sp,
-    ),
-    headlineLarge = TextStyle(
-        fontFamily = FrauncesFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 24.sp,
-        lineHeight = 30.sp,
-        letterSpacing = 0.sp,
-    ),
-    headlineMedium = TextStyle(
-        fontFamily = FrauncesFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 20.sp,
-        lineHeight = 26.sp,
-        letterSpacing = 0.sp,
-    ),
-    headlineSmall = TextStyle(
-        fontFamily = FrauncesFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 18.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.sp,
-    ),
-    titleLarge = TextStyle(
-        fontFamily = ManropeFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 17.sp,
-        lineHeight = 22.sp,
-        letterSpacing = 0.sp,
-    ),
-    titleMedium = TextStyle(
-        fontFamily = ManropeFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 15.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 0.1.sp,
-    ),
-    titleSmall = TextStyle(
-        fontFamily = ManropeFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 13.sp,
-        lineHeight = 18.sp,
-        letterSpacing = 0.2.sp,
-    ),
-    bodyLarge = TextStyle(
-        fontFamily = ManropeFamily,
-        fontWeight = FontWeight.Normal,
-        fontSize = 15.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 0.1.sp,
-    ),
-    bodyMedium = TextStyle(
-        fontFamily = ManropeFamily,
-        fontWeight = FontWeight.Normal,
-        fontSize = 13.sp,
-        lineHeight = 18.sp,
-        letterSpacing = 0.15.sp,
-    ),
-    bodySmall = TextStyle(
-        fontFamily = ManropeFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.2.sp,
-    ),
-    labelLarge = TextStyle(
-        fontFamily = ManropeFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 13.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.3.sp,
-    ),
-    labelMedium = TextStyle(
-        fontFamily = ManropeFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 11.sp,
-        lineHeight = 14.sp,
-        letterSpacing = 0.4.sp,
-    ),
-    labelSmall = TextStyle(
-        fontFamily = ManropeFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 10.sp,
-        lineHeight = 12.sp,
-        letterSpacing = 0.5.sp,
-    ),
-)
+val TaskDavTypography = taskDavTypography(useSystemFont = false)
+
+fun taskDavTypography(useSystemFont: Boolean): Typography {
+    val display = if (useSystemFont) FontFamily.Default else FrauncesFamily
+    val body = if (useSystemFont) FontFamily.Default else ManropeFamily
+    return Typography(
+        displayLarge = TextStyle(
+            fontFamily = display,
+            fontWeight = FontWeight.Bold,
+            fontSize = 40.sp,
+            lineHeight = 44.sp,
+            letterSpacing = (-0.5).sp,
+        ),
+        displayMedium = TextStyle(
+            fontFamily = display,
+            fontWeight = FontWeight.Bold,
+            fontSize = 32.sp,
+            lineHeight = 36.sp,
+            letterSpacing = (-0.25).sp,
+        ),
+        displaySmall = TextStyle(
+            fontFamily = display,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 26.sp,
+            lineHeight = 30.sp,
+            letterSpacing = 0.sp,
+        ),
+        headlineLarge = TextStyle(
+            fontFamily = display,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 24.sp,
+            lineHeight = 30.sp,
+            letterSpacing = 0.sp,
+        ),
+        headlineMedium = TextStyle(
+            fontFamily = display,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 20.sp,
+            lineHeight = 26.sp,
+            letterSpacing = 0.sp,
+        ),
+        headlineSmall = TextStyle(
+            fontFamily = display,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 18.sp,
+            lineHeight = 24.sp,
+            letterSpacing = 0.sp,
+        ),
+        titleLarge = TextStyle(
+            fontFamily = body,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 17.sp,
+            lineHeight = 22.sp,
+            letterSpacing = 0.sp,
+        ),
+        titleMedium = TextStyle(
+            fontFamily = body,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 15.sp,
+            lineHeight = 20.sp,
+            letterSpacing = 0.1.sp,
+        ),
+        titleSmall = TextStyle(
+            fontFamily = body,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+            letterSpacing = 0.2.sp,
+        ),
+        bodyLarge = TextStyle(
+            fontFamily = body,
+            fontWeight = FontWeight.Normal,
+            fontSize = 15.sp,
+            lineHeight = 20.sp,
+            letterSpacing = 0.1.sp,
+        ),
+        bodyMedium = TextStyle(
+            fontFamily = body,
+            fontWeight = FontWeight.Normal,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+            letterSpacing = 0.15.sp,
+        ),
+        bodySmall = TextStyle(
+            fontFamily = body,
+            fontWeight = FontWeight.Medium,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+            letterSpacing = 0.2.sp,
+        ),
+        labelLarge = TextStyle(
+            fontFamily = body,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 13.sp,
+            lineHeight = 16.sp,
+            letterSpacing = 0.3.sp,
+        ),
+        labelMedium = TextStyle(
+            fontFamily = body,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 11.sp,
+            lineHeight = 14.sp,
+            letterSpacing = 0.4.sp,
+        ),
+        labelSmall = TextStyle(
+            fontFamily = body,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 10.sp,
+            lineHeight = 12.sp,
+            letterSpacing = 0.5.sp,
+        ),
+    )
+}

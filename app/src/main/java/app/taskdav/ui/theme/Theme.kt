@@ -3,6 +3,7 @@ package app.taskdav.ui.theme
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -13,7 +14,9 @@ import androidx.compose.ui.platform.LocalContext
 import app.taskdav.TaskDavApp
 import app.taskdav.data.AppearanceStore
 import app.taskdav.data.DateOrderPreference
+import app.taskdav.data.FontPreference
 import app.taskdav.ui.common.DateFormats
+import app.taskdav.ui.common.LocalDateOrder
 
 @Composable
 fun TaskDavTheme(content: @Composable () -> Unit) {
@@ -31,6 +34,11 @@ fun TaskDavTheme(content: @Composable () -> Unit) {
             mutableStateOf(AppearanceStore.DEFAULT_DATE_ORDER)
         }
     }
+    val fontId by if (app?.appearanceStore != null) {
+        app.appearanceStore.fontPreference.collectAsState(initial = AppearanceStore.DEFAULT_FONT)
+    } else {
+        remember { mutableStateOf(AppearanceStore.DEFAULT_FONT) }
+    }
     val dateOrder = DateOrderPreference.fromId(dateOrderId)
     SideEffect {
         DateFormats.setOrderPreference(dateOrder)
@@ -39,12 +47,17 @@ fun TaskDavTheme(content: @Composable () -> Unit) {
     val (light, darkScheme) = remember(seedArgb) {
         schemesFromSeed(Color(seedArgb))
     }
-    MaterialTheme(
-        colorScheme = if (dark) darkScheme else light,
-        typography = TaskDavTypography,
-        shapes = TaskDavShapes,
-        content = content,
-    )
+    val typography = remember(fontId) {
+        taskDavTypography(useSystemFont = FontPreference.fromId(fontId) == FontPreference.SYSTEM)
+    }
+    CompositionLocalProvider(LocalDateOrder provides dateOrder) {
+        MaterialTheme(
+            colorScheme = if (dark) darkScheme else light,
+            typography = typography,
+            shapes = TaskDavShapes,
+            content = content,
+        )
+    }
 }
 
 fun collectionColorOrDefault(argb: Int?, fallback: Color = Color(DEFAULT_SEED_ARGB)): Color {

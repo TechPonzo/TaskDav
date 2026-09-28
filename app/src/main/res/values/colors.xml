@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Soft forest-tint surface, close to default seed background. -->
+    <color name="taskdav_window_bg">#FFF4F7F5</color>
+</resources>

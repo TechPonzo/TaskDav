@@ -1,5 +1,7 @@
 package app.taskdav.ui.common
 
+import android.content.res.Configuration
+import android.os.LocaleList
 import android.text.format.DateFormat as AndroidDateFormat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +14,8 @@ import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DatePickerState
+import androidx.compose.material3.DisplayMode
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -19,18 +23,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import app.taskdav.data.DateOrderPreference
 import java.util.Calendar
+import java.util.Locale
 import java.util.TimeZone
 
 /**
@@ -48,6 +55,7 @@ fun InlineDateTimePicker(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val dateLabel = rememberFormattedDate(valueMillis)
     val is24Hour = remember(context) { AndroidDateFormat.is24HourFormat(context) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -64,7 +72,7 @@ fun InlineDateTimePicker(
             FilterChip(
                 selected = false,
                 onClick = { showDatePicker = true },
-                label = { Text(DateFormats.date(context, valueMillis)) },
+                label = { Text(dateLabel) },
                 leadingIcon = {
                     Icon(Icons.Outlined.CalendarMonth, contentDescription = null)
                 },
@@ -81,33 +89,21 @@ fun InlineDateTimePicker(
     }
 
     if (showDatePicker) {
-        val dateState = rememberDatePickerState(
-            initialSelectedDateMillis = utcMidnightForLocalDate(valueMillis),
+        AppDatePickerDialog(
+            initialMillis = valueMillis,
+            onDismiss = { showDatePicker = false },
+            onConfirmUtcMidnight = { picked ->
+                val cal = Calendar.getInstance().apply { timeInMillis = valueMillis }
+                onValueChange(
+                    combineUtcDateWithLocalTime(
+                        picked,
+                        cal.get(Calendar.HOUR_OF_DAY),
+                        cal.get(Calendar.MINUTE),
+                    ),
+                )
+                showDatePicker = false
+            },
         )
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val picked = dateState.selectedDateMillis ?: return@TextButton
-                        val cal = Calendar.getInstance().apply { timeInMillis = valueMillis }
-                        onValueChange(
-                            combineUtcDateWithLocalTime(
-                                picked,
-                                cal.get(Calendar.HOUR_OF_DAY),
-                                cal.get(Calendar.MINUTE),
-                            ),
-                        )
-                        showDatePicker = false
-                    },
-                ) { Text("OK") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
-            },
-        ) {
-            DatePicker(state = dateState)
-        }
     }
 
     if (showTimePicker) {
@@ -169,26 +165,15 @@ fun DateTimePickerDialog(
     val is24Hour = AndroidDateFormat.is24HourFormat(LocalContext.current)
 
     if (step == 0) {
-        val dateState = rememberDatePickerState(
-            initialSelectedDateMillis = utcMidnightForLocalDate(initialMillis),
+        AppDatePickerDialog(
+            initialMillis = initialMillis,
+            onDismiss = onDismiss,
+            onConfirmUtcMidnight = { picked ->
+                selectedDateMillis = picked
+                step = 1
+            },
+            confirmLabel = "Next",
         )
-        DatePickerDialog(
-            onDismissRequest = onDismiss,
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val picked = dateState.selectedDateMillis ?: return@TextButton
-                        selectedDateMillis = picked
-                        step = 1
-                    },
-                ) { Text("Next") }
-            },
-            dismissButton = {
-                TextButton(onClick = onDismiss) { Text("Cancel") }
-            },
-        ) {
-            DatePicker(state = dateState)
-        }
     } else {
         val timeState = rememberTimePickerState(
             initialHour = cal.get(Calendar.HOUR_OF_DAY),
@@ -224,6 +209,88 @@ fun DateTimePickerDialog(
             },
         )
     }
+}
+
+/**
+ * Stock Material date picker UI, with locale forced to the app date-order setting
+ * so typed dates use dd/MM/yyyy (or MM/dd/yyyy) instead of the phone default.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AppDatePickerDialog(
+    initialMillis: Long,
+    onDismiss: () -> Unit,
+    onConfirmUtcMidnight: (Long) -> Unit,
+    confirmLabel: String = "OK",
+) {
+    val dateOrder = LocalDateOrder.current
+    val initialUtc = remember(initialMillis) { utcMidnightForLocalDate(initialMillis) }
+
+    ProvideDateOrderLocale(dateOrder) {
+        val pickerLocale = LocalConfiguration.current.locales.let { locales ->
+            if (locales.isEmpty) Locale.getDefault() else locales[0]
+        }
+        val dateState = remember(pickerLocale, initialUtc) {
+            DatePickerState(
+                locale = pickerLocale,
+                initialSelectedDateMillis = initialUtc,
+                initialDisplayMode = DisplayMode.Picker,
+            )
+        }
+
+        DatePickerDialog(
+            onDismissRequest = onDismiss,
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val picked = dateState.selectedDateMillis ?: return@TextButton
+                        onConfirmUtcMidnight(picked)
+                    },
+                ) { Text(confirmLabel) }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+            },
+        ) {
+            // Re-provide inside the dialog window so text-input mode keeps our order.
+            ProvideDateOrderLocale(dateOrder) {
+                DatePicker(state = dateState)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProvideDateOrderLocale(
+    dateOrder: DateOrderPreference,
+    content: @Composable () -> Unit,
+) {
+    if (dateOrder == DateOrderPreference.SYSTEM) {
+        content()
+        return
+    }
+    val baseContext = LocalContext.current
+    val baseConfig = LocalConfiguration.current
+    val baseLocale = remember(baseConfig) {
+        val locales = baseConfig.locales
+        if (!locales.isEmpty) locales[0] else Locale.getDefault()
+    }
+    val pickerLocale = remember(dateOrder, baseLocale) {
+        DateFormats.localeForDateInput(baseLocale, dateOrder)
+    }
+    val overriddenConfig = remember(baseConfig, pickerLocale) {
+        Configuration(baseConfig).apply {
+            setLocales(LocaleList(pickerLocale))
+        }
+    }
+    val pickerContext = remember(baseContext, overriddenConfig) {
+        baseContext.createConfigurationContext(overriddenConfig)
+    }
+    CompositionLocalProvider(
+        LocalConfiguration provides overriddenConfig,
+        LocalContext provides pickerContext,
+        content = content,
+    )
 }
 
 /** Material DatePicker uses UTC midnight for the selected civil day. */

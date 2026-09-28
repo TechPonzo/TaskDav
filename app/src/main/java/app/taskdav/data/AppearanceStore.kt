@@ -27,6 +27,25 @@ enum class DateOrderPreference(val id: String, val label: String) {
     }
 }
 
+enum class FontPreference(val id: String, val label: String, val subtitle: String) {
+    APP(
+        id = "app",
+        label = "App fonts",
+        subtitle = "Fraunces & Manrope",
+    ),
+    SYSTEM(
+        id = "system",
+        label = "Phone font",
+        subtitle = "Use your system typeface",
+    ),
+    ;
+
+    companion object {
+        fun fromId(id: String?): FontPreference =
+            entries.find { it.id == id } ?: APP
+    }
+}
+
 enum class CalendarViewMode(val id: String, val label: String) {
     DAILY("daily", "Daily view"),
     WEEKLY("weekly", "Weekly view"),
@@ -51,6 +70,10 @@ class AppearanceStore(private val context: Context) {
         prefs[KEY_DATE_ORDER] ?: DEFAULT_DATE_ORDER
     }
 
+    val fontPreference: Flow<String> = context.appearanceDataStore.data.map { prefs ->
+        prefs[KEY_FONT] ?: DEFAULT_FONT
+    }
+
     val calendarViewMode: Flow<String> = context.appearanceDataStore.data.map { prefs ->
         prefs[KEY_CALENDAR_VIEW] ?: DEFAULT_CALENDAR_VIEW
     }
@@ -67,6 +90,10 @@ class AppearanceStore(private val context: Context) {
         context.appearanceDataStore.edit { it[KEY_DATE_ORDER] = id }
     }
 
+    suspend fun setFontPreference(id: String) {
+        context.appearanceDataStore.edit { it[KEY_FONT] = id }
+    }
+
     suspend fun setCalendarViewMode(id: String) {
         context.appearanceDataStore.edit { it[KEY_CALENDAR_VIEW] = id }
     }
@@ -75,10 +102,12 @@ class AppearanceStore(private val context: Context) {
         val DEFAULT_SEED_COLOR: Int = DEFAULT_SEED_ARGB
         /** Day-first matches common EU usage; override with Phone default if needed. */
         const val DEFAULT_DATE_ORDER = "dmy"
+        const val DEFAULT_FONT = "app"
         const val DEFAULT_CALENDAR_VIEW = "monthly_daily"
         private val KEY_SEED_COLOR = intPreferencesKey("seed_color_argb")
         private val KEY_THEME = stringPreferencesKey("theme_id")
         private val KEY_DATE_ORDER = stringPreferencesKey("date_order")
+        private val KEY_FONT = stringPreferencesKey("font_preference")
         private val KEY_CALENDAR_VIEW = stringPreferencesKey("calendar_view_mode")
 
         private fun seedFromLegacyTheme(themeId: String?): Int = when (themeId) {

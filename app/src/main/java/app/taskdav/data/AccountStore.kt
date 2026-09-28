@@ -54,6 +54,14 @@ class AccountStore(context: Context) {
         prefs.edit().putBoolean(KEY_PHONE_CALENDAR_MIRROR, enabled).apply()
     }
 
+    /** Pull events from the phone CalendarContract into TaskDav. */
+    fun phoneCalendarImportEnabled(): Boolean =
+        prefs.getBoolean(KEY_PHONE_CALENDAR_IMPORT, false)
+
+    fun setPhoneCalendarImportEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PHONE_CALENDAR_IMPORT, enabled).apply()
+    }
+
     fun isConfigured(): Boolean {
         val url = prefs.getString(KEY_BASE_URL, null)
         val user = prefs.getString(KEY_USERNAME, null)
@@ -107,5 +115,6 @@ class AccountStore(context: Context) {
         private const val KEY_LAST_SYNC_MSG = "last_sync_msg"
         private const val KEY_SYNC_BACKEND = "sync_backend"
         private const val KEY_PHONE_CALENDAR_MIRROR = "phone_calendar_mirror"
+        private const val KEY_PHONE_CALENDAR_IMPORT = "phone_calendar_import"
     }
 }

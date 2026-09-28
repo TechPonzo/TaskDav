@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TaskDav</string>
+    <string name="back">Indietro</string>
+    <string name="continue_action">Continua</string>
+    <string name="skip">Salta</string>
+    <string name="get_started">Inizia</string>
+    <string name="next">Avanti</string>
+
+    <string name="tab_home">Home</string>
+    <string name="tab_calendar">Cal</string>
+    <string name="tab_tasks">Attività</string>
+    <string name="tab_notes">Note</string>
+    <string name="tab_more">Altro</string>
+
+    <string name="settings_title">Impostazioni</string>
+    <string name="settings_syncing">Sincronizzazione</string>
+    <string name="settings_syncing_sub">Locale o CalDAV</string>
+    <string name="settings_appearance">Aspetto</string>
+    <string name="settings_appearance_sub">Tema, date e lingua</string>
+    <string name="settings_export">Esporta</string>
+    <string name="settings_export_sub">Condividi come ICS</string>
+    <string name="settings_privacy">Privacy</string>
+    <string name="settings_privacy_sub">Dati e licenza</string>
+    <string name="settings_credits">Crediti</string>
+    <string name="settings_credits_sub">Open source</string>
+
+    <string name="language_title">Lingua</string>
+    <string name="language_subtitle">Scegli come TaskDav ti parla</string>
+    <string name="language_system">Lingua del telefono</string>
+    <string name="language_english">English</string>
+    <string name="language_spanish">Español</string>
+    <string name="language_italian">Italiano</string>
+
+    <string name="onboarding_welcome_title">Benvenuto in TaskDav</string>
+    <string name="onboarding_welcome_body">Attività, calendario e note — sul telefono o sincronizzati con il tuo server CalDAV. Nessun Google Play Services.</string>
+    <string name="onboarding_welcome_pick_language">Scegli una lingua</string>
+
+    <string name="onboarding_sync_title">Prima di tutto tuoi</string>
+    <string name="onboarding_sync_body">Resta solo su questo dispositivo, oppure collega lo stesso server CalDAV che usi già con DAVx⁵. Puoi cambiare quando vuoi in Impostazioni.</string>
+
+    <string name="onboarding_tasks_title">Attività annidate</string>
+    <string name="onboarding_tasks_body">Organizza con cartelle di categorie annidabili, sottoattività, scadenze, tag e riordino fluido. Tutto funziona anche offline.</string>
+
+    <string name="onboarding_calendar_title">Calendario su misura</string>
+    <string name="onboarding_calendar_body">Viste giorno, settimana e mese per i tuoi eventi. Opzionalmente condividili con l’app Calendario del telefono — senza DAVx⁵ in modalità locale.</string>
+
+    <string name="onboarding_notes_title">Note accanto</string>
+    <string name="onboarding_notes_body">Cattura idee come note con tag. Si sincronizzano come VJOURNAL con CalDAV e restano sul dispositivo se resti in locale.</string>
+
+    <string name="onboarding_ready_title">Pronto quando lo sei tu</string>
+    <string name="onboarding_ready_body">Configuriamo l’archiviazione sul dispositivo così puoi iniziare subito. Collega CalDAV più tardi da Impostazioni → Sincronizzazione.</string>
+
+    <string name="caldav_error_auth">Nome utente o password errati, oppure questo account non è autorizzato sul server.</string>
+    <string name="caldav_error_network">Impossibile raggiungere il server. Controlla l’URL e la connessione di rete.</string>
+    <string name="caldav_error_generic">Impossibile connettersi al server CalDAV.</string>
+    <string name="caldav_error_invalid_url">L’URL del server non sembra valida.</string>
+    <string name="widget_calendar_description">Eventi di oggi</string>
+    <string name="widget_agenda_description">Eventi di questa settimana o mese</string>
+    <string name="widget_tasks_description">Attività aperte con scadenza</string>
+    <string name="widget_notes_description">Note recenti</string>
+    <string name="widget_calendar_label">TaskDav Oggi</string>
+    <string name="widget_agenda_label">TaskDav Settimana / Mese</string>
+    <string name="widget_tasks_label">TaskDav Attività</string>
+    <string name="widget_notes_label">TaskDav Note</string>
+</resources>

@@ -11,7 +11,9 @@ import app.taskdav.data.EventEntity
 import java.util.TimeZone
 
 /**
- * One-way mirror of TaskDav events into the phone [CalendarContract] calendar.
+ * Publishes TaskDav events into a phone [CalendarContract] calendar under a real
+ * Android account ([TaskDavCalendarAccount]), so Google Calendar / AOSP Calendar list
+ * TaskDav like DAVx⁵ — including for local-only users.
  */
 class SystemCalendarMirror(
     private val context: Context,
@@ -22,10 +24,12 @@ class SystemCalendarMirror(
         return read == PackageManager.PERMISSION_GRANTED && write == PackageManager.PERMISSION_GRANTED
     }
 
-    /** Returns the TaskDav system calendar id, creating it if needed. */
+    /** Ensures the TaskDav account + calendar exist; returns calendar row id. */
     fun ensureCalendarId(): Long? {
         if (!hasPermission()) return null
+        TaskDavCalendarAccount.ensure(context)
         findCalendarId()?.let { return it }
+        removeLegacyLocalCalendar()
         return createCalendar()
     }
 
@@ -54,15 +58,15 @@ class SystemCalendarMirror(
 
         val existingId = event.systemEventId?.takeIf { it > 0 }
             ?: findEventIdByUid(event.uid)
-        return if (existingId != null && existingId > 0) {
+        if (existingId != null && existingId > 0) {
             val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, existingId)
-            context.contentResolver.update(uri, values, null, null)
-            existingId
-        } else {
-            val uri = context.contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
-                ?: return null
-            ContentUris.parseId(uri)
+            val updated = context.contentResolver.update(uri, values, null, null)
+            if (updated > 0) return existingId
+            // Stale id (e.g. after migrating off ACCOUNT_TYPE_LOCAL) — insert fresh.
         }
+        val uri = context.contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
+            ?: return null
+        return ContentUris.parseId(uri)
     }
 
     fun deleteEvent(systemEventId: Long?) {
@@ -82,7 +86,10 @@ class SystemCalendarMirror(
         val projection = arrayOf(CalendarContract.Calendars._ID)
         val selection =
             "${CalendarContract.Calendars.ACCOUNT_NAME}=? AND ${CalendarContract.Calendars.ACCOUNT_TYPE}=?"
-        val args = arrayOf(ACCOUNT_NAME, CalendarContract.ACCOUNT_TYPE_LOCAL)
+        val args = arrayOf(
+            TaskDavCalendarAccount.ACCOUNT_NAME,
+            TaskDavCalendarAccount.ACCOUNT_TYPE,
+        )
         context.contentResolver.query(
             CalendarContract.Calendars.CONTENT_URI,
             projection,
@@ -95,20 +102,64 @@ class SystemCalendarMirror(
         return null
     }
 
+    /**
+     * Older builds used ACCOUNT_TYPE_LOCAL, which Google Calendar hides.
+     * Remove that calendar so we only expose the account-backed one.
+     */
+    private fun removeLegacyLocalCalendar() {
+        val projection = arrayOf(CalendarContract.Calendars._ID)
+        val selection =
+            "${CalendarContract.Calendars.ACCOUNT_NAME}=? AND ${CalendarContract.Calendars.ACCOUNT_TYPE}=?"
+        val args = arrayOf(
+            TaskDavCalendarAccount.ACCOUNT_NAME,
+            CalendarContract.ACCOUNT_TYPE_LOCAL,
+        )
+        context.contentResolver.query(
+            CalendarContract.Calendars.CONTENT_URI,
+            projection,
+            selection,
+            args,
+            null,
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(0)
+                val uri = ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, id)
+                    .buildUpon()
+                    .appendQueryParameter(CalendarContract.CALLER_IS_SYNCADAPTER, "true")
+                    .appendQueryParameter(
+                        CalendarContract.Calendars.ACCOUNT_NAME,
+                        TaskDavCalendarAccount.ACCOUNT_NAME,
+                    )
+                    .appendQueryParameter(
+                        CalendarContract.Calendars.ACCOUNT_TYPE,
+                        CalendarContract.ACCOUNT_TYPE_LOCAL,
+                    )
+                    .build()
+                runCatching { context.contentResolver.delete(uri, null, null) }
+            }
+        }
+    }
+
     private fun createCalendar(): Long? {
         val values = ContentValues().apply {
-            put(CalendarContract.Calendars.ACCOUNT_NAME, ACCOUNT_NAME)
-            put(CalendarContract.Calendars.ACCOUNT_TYPE, CalendarContract.ACCOUNT_TYPE_LOCAL)
-            put(CalendarContract.Calendars.NAME, ACCOUNT_NAME)
+            put(CalendarContract.Calendars.ACCOUNT_NAME, TaskDavCalendarAccount.ACCOUNT_NAME)
+            put(CalendarContract.Calendars.ACCOUNT_TYPE, TaskDavCalendarAccount.ACCOUNT_TYPE)
+            put(CalendarContract.Calendars.NAME, TaskDavCalendarAccount.ACCOUNT_NAME)
             put(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, "TaskDav")
             put(CalendarContract.Calendars.CALENDAR_COLOR, 0xFF2E7D32.toInt())
             put(
                 CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL,
                 CalendarContract.Calendars.CAL_ACCESS_OWNER,
             )
-            put(CalendarContract.Calendars.OWNER_ACCOUNT, ACCOUNT_NAME)
+            put(CalendarContract.Calendars.OWNER_ACCOUNT, TaskDavCalendarAccount.ACCOUNT_NAME)
             put(CalendarContract.Calendars.VISIBLE, 1)
             put(CalendarContract.Calendars.SYNC_EVENTS, 1)
+            put(CalendarContract.Calendars.CAN_ORGANIZER_RESPOND, 1)
+            put(CalendarContract.Calendars.CAN_MODIFY_TIME_ZONE, 1)
+            put(CalendarContract.Calendars.MAX_REMINDERS, 5)
+            put(CalendarContract.Calendars.ALLOWED_REMINDERS, "0,1,2")
+            put(CalendarContract.Calendars.ALLOWED_AVAILABILITY, "0,1,2")
+            put(CalendarContract.Calendars.ALLOWED_ATTENDEE_TYPES, "0,1,2")
             put(
                 CalendarContract.Calendars.CALENDAR_TIME_ZONE,
                 TimeZone.getDefault().id,
@@ -116,13 +167,20 @@ class SystemCalendarMirror(
         }
         val uri = CalendarContract.Calendars.CONTENT_URI.buildUpon()
             .appendQueryParameter(CalendarContract.CALLER_IS_SYNCADAPTER, "true")
-            .appendQueryParameter(CalendarContract.Calendars.ACCOUNT_NAME, ACCOUNT_NAME)
+            .appendQueryParameter(
+                CalendarContract.Calendars.ACCOUNT_NAME,
+                TaskDavCalendarAccount.ACCOUNT_NAME,
+            )
             .appendQueryParameter(
                 CalendarContract.Calendars.ACCOUNT_TYPE,
-                CalendarContract.ACCOUNT_TYPE_LOCAL,
+                TaskDavCalendarAccount.ACCOUNT_TYPE,
             )
             .build()
-        val result = context.contentResolver.insert(uri, values) ?: return null
+        val result = context.contentResolver.insert(uri, values)
+        if (result == null) {
+            android.util.Log.e("TaskDavMirror", "Calendar insert returned null")
+            return null
+        }
         return ContentUris.parseId(result)
     }
 
@@ -142,6 +200,6 @@ class SystemCalendarMirror(
     }
 
     companion object {
-        const val ACCOUNT_NAME = "TaskDav"
+        const val ACCOUNT_NAME = TaskDavCalendarAccount.ACCOUNT_NAME
     }
 }

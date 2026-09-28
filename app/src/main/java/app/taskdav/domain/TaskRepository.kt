@@ -3,7 +3,9 @@ package app.taskdav.domain
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import app.taskdav.calendar.SystemCalendarImport
 import app.taskdav.calendar.SystemCalendarMirror
+import app.taskdav.calendar.TaskDavCalendarAccount
 import app.taskdav.caldav.IcalMapper
 import app.taskdav.caldav.SyncEngine
 import app.taskdav.caldav.SyncMode
@@ -31,6 +33,7 @@ class TaskRepository(
     private val syncEngine: SyncEngine,
     private val appContext: Context,
     private val systemCalendarMirror: SystemCalendarMirror? = null,
+    private val systemCalendarImport: SystemCalendarImport? = null,
 ) {
     fun observeCollections(): Flow<List<CollectionEntity>> = db.collections().observeAll()
 
@@ -127,17 +130,48 @@ class TaskRepository(
         )
     }
 
+    /** Collection that holds events imported from the phone CalendarContract. */
+    suspend fun ensurePhoneCalendarCollection(): Long {
+        val existing = db.collections().getByHref(PHONE_COLLECTION_HREF)
+        if (existing != null) {
+            if (!existing.enabled) {
+                db.collections().setEnabled(existing.id, true)
+            }
+            return existing.id
+        }
+        return db.collections().upsert(
+            CollectionEntity(
+                href = PHONE_COLLECTION_HREF,
+                displayName = "Phone calendar",
+                colorArgb = 0xFF1565C0.toInt(),
+                supportsVtodo = false,
+                supportsVevent = true,
+                supportsVjournal = false,
+                enabled = true,
+            ),
+        )
+    }
+
     suspend fun discoverAndSave(): String {
         val result = syncEngine.refreshCollections()
         return "Found ${result.collections.size} collections"
     }
 
     suspend fun syncNow(mode: SyncMode = SyncMode.FULL): String {
-        if (!isCalDavMode()) {
+        val parts = mutableListOf<String>()
+        if (isCalDavMode()) {
+            parts += syncEngine.syncAll(mode).message
+        }
+        if (accountStore.phoneCalendarImportEnabled()) {
+            val count = importPhoneCalendarEvents()
+            parts += "Phone calendar: $count events"
+        }
+        if (parts.isEmpty()) {
             (appContext.applicationContext as? app.taskdav.TaskDavApp)?.notifyWidgetsChanged()
             return "Local-only mode — nothing to sync."
         }
-        val message = syncEngine.syncAll(mode).message
+        val message = parts.joinToString(" · ")
+        accountStore.setLastSync(System.currentTimeMillis(), message)
         (appContext.applicationContext as? app.taskdav.TaskDavApp)?.notifyWidgetsChanged()
         return message
     }
@@ -190,6 +224,7 @@ class TaskRepository(
 
     companion object {
         const val LOCAL_COLLECTION_HREF = "local://on-device/"
+        const val PHONE_COLLECTION_HREF = "local://phone-calendar/"
     }
 
     suspend fun countPendingUploads(): Int {
@@ -253,7 +288,7 @@ class TaskRepository(
     }
 
     /**
-     * Persist sibling order from the flat task list (appearance order among same parent).
+     * Persist order and parent links from the flat task list after drag-and-drop.
      */
     suspend fun persistFlatOrder(flat: List<TaskNode>) {
         val now = System.currentTimeMillis()
@@ -262,10 +297,11 @@ class TaskRepository(
             val parent = node.task.parentUid
             val order = counters.getOrDefault(parent, 0)
             counters[parent] = order + 1
-            val task = node.task
-            if (task.sortOrder != order) {
+            val existing = db.tasks().getById(node.task.id) ?: continue
+            if (existing.sortOrder != order || existing.parentUid != parent) {
                 db.tasks().update(
-                    task.copy(
+                    existing.copy(
+                        parentUid = parent,
                         sortOrder = order,
                         icsRaw = null,
                         dirty = true,
@@ -440,25 +476,148 @@ class TaskRepository(
 
     fun phoneCalendarMirrorEnabled(): Boolean = accountStore.phoneCalendarMirrorEnabled()
 
+    fun setPhoneCalendarImportEnabled(enabled: Boolean) {
+        accountStore.setPhoneCalendarImportEnabled(enabled)
+    }
+
+    fun phoneCalendarImportEnabled(): Boolean = accountStore.phoneCalendarImportEnabled()
+
     fun hasPhoneCalendarPermission(): Boolean =
-        systemCalendarMirror?.hasPermission() == true
+        systemCalendarMirror?.hasPermission() == true ||
+            systemCalendarImport?.hasReadPermission() == true
+
+    fun hasPhoneCalendarReadPermission(): Boolean =
+        systemCalendarImport?.hasReadPermission() == true
 
     /** Push all local events into the phone calendar (after enabling + granting permission). */
     suspend fun backfillPhoneCalendar(): Int = withContext(Dispatchers.IO) {
-        val mirror = systemCalendarMirror ?: return@withContext 0
-        if (!accountStore.phoneCalendarMirrorEnabled() || !mirror.hasPermission()) return@withContext 0
+        publishToPhoneCalendar().published
+    }
+
+    data class PublishResult(val published: Int, val message: String)
+
+    /** Ensure TaskDav account + calendar exist, then publish events. */
+    suspend fun publishToPhoneCalendar(): PublishResult = withContext(Dispatchers.IO) {
+        val mirror = systemCalendarMirror
+            ?: return@withContext PublishResult(0, "Phone calendar unavailable.")
+        if (!accountStore.phoneCalendarMirrorEnabled()) {
+            return@withContext PublishResult(0, "Publishing is off.")
+        }
+        if (!mirror.hasPermission()) {
+            return@withContext PublishResult(0, "Calendar permission required.")
+        }
+        TaskDavCalendarAccount.ensure(appContext)
+        val calId = mirror.ensureCalendarId()
+        if (calId == null) {
+            return@withContext PublishResult(
+                0,
+                "Could not create the TaskDav calendar. Try again after reopening the app.",
+            )
+        }
         var count = 0
         for (event in db.events().getActive()) {
+            if (isPhoneImportedCollection(event.collectionId)) continue
             val sysId = runCatching { mirror.upsertEvent(event) }.getOrNull() ?: continue
             if (event.systemEventId != sysId) {
                 db.events().update(event.copy(systemEventId = sysId))
             }
             count++
         }
-        count
+        val status = TaskDavCalendarAccount.status(appContext)
+        PublishResult(
+            count,
+            "Published $count events. ${status.message}",
+        )
+    }
+
+    fun phoneCalendarPublishStatus(): TaskDavCalendarAccount.Status =
+        TaskDavCalendarAccount.status(appContext)
+
+    /** Tear down the published TaskDav calendar account when mirroring is turned off. */
+    suspend fun clearPhoneCalendarMirror() = withContext(Dispatchers.IO) {
+        for (event in db.events().getActive()) {
+            if (event.systemEventId != null) {
+                db.events().update(event.copy(systemEventId = null))
+            }
+        }
+        TaskDavCalendarAccount.remove(appContext)
+    }
+
+    /**
+     * Import events from device calendars into the local "Phone calendar" collection.
+     * Skips UIDs already owned by CalDAV / on-device collections to avoid duplicates.
+     */
+    suspend fun importPhoneCalendarEvents(): Int = withContext(Dispatchers.IO) {
+        val importer = systemCalendarImport ?: return@withContext 0
+        if (!accountStore.phoneCalendarImportEnabled() || !importer.hasReadPermission()) {
+            return@withContext 0
+        }
+        val collectionId = ensurePhoneCalendarCollection()
+        val remote = importer.queryEvents()
+        val keepUids = mutableListOf<String>()
+        var upserted = 0
+        for (sys in remote) {
+            keepUids += sys.uid
+            val existing = db.events().getByUid(sys.uid)
+            if (existing != null && existing.collectionId != collectionId) {
+                // Already present from CalDAV or on-device — don't duplicate.
+                continue
+            }
+            if (existing?.dirty == true) {
+                // Preserve in-app edits until the user syncs/clears dirty.
+                continue
+            }
+            val entity = EventEntity(
+                id = existing?.id ?: 0,
+                uid = sys.uid,
+                href = null,
+                etag = null,
+                collectionId = collectionId,
+                summary = sys.summary,
+                description = sys.description,
+                location = sys.location,
+                dtStartMillis = sys.dtStartMillis,
+                dtEndMillis = sys.dtEndMillis,
+                allDay = sys.allDay,
+                rrule = sys.rrule,
+                systemEventId = sys.systemEventId,
+                icsRaw = null,
+                dirty = false,
+                deleted = false,
+                updatedAt = sys.updatedAt,
+            )
+            if (existing == null) {
+                db.events().upsert(entity)
+            } else {
+                db.events().update(entity.copy(id = existing.id))
+            }
+            upserted++
+        }
+        if (keepUids.isEmpty()) {
+            db.events().deleteCleanForCollection(collectionId)
+        } else {
+            db.events().deleteMissingImported(collectionId, keepUids)
+        }
+        upserted
+    }
+
+    /** Remove imported phone events from TaskDav (when import is turned off). */
+    suspend fun clearPhoneCalendarImport() = withContext(Dispatchers.IO) {
+        val col = db.collections().getByHref(PHONE_COLLECTION_HREF) ?: return@withContext
+        db.events().deleteAllForCollection(col.id)
+        db.collections().setEnabled(col.id, false)
+    }
+
+    private suspend fun isPhoneImportedCollection(collectionId: Long): Boolean {
+        val col = db.collections().getById(collectionId) ?: return false
+        return col.href.equals(PHONE_COLLECTION_HREF, ignoreCase = true)
     }
 
     private suspend fun mirrorEvent(event: EventEntity) {
+        if (isPhoneImportedCollection(event.collectionId)) {
+            writeBackImportedEvent(event)
+            return
+        }
         val mirror = systemCalendarMirror ?: return
         if (!accountStore.phoneCalendarMirrorEnabled() || !mirror.hasPermission()) return
         val sysId = runCatching { mirror.upsertEvent(event) }.getOrNull() ?: return
@@ -467,7 +626,28 @@ class TaskRepository(
         }
     }
 
-    private fun unmirrorEvent(event: EventEntity) {
+    private suspend fun writeBackImportedEvent(event: EventEntity) {
+        val importer = systemCalendarImport ?: return
+        val sysId = event.systemEventId ?: return
+        val start = event.dtStartMillis ?: return
+        val end = event.dtEndMillis ?: (start + 60 * 60 * 1000L)
+        importer.updateSystemEvent(
+            systemEventId = sysId,
+            summary = event.summary,
+            description = event.description,
+            location = event.location,
+            dtStartMillis = start,
+            dtEndMillis = end,
+            allDay = event.allDay,
+            rrule = event.rrule,
+        )
+    }
+
+    private suspend fun unmirrorEvent(event: EventEntity) {
+        if (isPhoneImportedCollection(event.collectionId)) {
+            systemCalendarImport?.deleteSystemEvent(event.systemEventId)
+            return
+        }
         val mirror = systemCalendarMirror ?: return
         if (!mirror.hasPermission()) return
         runCatching {

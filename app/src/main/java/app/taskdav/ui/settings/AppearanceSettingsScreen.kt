@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -41,23 +43,35 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.taskdav.R
 import app.taskdav.TaskDavApp
 import app.taskdav.data.AppearanceStore
 import app.taskdav.data.DateOrderPreference
+import app.taskdav.data.FontPreference
+import app.taskdav.data.LanguagePreference
+import app.taskdav.ui.onboarding.LanguageChipRow
 import app.taskdav.ui.theme.schemesFromSeed
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppearanceSettingsScreen(onBack: () -> Unit) {
+fun AppearanceSettingsScreen(
+    language: LanguagePreference,
+    onLanguageChange: (LanguagePreference) -> Unit,
+    onBack: () -> Unit,
+) {
     val app = LocalContext.current.applicationContext as TaskDavApp
     val seedArgb by app.appearanceStore.seedColorArgb.collectAsStateWithLifecycle(
         initialValue = AppearanceStore.DEFAULT_SEED_COLOR,
     )
     val dateOrderId by app.appearanceStore.dateOrder.collectAsStateWithLifecycle(
         initialValue = AppearanceStore.DEFAULT_DATE_ORDER,
+    )
+    val fontId by app.appearanceStore.fontPreference.collectAsStateWithLifecycle(
+        initialValue = AppearanceStore.DEFAULT_FONT,
     )
     val scope = rememberCoroutineScope()
 
@@ -106,6 +120,23 @@ fun AppearanceSettingsScreen(onBack: () -> Unit) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            item {
+                Text(
+                    stringResource(R.string.language_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    stringResource(R.string.language_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                LanguageChipRow(
+                    language = language,
+                    onLanguageChange = onLanguageChange,
+                )
+            }
+
             item {
                 Text(
                     "Pick a brand color. The app builds lighter and darker tones from it.",
@@ -200,12 +231,66 @@ fun AppearanceSettingsScreen(onBack: () -> Unit) {
 
             item {
                 Text(
+                    "Font",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+                Text(
+                    "Use TaskDav’s typefaces, or your phone’s system font (including any custom font set in Android settings).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+            }
+            items(FontPreference.entries.toList(), key = { "font-${it.id}" }) { option ->
+                val selected = option.id == fontId
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(
+                            width = if (selected) 2.dp else 1.dp,
+                            color = if (selected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                        .clickable {
+                            scope.launch { app.appearanceStore.setFontPreference(option.id) }
+                        }
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(option.label, style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            option.subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (selected) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = "Selected",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
+            }
+
+            item {
+                Text(
                     "Date format",
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(top = 12.dp),
                 )
                 Text(
-                    "Your phone language is often English (US), which uses month/day. Pick day/month for 25/9/26.",
+                    "Dates use day/month/year by default (28/09/2026). Change here if you prefer month/day.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     modifier = Modifier.padding(bottom = 4.dp),

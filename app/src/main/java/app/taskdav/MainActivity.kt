@@ -2,10 +2,14 @@ package app.taskdav
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.compose.BackHandler
+import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -47,6 +51,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,6 +60,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -68,11 +75,15 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import app.taskdav.R
+import app.taskdav.data.LanguagePreference
+import app.taskdav.data.LocaleHelper
 import app.taskdav.data.SyncBackend
 import app.taskdav.sync.CalDavSyncWorker
 import app.taskdav.ui.calendar.CalendarScreen
 import app.taskdav.ui.calendar.CalendarViewModel
 import app.taskdav.ui.common.BottomEdgeFade
+import app.taskdav.ui.common.ProvideAppLocale
 import app.taskdav.ui.common.SyncBadgeClearance
 import app.taskdav.ui.editor.EditorScreen
 import app.taskdav.ui.editor.EditorViewModel
@@ -82,6 +93,7 @@ import app.taskdav.ui.notes.NoteEditorScreen
 import app.taskdav.ui.notes.NoteEditorViewModel
 import app.taskdav.ui.notes.NotesScreen
 import app.taskdav.ui.notes.NotesViewModel
+import app.taskdav.ui.onboarding.OnboardingScreen
 import app.taskdav.ui.settings.AccountSettingsScreen
 import app.taskdav.ui.settings.AppearanceSettingsScreen
 import app.taskdav.ui.settings.CollectionsSettingsScreen
@@ -96,8 +108,9 @@ import app.taskdav.ui.tasks.TasksScreen
 import app.taskdav.ui.tasks.TasksViewModel
 import app.taskdav.ui.theme.TaskDavRadii
 import app.taskdav.ui.theme.TaskDavTheme
+import kotlinx.coroutines.launch
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -105,12 +118,20 @@ class MainActivity : ComponentActivity() {
         val fromCalendarIntent = app.consumeCalendarIntent(intent)
         val widgetNav = app.parseWidgetIntent(intent)
         setContent {
-            TaskDavTheme {
-                TaskDavNav(
-                    app = app,
-                    preferCalendarTab = fromCalendarIntent,
-                    initialWidgetNav = widgetNav,
-                )
+            var language by remember { mutableStateOf(LocaleHelper.current(app)) }
+            ProvideAppLocale(language = language) {
+                TaskDavTheme {
+                    TaskDavNav(
+                        app = app,
+                        preferCalendarTab = fromCalendarIntent,
+                        initialWidgetNav = widgetNav,
+                        language = language,
+                        onLanguageChange = { pref ->
+                            language = pref
+                            LocaleHelper.persist(app, pref)
+                        },
+                    )
+                }
             }
         }
     }
@@ -129,33 +150,84 @@ private fun TaskDavNav(
     app: TaskDavApp,
     preferCalendarTab: Boolean = false,
     initialWidgetNav: WidgetNavigation? = null,
+    language: LanguagePreference,
+    onLanguageChange: (LanguagePreference) -> Unit,
+) {
+    val onboardingDone by app.onboardingStore.completed.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+
+    when (onboardingDone) {
+        null -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+            )
+        }
+        false -> {
+            OnboardingScreen(
+                language = language,
+                onLanguageChange = onLanguageChange,
+                onFinished = {
+                    scope.launch {
+                        app.repository.setSyncBackend(SyncBackend.LOCAL)
+                        app.repository.ensureLocalWorkspace()
+                        app.notifySyncBackendChanged()
+                        app.onboardingStore.setCompleted(true)
+                    }
+                },
+            )
+        }
+        true -> {
+            TaskDavMainNav(
+                app = app,
+                preferCalendarTab = preferCalendarTab,
+                initialWidgetNav = initialWidgetNav,
+                language = language,
+                onLanguageChange = onLanguageChange,
+            )
+        }
+    }
+}
+
+@Composable
+private fun TaskDavMainNav(
+    app: TaskDavApp,
+    preferCalendarTab: Boolean = false,
+    initialWidgetNav: WidgetNavigation? = null,
+    language: LanguagePreference,
+    onLanguageChange: (LanguagePreference) -> Unit,
 ) {
     val navController = rememberNavController()
-    val start = when {
-        preferCalendarTab &&
-            (app.repository.syncBackend() == SyncBackend.LOCAL || app.repository.accountConfigured()) ->
-            "home/calendar"
-        initialWidgetNav != null &&
-            (app.repository.syncBackend() == SyncBackend.LOCAL || app.repository.accountConfigured()) ->
-            "home/${initialWidgetNav.tab}"
-        app.repository.syncBackend() == SyncBackend.LOCAL -> "home/home"
-        app.repository.accountConfigured() -> "home/home"
-        else -> "settings/account"
+    val configured = app.repository.syncBackend() == SyncBackend.LOCAL ||
+        app.repository.accountConfigured()
+    val start = if (configured) "home" else "settings/account"
+    val initialTab = when {
+        preferCalendarTab && configured -> "calendar"
+        initialWidgetNav != null && configured -> initialWidgetNav.tab
+        else -> "home"
     }
+    // Tab switches stay in local state so HomeScaffold is never remounted (no blank flash).
+    var homeTab by rememberSaveable { mutableStateOf(initialTab) }
 
-    LaunchedEffect(Unit) {
-        app.navigateToCalendar.collect {
-            navController.navigate("home/calendar") {
+    fun goHome(tab: String = homeTab) {
+        homeTab = tab
+        if (!navController.popBackStack("home", inclusive = false)) {
+            navController.navigate("home") {
                 launchSingleTop = true
             }
         }
     }
 
     LaunchedEffect(Unit) {
+        app.navigateToCalendar.collect {
+            goHome("calendar")
+        }
+    }
+
+    LaunchedEffect(Unit) {
         fun applyWidgetNav(nav: WidgetNavigation) {
-            navController.navigate("home/${nav.tab}") {
-                launchSingleTop = true
-            }
+            goHome(nav.tab)
             when {
                 nav.taskId != null -> navController.navigate("task/${nav.taskId}")
                 nav.noteId != null -> navController.navigate("noteEditor?noteId=${nav.noteId}")
@@ -167,13 +239,19 @@ private fun TaskDavNav(
         app.widgetNavigation.collect { applyWidgetNav(it) }
     }
 
-    NavHost(navController = navController, startDestination = start) {
-        composable("home/{tab}") { entry ->
-            val tab = entry.arguments?.getString("tab") ?: "home"
+    NavHost(
+        navController = navController,
+        startDestination = start,
+        enterTransition = { EnterTransition.None },
+        exitTransition = { ExitTransition.None },
+        popEnterTransition = { EnterTransition.None },
+        popExitTransition = { ExitTransition.None },
+    ) {
+        composable("home") {
             HomeScaffold(
                 app = app,
-                selectedTab = tab,
-                onSelectTab = { navController.navigate("home/$it") { launchSingleTop = true } },
+                selectedTab = homeTab,
+                onSelectTab = { homeTab = it },
                 onOpenSettingsPage = { route -> navController.navigate(route) },
                 onEditTask = { id, isCategory, collectionId ->
                     when {
@@ -225,7 +303,7 @@ private fun TaskDavNav(
                 viewModel = vm,
                 onBack = {
                     if (!navController.popBackStack()) {
-                        navController.navigate("home/settings")
+                        goHome("settings")
                     }
                 },
                 onOpenCollections = {
@@ -234,7 +312,8 @@ private fun TaskDavNav(
                     }
                 },
                 onLocalReady = {
-                    navController.navigate("home/home") {
+                    homeTab = "home"
+                    navController.navigate("home") {
                         popUpTo("settings/account") { inclusive = true }
                         launchSingleTop = true
                     }
@@ -249,8 +328,10 @@ private fun TaskDavNav(
                 viewModel = vm,
                 onBack = {
                     if (app.repository.accountConfigured()) {
-                        navController.navigate("home/settings") {
+                        homeTab = "settings"
+                        navController.navigate("home") {
                             popUpTo("settings/account") { inclusive = true }
+                            launchSingleTop = true
                         }
                     } else {
                         navController.popBackStack()
@@ -258,7 +339,8 @@ private fun TaskDavNav(
                 },
                 onDone = {
                     CalDavSyncWorker.enqueueNow(app)
-                    navController.navigate("home/home") {
+                    homeTab = "home"
+                    navController.navigate("home") {
                         popUpTo("settings/account") { inclusive = true }
                         launchSingleTop = true
                     }
@@ -266,7 +348,11 @@ private fun TaskDavNav(
             )
         }
         composable("settings/appearance") {
-            AppearanceSettingsScreen(onBack = { navController.popBackStack() })
+            AppearanceSettingsScreen(
+                language = language,
+                onLanguageChange = onLanguageChange,
+                onBack = { navController.popBackStack() },
+            )
         }
         composable("settings/export") {
             ExportSettingsScreen(onBack = { navController.popBackStack() })
@@ -331,10 +417,9 @@ private fun HomeScaffold(
     val syncBackend by app.syncBackend.collectAsStateWithLifecycle()
     val isOnline by app.isOnline.collectAsStateWithLifecycle()
 
-    // Keep visited tabs composed so switches crossfade instead of remounting to blank.
-    var visitedTabs by remember { mutableStateOf(setOf(selectedTab)) }
-    LaunchedEffect(selectedTab) {
-        visitedTabs = visitedTabs + selectedTab
+    // Tabs aren't Nav destinations — send system back to Home before exiting the app.
+    BackHandler(enabled = selectedTab != "home") {
+        onSelectTab("home")
     }
 
     val homeVm: HomeViewModel = viewModel(factory = HomeViewModel.Factory(app.repository))
@@ -358,56 +443,47 @@ private fun HomeScaffold(
                     .fillMaxSize()
                     .padding(top = SyncBadgeClearance),
             ) {
-                if ("home" in visitedTabs) {
-                    KeepAliveTab(visible = selectedTab == "home") {
-                        HomeScreen(
-                            viewModel = homeVm,
-                            onOpenTask = { onEditTask(it, false, null) },
-                            onOpenNote = { onEditNote(it) },
-                            onSeeAllTasks = { onSelectTab("tasks") },
-                            onSeeAllNotes = { onSelectTab("notes") },
-                            onSeeCalendar = { onSelectTab("calendar") },
-                        )
-                    }
+                // Always keep every tab composed so switches only crossfade (no remount blank).
+                KeepAliveTab(visible = selectedTab == "home") {
+                    HomeScreen(
+                        viewModel = homeVm,
+                        onOpenTask = { onEditTask(it, false, null) },
+                        onOpenNote = { onEditNote(it) },
+                        onSeeAllTasks = { onSelectTab("tasks") },
+                        onSeeAllNotes = { onSelectTab("notes") },
+                        onSeeCalendar = { onSelectTab("calendar") },
+                    )
                 }
-                if ("calendar" in visitedTabs) {
-                    KeepAliveTab(visible = selectedTab == "calendar") {
-                        CalendarScreen(
-                            viewModel = calendarVm,
-                            onOpenTask = { id -> onEditTask(id, false, null) },
-                        )
-                    }
+                KeepAliveTab(visible = selectedTab == "calendar") {
+                    CalendarScreen(
+                        viewModel = calendarVm,
+                        onOpenTask = { id -> onEditTask(id, false, null) },
+                    )
                 }
-                if ("tasks" in visitedTabs) {
-                    KeepAliveTab(visible = selectedTab == "tasks") {
-                        TasksScreen(
-                            viewModel = tasksVm,
-                            onEditTask = { id, isCategory, collectionId ->
-                                onEditTask(id, isCategory, collectionId)
-                            },
-                            onAddSubtask = onAddSubtask,
-                        )
-                    }
+                KeepAliveTab(visible = selectedTab == "tasks") {
+                    TasksScreen(
+                        viewModel = tasksVm,
+                        onEditTask = { id, isCategory, collectionId ->
+                            onEditTask(id, isCategory, collectionId)
+                        },
+                        onAddSubtask = onAddSubtask,
+                    )
                 }
-                if ("notes" in visitedTabs) {
-                    KeepAliveTab(visible = selectedTab == "notes") {
-                        NotesScreen(
-                            viewModel = notesVm,
-                            onEditNote = onEditNote,
-                        )
-                    }
+                KeepAliveTab(visible = selectedTab == "notes") {
+                    NotesScreen(
+                        viewModel = notesVm,
+                        onEditNote = onEditNote,
+                    )
                 }
-                if ("settings" in visitedTabs) {
-                    KeepAliveTab(visible = selectedTab == "settings") {
-                        SettingsHubScreen(
-                            onBack = null,
-                            onSyncing = { onOpenSettingsPage("settings/account") },
-                            onAppearance = { onOpenSettingsPage("settings/appearance") },
-                            onExport = { onOpenSettingsPage("settings/export") },
-                            onPrivacy = { onOpenSettingsPage("settings/privacy") },
-                            onCredits = { onOpenSettingsPage("settings/credits") },
-                        )
-                    }
+                KeepAliveTab(visible = selectedTab == "settings") {
+                    SettingsHubScreen(
+                        onBack = null,
+                        onSyncing = { onOpenSettingsPage("settings/account") },
+                        onAppearance = { onOpenSettingsPage("settings/appearance") },
+                        onExport = { onOpenSettingsPage("settings/export") },
+                        onPrivacy = { onOpenSettingsPage("settings/privacy") },
+                        onCredits = { onOpenSettingsPage("settings/credits") },
+                    )
                 }
             }
 
@@ -438,15 +514,24 @@ private fun KeepAliveTab(
 ) {
     val alpha by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
-        animationSpec = tween(durationMillis = 180),
+        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
         label = "tabAlpha",
+    )
+    val slide by animateFloatAsState(
+        targetValue = if (visible) 0f else 12f,
+        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+        label = "tabSlide",
     )
     Box(
         modifier = Modifier
             .fillMaxSize()
             .zIndex(if (visible) 1f else 0f)
-            .graphicsLayer { this.alpha = alpha },
+            .graphicsLayer {
+                this.alpha = alpha
+                translationY = slide
+            },
     ) {
+        // Keep composition mounted; only the top tab receives input via zIndex.
         content()
     }
 }
@@ -465,11 +550,11 @@ private fun ExpressiveBottomNav(
     modifier: Modifier = Modifier,
 ) {
     val destinations = listOf(
-        NavDest("home", "Home", Icons.Filled.Home, Icons.Outlined.Home),
-        NavDest("calendar", "Cal", Icons.Filled.Event, Icons.Outlined.Event),
-        NavDest("tasks", "Tasks", Icons.Filled.CheckCircle, Icons.Outlined.CheckCircle),
-        NavDest("notes", "Notes", Icons.Filled.Description, Icons.Outlined.Description),
-        NavDest("settings", "More", Icons.Filled.Settings, Icons.Outlined.Settings),
+        NavDest("home", stringResource(R.string.tab_home), Icons.Filled.Home, Icons.Outlined.Home),
+        NavDest("calendar", stringResource(R.string.tab_calendar), Icons.Filled.Event, Icons.Outlined.Event),
+        NavDest("tasks", stringResource(R.string.tab_tasks), Icons.Filled.CheckCircle, Icons.Outlined.CheckCircle),
+        NavDest("notes", stringResource(R.string.tab_notes), Icons.Filled.Description, Icons.Outlined.Description),
+        NavDest("settings", stringResource(R.string.tab_more), Icons.Filled.Settings, Icons.Outlined.Settings),
     )
     Box(
         modifier = modifier

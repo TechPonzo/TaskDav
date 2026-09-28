@@ -192,9 +192,19 @@ fun quotedEtag(etag: String): String {
 fun Response.requireSuccess(action: String): String {
     val text = body?.string().orEmpty()
     if (!isSuccessful && code !in 200..299) {
-        throw CalDavException("$action failed: HTTP $code ${message.orEmpty()}\n$text".trim())
+        throw CalDavException(
+            message = "$action failed: HTTP $code ${message.orEmpty()}\n$text".trim(),
+            httpCode = code,
+        )
     }
     return text
 }
 
-class CalDavException(message: String, cause: Throwable? = null) : Exception(message, cause)
+class CalDavException(
+    message: String,
+    cause: Throwable? = null,
+    val httpCode: Int? = null,
+) : Exception(message, cause) {
+    val isAuthFailure: Boolean
+        get() = httpCode == 401 || httpCode == 403
+}

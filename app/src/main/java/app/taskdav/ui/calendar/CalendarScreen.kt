@@ -1,5 +1,6 @@
 package app.taskdav.ui.calendar
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.DropdownMenuItem
@@ -475,7 +477,7 @@ private fun LazyListScope.eventRows(
         items(items, key = { "${it.event.id}-${it.event.dtStartMillis}" }) { item ->
             EventRow(
                 item = item,
-                onClick = { onEdit(item) },
+                onEdit = { onEdit(item) },
                 onOpenTask = item.linkedTask?.let { task -> { onOpenTask(task.id) } },
                 onShare = { ItemShare.shareEvent(context, item.event) },
                 modifier = Modifier.padding(horizontal = 12.dp),
@@ -719,7 +721,7 @@ private fun MonthDayCellView(
 @Composable
 private fun EventRow(
     item: CalendarDayItem,
-    onClick: () -> Unit,
+    onEdit: () -> Unit,
     onOpenTask: (() -> Unit)?,
     onShare: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -730,110 +732,107 @@ private fun EventRow(
     val linkAction = remember(event.location, event.description) {
         resolveEventLink(event.location, event.description)
     }
-    val hasRevealActions = onShare != null || linkAction != null
 
-    val cardContent: @Composable () -> Unit = {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(vertical = 8.dp, horizontal = 12.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Box(
-                modifier = Modifier
-                    .padding(top = 2.dp, end = 12.dp)
-                    .width(5.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(color)
-                    .padding(vertical = 28.dp),
+    SwipeRevealRow(
+        modifier = modifier,
+        actions = { close ->
+            SwipeRevealAction(
+                icon = Icons.Default.Edit,
+                contentDescription = "Edit",
+                onClick = {
+                    onEdit()
+                    close()
+                },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(event.summary, style = MaterialTheme.typography.titleMedium, maxLines = 2)
-                Text(
-                    timeLabel(context, event),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+            if (onShare != null) {
+                SwipeRevealAction(
+                    icon = Icons.Default.Share,
+                    contentDescription = "Share",
+                    onClick = {
+                        onShare()
+                        close()
+                    },
                 )
-                event.description?.takeIf { it.isNotBlank() }?.let { details ->
+            }
+            if (linkAction != null) {
+                SwipeRevealAction(
+                    icon = linkAction.icon,
+                    contentDescription = linkAction.label,
+                    onClick = {
+                        openEventLink(context, event.location, event.description)
+                        close()
+                    },
+                )
+            }
+        },
+        content = { toggleReveal ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = toggleReveal)
+                    .padding(vertical = 8.dp, horizontal = 12.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .padding(top = 2.dp, end = 12.dp)
+                        .width(5.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(color)
+                        .padding(vertical = 28.dp),
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(event.summary, style = MaterialTheme.typography.titleMedium, maxLines = 2)
                     Text(
-                        details,
+                        timeLabel(context, event),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
                     )
-                }
-                val meta = buildList {
-                    item.collection?.displayName?.let { add(it) }
-                    item.linkedTask?.let { add("Task: ${it.summary}") }
-                }.joinToString(" · ")
-                if (meta.isNotEmpty()) {
-                    Text(
-                        meta,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                event.location?.takeIf { it.isNotBlank() }?.let { loc ->
-                    Text(
-                        loc,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                if (onOpenTask != null) {
-                    TextButton(
-                        onClick = onOpenTask,
-                        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
-                    ) {
-                        Text("Open task")
+                    event.description?.takeIf { it.isNotBlank() }?.let { details ->
+                        Text(
+                            details,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    val meta = buildList {
+                        item.collection?.displayName?.let { add(it) }
+                        item.linkedTask?.let { add("Task: ${it.summary}") }
+                    }.joinToString(" · ")
+                    if (meta.isNotEmpty()) {
+                        Text(
+                            meta,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    event.location?.takeIf { it.isNotBlank() }?.let { loc ->
+                        Text(
+                            loc,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    if (onOpenTask != null) {
+                        TextButton(
+                            onClick = onOpenTask,
+                            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+                        ) {
+                            Text("Open task")
+                        }
                     }
                 }
             }
-        }
-    }
-
-    if (hasRevealActions) {
-        SwipeRevealRow(
-            modifier = modifier,
-            actions = { close ->
-                if (onShare != null) {
-                    SwipeRevealAction(
-                        icon = Icons.Default.Share,
-                        contentDescription = "Share",
-                        onClick = {
-                            onShare()
-                            close()
-                        },
-                    )
-                }
-                if (linkAction != null) {
-                    SwipeRevealAction(
-                        icon = linkAction.icon,
-                        contentDescription = linkAction.label,
-                        onClick = {
-                            openEventLink(context, event.location, event.description)
-                            close()
-                        },
-                    )
-                }
-            },
-            content = cardContent,
-        )
-    } else {
-        Box(
-            modifier = modifier
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerLow),
-        ) {
-            cardContent()
-        }
-    }
+        },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -865,6 +864,14 @@ private fun EventEditorScreen(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     val selected = collections.find { it.id == collectionId }
     val repeats = recurrence.mode != EventRecurrence.Mode.NONE
+
+    BackHandler {
+        if (showDeleteConfirm) {
+            showDeleteConfirm = false
+        } else {
+            onDismiss()
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,

@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
@@ -34,6 +33,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 private val ActionSlotWidth = 64.dp
@@ -41,6 +41,9 @@ private val ActionSlotWidth = 64.dp
 /**
  * Swipe the foreground content left to reveal [actions] on the trailing edge.
  * Prefer [SwipeRevealAction] for edge-to-edge full-height action cells.
+ *
+ * [content] receives [toggleReveal] so a tap can open/close the action rail
+ * (e.g. event cards) without navigating away.
  */
 @Composable
 fun SwipeRevealRow(
@@ -48,7 +51,7 @@ fun SwipeRevealRow(
     contentColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
     cornerRadius: Dp = 16.dp,
     actions: @Composable RowScope.(close: () -> Unit) -> Unit,
-    content: @Composable () -> Unit,
+    content: @Composable (toggleReveal: () -> Unit) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val offsetX = remember { Animatable(0f) }
@@ -57,6 +60,19 @@ fun SwipeRevealRow(
 
     fun close() {
         scope.launch { offsetX.animateTo(0f, tween(180)) }
+    }
+
+    fun open() {
+        if (actionsWidth <= 0f) return
+        scope.launch { offsetX.animateTo(maxReveal, tween(180)) }
+    }
+
+    fun toggleReveal() {
+        if (actionsWidth <= 0f) return
+        scope.launch {
+            val target = if (abs(offsetX.value) > actionsWidth * 0.35f) 0f else maxReveal
+            offsetX.animateTo(target, tween(180))
+        }
     }
 
     Box(
@@ -107,7 +123,7 @@ fun SwipeRevealRow(
                     )
                 },
         ) {
-            content()
+            content(::toggleReveal)
         }
     }
 }
