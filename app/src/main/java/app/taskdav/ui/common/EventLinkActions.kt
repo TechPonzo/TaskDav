@@ -9,6 +9,7 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.ui.graphics.vector.ImageVector
+import app.taskdav.R
 import java.util.Locale
 import java.util.regex.Pattern
 
@@ -39,20 +40,20 @@ private val HttpUrlPattern: Pattern = Pattern.compile(
  * Prefer [location], then the first http(s) URL in [description].
  * Returns null when there is nothing actionable to open.
  */
-fun resolveEventLink(location: String?, description: String?): EventLinkAction? {
+fun resolveEventLink(context: Context, location: String?, description: String?): EventLinkAction? {
     val loc = location?.trim()?.takeIf { it.isNotEmpty() }
     if (loc != null) {
-        classifyCandidate(loc)?.let { return it }
+        classifyCandidate(context, loc)?.let { return it }
     }
     val descUrl = description?.let { firstHttpUrl(it) }
     if (descUrl != null) {
-        classifyCandidate(descUrl)?.let { return it }
+        classifyCandidate(context, descUrl)?.let { return it }
     }
     return null
 }
 
 fun openEventLink(context: Context, location: String?, description: String?) {
-    val action = resolveEventLink(location, description) ?: return
+    val action = resolveEventLink(context, location, description) ?: return
     openUri(context, action.uri, fallbackMapsQuery = if (action.kind == EventLinkKind.ADDRESS) {
         location?.trim()?.takeIf { it.isNotEmpty() }
     } else {
@@ -65,14 +66,14 @@ fun openLocationInMaps(context: Context, location: String) {
     openEventLink(context, location, description = null)
 }
 
-private fun classifyCandidate(raw: String): EventLinkAction? {
+private fun classifyCandidate(context: Context, raw: String): EventLinkAction? {
     val trimmed = raw.trim()
     if (trimmed.isEmpty()) return null
 
     if (trimmed.startsWith("geo:", ignoreCase = true)) {
         return EventLinkAction(
             kind = EventLinkKind.MAPS,
-            label = "Open in Maps",
+            label = context.getString(R.string.link_open_maps),
             icon = Icons.Default.Place,
             uri = Uri.parse(trimmed),
         )
@@ -84,33 +85,33 @@ private fun classifyCandidate(raw: String): EventLinkAction? {
         return when {
             host.contains("meet.google.com") -> EventLinkAction(
                 kind = EventLinkKind.MEET,
-                label = "Join Meet",
+                label = context.getString(R.string.link_join_meet),
                 icon = Icons.Default.Videocam,
                 uri = asUrl,
             )
             host.contains("hangouts.google.com") ||
                 host.contains("duo.google.com") -> EventLinkAction(
                 kind = EventLinkKind.HANGOUTS,
-                label = "Open Hangouts",
+                label = context.getString(R.string.link_open_hangouts),
                 icon = Icons.Default.Videocam,
                 uri = asUrl,
             )
             host.contains("zoom.us") || host.contains("zoom.com") -> EventLinkAction(
                 kind = EventLinkKind.ZOOM,
-                label = "Join Zoom",
+                label = context.getString(R.string.link_join_zoom),
                 icon = Icons.Default.Videocam,
                 uri = asUrl,
             )
             host.contains("teams.microsoft.com") ||
                 host.contains("teams.live.com") -> EventLinkAction(
                 kind = EventLinkKind.TEAMS,
-                label = "Join Teams",
+                label = context.getString(R.string.link_join_teams),
                 icon = Icons.Default.Videocam,
                 uri = asUrl,
             )
             host.contains("webex.com") -> EventLinkAction(
                 kind = EventLinkKind.WEBEX,
-                label = "Join Webex",
+                label = context.getString(R.string.link_join_webex),
                 icon = Icons.Default.Videocam,
                 uri = asUrl,
             )
@@ -119,23 +120,22 @@ private fun classifyCandidate(raw: String): EventLinkAction? {
                 (host == "goo.gl" && asUrl.path.orEmpty().startsWith("/maps")) ||
                 host.contains("maps.app.goo.gl") -> EventLinkAction(
                 kind = EventLinkKind.MAPS,
-                label = "Open in Maps",
+                label = context.getString(R.string.link_open_maps),
                 icon = Icons.Default.Place,
                 uri = asUrl,
             )
             else -> EventLinkAction(
                 kind = EventLinkKind.URL,
-                label = "Open link",
+                label = context.getString(R.string.link_open_url),
                 icon = Icons.AutoMirrored.Filled.OpenInNew,
                 uri = asUrl,
             )
         }
     }
 
-    // Plain address / place name
     return EventLinkAction(
         kind = EventLinkKind.ADDRESS,
-        label = "Open in Maps",
+        label = context.getString(R.string.link_open_maps),
         icon = Icons.Default.Place,
         uri = Uri.parse("geo:0,0?q=${Uri.encode(trimmed)}"),
     )
@@ -146,7 +146,6 @@ private fun coerceToUri(raw: String): Uri? {
         raw.startsWith("http://", ignoreCase = true) ||
             raw.startsWith("https://", ignoreCase = true) -> raw
         raw.contains("://") -> raw
-        // Bare domain-ish strings that look like meeting links
         raw.contains('.') && !raw.contains(' ') &&
             (raw.contains("meet.google", ignoreCase = true) ||
                 raw.contains("zoom.", ignoreCase = true) ||
@@ -181,7 +180,6 @@ private fun openUri(context: Context, uri: Uri, fallbackMapsQuery: String?) {
                     Intent(Intent.ACTION_VIEW, web).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                 )
             } catch (_: ActivityNotFoundException) {
-                // no viewer available
             }
         }
     }

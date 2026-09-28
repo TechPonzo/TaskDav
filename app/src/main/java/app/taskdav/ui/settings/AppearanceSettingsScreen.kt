@@ -34,7 +34,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -49,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.taskdav.R
 import app.taskdav.TaskDavApp
 import app.taskdav.data.AppearanceStore
+import app.taskdav.data.CalendarViewMode
 import app.taskdav.data.DateOrderPreference
 import app.taskdav.data.FontPreference
 import app.taskdav.data.LanguagePreference
@@ -72,6 +72,9 @@ fun AppearanceSettingsScreen(
     )
     val fontId by app.appearanceStore.fontPreference.collectAsStateWithLifecycle(
         initialValue = AppearanceStore.DEFAULT_FONT,
+    )
+    val calendarViewId by app.appearanceStore.calendarViewMode.collectAsStateWithLifecycle(
+        initialValue = AppearanceStore.DEFAULT_CALENDAR_VIEW,
     )
     val scope = rememberCoroutineScope()
 
@@ -104,10 +107,13 @@ fun AppearanceSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Appearance") },
+                title = { Text(stringResource(R.string.settings_appearance)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                        )
                     }
                 },
             )
@@ -139,7 +145,7 @@ fun AppearanceSettingsScreen(
 
             item {
                 Text(
-                    "Pick a brand color. The app builds lighter and darker tones from it.",
+                    stringResource(R.string.appearance_brand_hint),
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
@@ -173,7 +179,10 @@ fun AppearanceSettingsScreen(
                                 ),
                         )
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Brand color", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                stringResource(R.string.appearance_brand_color),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
                             Text(
                                 "#%02X%02X%02X".format(
                                     red.toInt().coerceIn(0, 255),
@@ -187,7 +196,7 @@ fun AppearanceSettingsScreen(
                     }
 
                     ToneStrip(
-                        label = "Light tones",
+                        label = stringResource(R.string.appearance_light_tones),
                         colors = listOf(
                             previewLight.primary,
                             previewLight.primaryContainer,
@@ -196,7 +205,7 @@ fun AppearanceSettingsScreen(
                         ),
                     )
                     ToneStrip(
-                        label = "Dark tones",
+                        label = stringResource(R.string.appearance_dark_tones),
                         colors = listOf(
                             previewDark.primary,
                             previewDark.primaryContainer,
@@ -206,21 +215,21 @@ fun AppearanceSettingsScreen(
                     )
 
                     RgbSlider(
-                        label = "R",
+                        label = stringResource(R.string.appearance_channel_r),
                         value = red,
                         trackColor = Color(0xFFE53935),
                         onValueChange = { red = it },
                         onValueChangeFinished = { persistSeed() },
                     )
                     RgbSlider(
-                        label = "G",
+                        label = stringResource(R.string.appearance_channel_g),
                         value = green,
                         trackColor = Color(0xFF43A047),
                         onValueChange = { green = it },
                         onValueChangeFinished = { persistSeed() },
                     )
                     RgbSlider(
-                        label = "B",
+                        label = stringResource(R.string.appearance_channel_b),
                         value = blue,
                         trackColor = Color(0xFF1E88E5),
                         onValueChange = { blue = it },
@@ -231,12 +240,12 @@ fun AppearanceSettingsScreen(
 
             item {
                 Text(
-                    "Font",
+                    stringResource(R.string.appearance_font),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(top = 12.dp),
                 )
                 Text(
-                    "Use TaskDav’s typefaces, or your phone’s system font (including any custom font set in Android settings).",
+                    stringResource(R.string.appearance_font_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     modifier = Modifier.padding(bottom = 4.dp),
@@ -265,9 +274,9 @@ fun AppearanceSettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(option.label, style = MaterialTheme.typography.titleMedium)
+                        Text(fontPreferenceLabel(option), style = MaterialTheme.typography.titleMedium)
                         Text(
-                            option.subtitle,
+                            fontPreferenceSubtitle(option),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -275,7 +284,7 @@ fun AppearanceSettingsScreen(
                     if (selected) {
                         Icon(
                             Icons.Default.Check,
-                            contentDescription = "Selected",
+                            contentDescription = stringResource(R.string.selected),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(22.dp),
                         )
@@ -285,12 +294,12 @@ fun AppearanceSettingsScreen(
 
             item {
                 Text(
-                    "Date format",
+                    stringResource(R.string.appearance_date_format),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(top = 12.dp),
                 )
                 Text(
-                    "Dates use day/month/year by default (28/09/2026). Change here if you prefer month/day.",
+                    stringResource(R.string.appearance_date_format_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     modifier = Modifier.padding(bottom = 4.dp),
@@ -319,14 +328,59 @@ fun AppearanceSettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text(
-                        option.label,
+                        dateOrderLabel(option),
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.weight(1f),
                     )
                     if (selected) {
                         Icon(
                             Icons.Default.Check,
-                            contentDescription = "Selected",
+                            contentDescription = stringResource(R.string.selected),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
+            }
+
+            item {
+                Text(
+                    stringResource(R.string.appearance_calendar_view),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
+            items(CalendarViewMode.entries.toList(), key = { "cal-view-${it.id}" }) { option ->
+                val selected = option.id == calendarViewId
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(
+                            width = if (selected) 2.dp else 1.dp,
+                            color = if (selected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                        .clickable {
+                            scope.launch { app.appearanceStore.setCalendarViewMode(option.id) }
+                        }
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        calendarViewModeLabel(option),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (selected) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = stringResource(R.string.selected),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(22.dp),
                         )
@@ -335,6 +389,35 @@ fun AppearanceSettingsScreen(
             }
         }
     }
+}
+
+@Composable
+private fun dateOrderLabel(option: DateOrderPreference): String = when (option) {
+    DateOrderPreference.SYSTEM -> stringResource(R.string.date_order_system)
+    DateOrderPreference.DAY_MONTH_YEAR -> stringResource(R.string.date_order_dmy)
+    DateOrderPreference.MONTH_DAY_YEAR -> stringResource(R.string.date_order_mdy)
+}
+
+@Composable
+private fun fontPreferenceLabel(option: FontPreference): String = when (option) {
+    FontPreference.APP -> stringResource(R.string.font_app)
+    FontPreference.SYSTEM -> stringResource(R.string.font_system)
+}
+
+@Composable
+private fun fontPreferenceSubtitle(option: FontPreference): String = when (option) {
+    FontPreference.APP -> stringResource(R.string.font_app_subtitle)
+    FontPreference.SYSTEM -> stringResource(R.string.font_system_subtitle)
+}
+
+@Composable
+private fun calendarViewModeLabel(mode: CalendarViewMode): String = when (mode) {
+    CalendarViewMode.DAILY -> stringResource(R.string.calendar_view_daily)
+    CalendarViewMode.WEEKLY -> stringResource(R.string.calendar_view_weekly)
+    CalendarViewMode.MONTHLY -> stringResource(R.string.calendar_view_monthly)
+    CalendarViewMode.MONTHLY_AND_DAILY -> stringResource(R.string.calendar_view_monthly_daily)
+    CalendarViewMode.YEARLY -> stringResource(R.string.calendar_view_yearly)
+    CalendarViewMode.EVENT_LIST -> stringResource(R.string.calendar_view_event_list)
 }
 
 @Composable

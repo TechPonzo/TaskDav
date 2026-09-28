@@ -38,8 +38,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.taskdav.R
 import app.taskdav.ui.common.InlineDateTimePicker
 import app.taskdav.ui.common.LinkedCalendarSection
 import app.taskdav.ui.common.TagsEditor
@@ -66,21 +68,24 @@ fun EditorScreen(
 
     val isCategory = editor?.isCategory == true
     val canToggleKind = editor != null && editor.parentUid.isNullOrBlank()
-    val title = when {
-        editor == null -> "Task"
-        editor.id == null && isCategory -> "New category"
-        editor.id == null -> "New task"
-        isCategory -> "Edit category"
-        else -> "Edit task"
+    val titleRes = when {
+        editor == null -> R.string.task_detail_title
+        editor.id == null && isCategory -> R.string.editor_new_category
+        editor.id == null -> R.string.editor_new_task
+        isCategory -> R.string.editor_edit_category
+        else -> R.string.editor_edit_task
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(title, style = MaterialTheme.typography.headlineSmall) },
+                title = { Text(stringResource(titleRes), style = MaterialTheme.typography.headlineSmall) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                        )
                     }
                 },
                 actions = {
@@ -88,14 +93,17 @@ fun EditorScreen(
                         onClick = { viewModel.save(tagDraft) },
                         enabled = ui.ready && !ui.saving && editor != null,
                     ) {
-                        Text("Save")
+                        Text(stringResource(R.string.action_save))
                     }
                 },
             )
         },
     ) { padding ->
         if (!ui.ready || editor == null) {
-            Text("Loading…", modifier = Modifier.padding(padding).padding(16.dp))
+            Text(
+                stringResource(R.string.loading),
+                modifier = Modifier.padding(padding).padding(16.dp),
+            )
             return@Scaffold
         }
 
@@ -110,25 +118,27 @@ fun EditorScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (canToggleKind) {
-                Text("Type", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.editor_type), style = MaterialTheme.typography.titleSmall)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = !isCategory,
                         onClick = { viewModel.setIsCategory(false) },
-                        label = { Text("Task") },
+                        label = { Text(stringResource(R.string.editor_type_task)) },
                     )
                     FilterChip(
                         selected = isCategory,
                         onClick = { viewModel.setIsCategory(true) },
-                        label = { Text("Category") },
+                        label = { Text(stringResource(R.string.editor_type_category)) },
                     )
                 }
                 Text(
-                    if (isCategory) {
-                        "Categories group tasks. Nested items stay as tasks inside this category."
-                    } else {
-                        "Switch to Category to use this as a folder for other tasks."
-                    },
+                    stringResource(
+                        if (isCategory) {
+                            R.string.editor_type_hint_category
+                        } else {
+                            R.string.editor_type_hint_task
+                        },
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 )
@@ -138,14 +148,24 @@ fun EditorScreen(
                 value = editor.summary,
                 onValueChange = viewModel::updateSummary,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(if (isCategory) "Category name" else "Title") },
+                label = {
+                    Text(
+                        stringResource(
+                            if (isCategory) {
+                                R.string.editor_field_category_name
+                            } else {
+                                R.string.editor_field_title
+                            },
+                        ),
+                    )
+                },
                 singleLine = true,
             )
             OutlinedTextField(
                 value = editor.description,
                 onValueChange = viewModel::updateDescription,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Details") },
+                label = { Text(stringResource(R.string.editor_field_details)) },
                 minLines = 3,
             )
 
@@ -157,10 +177,10 @@ fun EditorScreen(
                 onExpandedChange = { collectionExpanded = it },
             ) {
                 OutlinedTextField(
-                    value = selectedCollection?.displayName ?: "Collection",
+                    value = selectedCollection?.displayName ?: stringResource(R.string.collection_fallback),
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Task list") },
+                    label = { Text(stringResource(R.string.editor_field_task_list)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(collectionExpanded) },
                     modifier = Modifier
                         .menuAnchor(MenuAnchorType.PrimaryNotEditable)
@@ -198,7 +218,7 @@ fun EditorScreen(
             if (!isCategory) {
                 val priority = (editor.priority ?: 0).coerceIn(0, 9)
                 Text(
-                    "Priority: $priority",
+                    stringResource(R.string.editor_priority, priority),
                     style = MaterialTheme.typography.labelLarge,
                 )
                 Text(
@@ -221,41 +241,45 @@ fun EditorScreen(
                     }
                 }
 
-                Text("Due", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.editor_due), style = MaterialTheme.typography.titleSmall)
                 if (editor.dueMillis != null) {
                     InlineDateTimePicker(
-                        label = "Due date & time",
+                        label = stringResource(R.string.editor_due_datetime),
                         valueMillis = editor.dueMillis,
                         onValueChange = viewModel::updateDue,
                     )
-                    OutlinedButton(onClick = { viewModel.updateDue(null) }) { Text("Clear due") }
+                    OutlinedButton(onClick = { viewModel.updateDue(null) }) {
+                        Text(stringResource(R.string.editor_clear_due))
+                    }
                 } else {
                     Text(
-                        "No due date",
+                        stringResource(R.string.editor_no_due),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     )
                     OutlinedButton(
                         onClick = { viewModel.updateDue(System.currentTimeMillis()) },
-                    ) { Text("Set due date") }
+                    ) { Text(stringResource(R.string.editor_set_due)) }
                 }
 
-                Text("Calendar link", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.editor_calendar_link), style = MaterialTheme.typography.titleMedium)
                 val linked = editor.linkedEvent
                 if (linked != null || !editor.linkedEventUid.isNullOrBlank()) {
                     LinkedCalendarSection(
                         event = linked,
-                        fallbackTitle = "Linked calendar event",
+                        fallbackTitle = stringResource(R.string.editor_linked_event_fallback),
                         onEditEvent = { viewModel.setShowEditEvent(true) },
                     )
-                    OutlinedButton(onClick = viewModel::clearLinkedEvent) { Text("Unlink") }
+                    OutlinedButton(onClick = viewModel::clearLinkedEvent) {
+                        Text(stringResource(R.string.editor_unlink))
+                    }
                 } else {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { viewModel.setShowEventPicker(true) }) {
-                            Text("Link existing")
+                            Text(stringResource(R.string.editor_link_existing))
                         }
                         OutlinedButton(onClick = { viewModel.setShowCreateEvent(true) }) {
-                            Text("Create event")
+                            Text(stringResource(R.string.editor_create_event))
                         }
                     }
                 }
@@ -271,11 +295,13 @@ fun EditorScreen(
                 enabled = ui.ready && !ui.saving,
             ) {
                 Text(
-                    when {
-                        ui.saving -> "Saving…"
-                        isCategory -> "Save category"
-                        else -> "Save task"
-                    },
+                    stringResource(
+                        when {
+                            ui.saving -> R.string.saving
+                            isCategory -> R.string.editor_save_category
+                            else -> R.string.editor_save_task
+                        },
+                    ),
                 )
             }
         }
@@ -284,10 +310,10 @@ fun EditorScreen(
     if (ui.showEventPicker) {
         AlertDialog(
             onDismissRequest = { viewModel.setShowEventPicker(false) },
-            title = { Text("Link a calendar event") },
+            title = { Text(stringResource(R.string.editor_link_picker_title)) },
             text = {
                 if (events.isEmpty()) {
-                    Text("No calendar events synced yet. Enable a calendar that supports events, then sync.")
+                    Text(stringResource(R.string.editor_link_picker_empty))
                 } else {
                     LazyColumn {
                         items(events, key = { it.id }) { event ->
@@ -311,7 +337,9 @@ fun EditorScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { viewModel.setShowEventPicker(false) }) { Text("Close") }
+                TextButton(onClick = { viewModel.setShowEventPicker(false) }) {
+                    Text(stringResource(R.string.action_close))
+                }
             },
         )
     }
@@ -320,29 +348,31 @@ fun EditorScreen(
         val taskListName = collections.find { it.id == editor?.collectionId }?.displayName
         AlertDialog(
             onDismissRequest = { viewModel.setShowCreateEvent(false) },
-            title = { Text("Create calendar event") },
+            title = { Text(stringResource(R.string.editor_create_event_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "Creates a calendar event on the same list as this task" +
-                            (taskListName?.let { " ($it)" } ?: "") +
-                            ", so it can appear in your calendar apps.",
+                        if (taskListName != null) {
+                            stringResource(R.string.editor_create_event_body_named, taskListName)
+                        } else {
+                            stringResource(R.string.editor_create_event_body)
+                        },
                         style = MaterialTheme.typography.bodySmall,
                     )
                     OutlinedTextField(
                         value = ui.eventSummary,
                         onValueChange = viewModel::setEventSummary,
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Title") },
+                        label = { Text(stringResource(R.string.editor_event_title)) },
                         singleLine = true,
                     )
                     InlineDateTimePicker(
-                        label = "Starts",
+                        label = stringResource(R.string.editor_event_starts),
                         valueMillis = ui.eventStartMillis,
                         onValueChange = viewModel::setEventStart,
                     )
                     InlineDateTimePicker(
-                        label = "Ends",
+                        label = stringResource(R.string.editor_event_ends),
                         valueMillis = ui.eventEndMillis,
                         onValueChange = viewModel::setEventEnd,
                     )
@@ -350,7 +380,7 @@ fun EditorScreen(
                         value = ui.eventLocation,
                         onValueChange = viewModel::setEventLocation,
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Location") },
+                        label = { Text(stringResource(R.string.editor_event_location)) },
                         singleLine = true,
                     )
                 }
@@ -360,10 +390,12 @@ fun EditorScreen(
                     onClick = viewModel::createAndLinkEvent,
                     enabled = (editor?.collectionId ?: 0L) > 0L &&
                         ui.eventEndMillis >= ui.eventStartMillis,
-                ) { Text("Create & link") }
+                ) { Text(stringResource(R.string.editor_create_and_link)) }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.setShowCreateEvent(false) }) { Text("Cancel") }
+                TextButton(onClick = { viewModel.setShowCreateEvent(false) }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             },
         )
     }
@@ -371,23 +403,23 @@ fun EditorScreen(
     if (ui.showEditEvent) {
         AlertDialog(
             onDismissRequest = { viewModel.setShowEditEvent(false) },
-            title = { Text("Update calendar event") },
+            title = { Text(stringResource(R.string.editor_update_event_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = ui.eventSummary,
                         onValueChange = viewModel::setEventSummary,
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Title") },
+                        label = { Text(stringResource(R.string.editor_event_title)) },
                         singleLine = true,
                     )
                     InlineDateTimePicker(
-                        label = "Starts",
+                        label = stringResource(R.string.editor_event_starts),
                         valueMillis = ui.eventStartMillis,
                         onValueChange = viewModel::setEventStart,
                     )
                     InlineDateTimePicker(
-                        label = "Ends",
+                        label = stringResource(R.string.editor_event_ends),
                         valueMillis = ui.eventEndMillis,
                         onValueChange = viewModel::setEventEnd,
                     )
@@ -395,7 +427,7 @@ fun EditorScreen(
                         value = ui.eventLocation,
                         onValueChange = viewModel::setEventLocation,
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Location") },
+                        label = { Text(stringResource(R.string.editor_event_location)) },
                         singleLine = true,
                     )
                 }
@@ -404,12 +436,13 @@ fun EditorScreen(
                 TextButton(
                     onClick = viewModel::saveLinkedEvent,
                     enabled = ui.eventEndMillis >= ui.eventStartMillis,
-                ) { Text("Save") }
+                ) { Text(stringResource(R.string.action_save)) }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.setShowEditEvent(false) }) { Text("Cancel") }
+                TextButton(onClick = { viewModel.setShowEditEvent(false) }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             },
         )
     }
 }
-

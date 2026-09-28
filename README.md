@@ -6,9 +6,9 @@ Kotlin Android app for tasks and notes that syncs over CalDAV with your own serv
 
 ## Features
 
-- Offline-first tasks, notes, and events (Room): edits save locally immediately and sync when the CalDAV server is reachable (WorkManager + reconnect); conflicts prefer the newer item
+- Offline-capable tasks, notes, and events (Room): edits save locally and sync when the CalDAV server is reachable (WorkManager + reconnect); conflicts prefer the newer item
 - Local-only or CalDAV sync mode (Settings → Syncing); optional publish of events into the phone calendar (CalendarContract)
-- Handles “add event” / ICS intents so TaskDav can be chosen as a calendar app
+- Handles "add event" / ICS intents so TaskDav can be chosen as a calendar app
 - Share task, event, or note via the Android share sheet (text + `.ics`)
 - Recursive subtasks via `RELATED-TO;RELTYPE=PARENT`
 - Collection colors from Apple `calendar-color`
@@ -20,9 +20,10 @@ Kotlin Android app for tasks and notes that syncs over CalDAV with your own serv
 - Appearance themes (Forest, Ocean, Sand, Slate, High contrast)
 - Export selected calendars as ICS via the share sheet
 - Collections list is pruned when calendars are removed on the server
-- Bottom tabs: Home / Calendar / Tasks / Notes / Settings; Home is a hub with stats, today, overdue, upcoming, and recent notes
+- Bottom tabs: Home / Calendar / Tasks / Notes / Settings; Home shows stats, today, overdue, upcoming, and recent notes
 - Categories are nestable VTODO parents (`X-TASKDAV-KIND:CATEGORY`) for grouping tasks
 - Settings hub: Syncing, Appearance, Export, Privacy & license, Credits
+- UI in English, Spanish, and Italian
 
 ## Requirements
 
@@ -72,14 +73,14 @@ curl -u USER:PASS -X MKCOL 'https://caldav.example/USER/tasks/' --data \
 </create>'
 ```
 
-In TaskDav: **Settings → Account** → enter base URL (e.g. `https://host:5232/USER/`), username, password → **Save & discover** → enable collections → sync.
+In TaskDav: **Settings → Syncing** → enter base URL (e.g. `https://host:5232/USER/`), username, password → **Save & discover** → enable collections → sync.
 
 ## Coexistence with DAVx⁵
 
 - DAVx⁵ can keep syncing calendars (and another tasks app) to the same account.
-- TaskDav talks to the server itself; it does not replace DAVx⁵’s task provider.
+- TaskDav talks to the server itself; it does not replace DAVx⁵'s task provider.
 - Nested tasks use standard parent links so other clients that support subtasks can see the same hierarchy.
-- Colors come from the collection’s `calendar-color`; refresh collections after changing color on the server.
+- Colors come from the collection's `calendar-color`; refresh collections after changing color on the server.
 
 ## Architecture (short)
 
@@ -91,10 +92,10 @@ In TaskDav: **Settings → Account** → enter base URL (e.g. `https://host:5232
 | `sync/` | WorkManager periodic + manual sync |
 | `ui/` | Home, Tasks, Notes, editor, settings hub |
 
-## Non-goals
+## Limitations
 
-- DAVx⁵ ContentProvider integration
-- Per-occurrence edits of recurring events (series only); recurring *tasks* are not edited in-app (existing RRULEs may be preserved on rewrite when possible)
+- No DAVx⁵ ContentProvider integration
+- Per-occurrence edits of recurring events are not supported (series only); recurring tasks are not edited in-app (existing RRULEs may be preserved on rewrite when possible)
 
 ## License
 

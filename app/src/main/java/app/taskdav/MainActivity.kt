@@ -129,6 +129,7 @@ class MainActivity : AppCompatActivity() {
                         onLanguageChange = { pref ->
                             language = pref
                             LocaleHelper.persist(app, pref)
+                            app.notifyWidgetsChanged()
                         },
                     )
                 }
@@ -664,7 +665,7 @@ private fun SyncModeBadge(
             if (showOffline) {
                 Icon(
                     Icons.Filled.CloudOff,
-                    contentDescription = "Offline",
+                    contentDescription = stringResource(R.string.offline),
                     tint = Color(0xFFD32F2F),
                     modifier = Modifier.size(14.dp),
                 )

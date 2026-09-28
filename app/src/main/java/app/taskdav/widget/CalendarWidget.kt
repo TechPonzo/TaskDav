@@ -23,15 +23,17 @@ import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import app.taskdav.data.LocaleHelper
 
 class CalendarWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val localized = LocaleHelper.wrap(context)
         val colors = WidgetTheme.colors(context)
         val model = WidgetDataLoader.loadCalendar(context)
         val openCalendar = actionStartActivity(WidgetIntents.openTab(context, "calendar"))
         provideContent {
             GlanceTheme {
-                CalendarWidgetContent(colors, model, openCalendar)
+                CalendarWidgetContent(localized, colors, model, openCalendar)
             }
         }
     }
@@ -39,6 +41,7 @@ class CalendarWidget : GlanceAppWidget() {
 
 @Composable
 private fun CalendarWidgetContent(
+    context: Context,
     colors: WidgetColors,
     model: CalendarWidgetModel,
     openCalendar: androidx.glance.action.Action,
@@ -46,11 +49,11 @@ private fun CalendarWidgetContent(
     WidgetShell(
         colors = colors,
         title = model.headerDate,
-        subtitle = "Today",
+        subtitle = context.getString(app.taskdav.R.string.widget_subtitle_today),
         headerAction = openCalendar,
     ) {
         if (model.events.isEmpty()) {
-            WidgetEmptyLine(colors, "Clear day.")
+            WidgetEmptyLine(colors, context.getString(app.taskdav.R.string.home_empty_clear_day))
         } else {
             LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
                 items(model.events, itemId = { it.id }) { event ->

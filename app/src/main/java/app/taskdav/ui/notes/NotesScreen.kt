@@ -53,9 +53,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.taskdav.R
 import app.taskdav.ui.common.CompactHeader
 import app.taskdav.ui.common.ConfirmDeleteDialog
 import app.taskdav.ui.common.DockScrollPadding
@@ -90,8 +92,8 @@ fun NotesScreen(
 
     pendingDeleteNote?.let { note ->
         ConfirmDeleteDialog(
-            title = "Delete note?",
-            body = "This permanently removes “${note.summary}” from the app and the server.",
+            title = stringResource(R.string.notes_delete_title),
+            body = stringResource(R.string.notes_delete_body, note.summary),
             onConfirm = {
                 viewModel.deleteNote(note.id)
                 pendingDeleteId = null
@@ -106,7 +108,7 @@ fun NotesScreen(
         floatingActionButton = {
             Box(modifier = Modifier.navigationBarsPadding().padding(bottom = 72.dp)) {
                 ExpressiveExtendedFab(
-                    text = "New note",
+                    text = stringResource(R.string.notes_new),
                     icon = Icons.Default.Add,
                     onClick = { onEditNote(null) },
                 )
@@ -123,7 +125,7 @@ fun NotesScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 CompactHeader(
-                    title = "Notes",
+                    title = stringResource(R.string.notes_title),
                     modifier = Modifier.weight(1f),
                 )
                 TagFilterIconButton(
@@ -132,13 +134,13 @@ fun NotesScreen(
                     onSelectTag = viewModel::setTagFilter,
                 )
                 IconButton(onClick = viewModel::syncNow, enabled = !ui.syncing) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Sync")
+                    Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.action_sync))
                 }
             }
             if (ui.syncing) {
                 SyncLoadingBanner(
                     message = ui.syncMessage?.takeIf { it.isNotBlank() }
-                        ?: "Syncing notes…",
+                        ?: stringResource(R.string.notes_syncing),
                 )
             }
             if (journalCollections.isNotEmpty()) {
@@ -150,7 +152,7 @@ fun NotesScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     ExpressiveFilterChip(
-                        label = "All",
+                        label = stringResource(R.string.action_all),
                         selected = ui.collectionFilter == null,
                         onClick = { viewModel.setCollectionFilter(null) },
                     )
@@ -176,9 +178,9 @@ fun NotesScreen(
             ) { empty ->
                 if (empty) {
                     ExpressiveEmptyState(
-                        title = "No notes yet",
-                        body = "Sync or add a note to get started.",
-                        actionLabel = "New note",
+                        title = stringResource(R.string.notes_empty_title),
+                        body = stringResource(R.string.notes_empty_body),
+                        actionLabel = stringResource(R.string.notes_new),
                         onAction = { onEditNote(null) },
                         modifier = Modifier.fillMaxSize(),
                     )
@@ -194,7 +196,7 @@ fun NotesScreen(
                                 actions = { close ->
                                     SwipeRevealAction(
                                         icon = Icons.Default.Delete,
-                                        contentDescription = "Delete note",
+                                        contentDescription = stringResource(R.string.notes_cd_delete),
                                         onClick = {
                                             pendingDeleteId = note.id
                                             close()
@@ -260,10 +262,21 @@ fun NoteEditorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (state.id == null) "New note" else "Edit note") },
+                title = {
+                    Text(
+                        if (state.id == null) {
+                            stringResource(R.string.notes_new)
+                        } else {
+                            stringResource(R.string.notes_edit)
+                        },
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                        )
                     }
                 },
                 actions = {
@@ -280,21 +293,24 @@ fun NoteEditorScreen(
                                 )
                             },
                         ) {
-                            Icon(Icons.Default.Share, contentDescription = "Share")
+                            Icon(Icons.Default.Share, contentDescription = stringResource(R.string.action_share))
                         }
                     }
                     TextButton(
                         onClick = { viewModel.save(tagDraft) },
                         enabled = state.ready && !state.saving,
                     ) {
-                        Text("Save")
+                        Text(stringResource(R.string.action_save))
                     }
                 },
             )
         },
     ) { padding ->
         if (!state.ready) {
-            Text("Loading…", modifier = Modifier.padding(padding).padding(16.dp))
+            Text(
+                stringResource(R.string.loading),
+                modifier = Modifier.padding(padding).padding(16.dp),
+            )
             return@Scaffold
         }
 
@@ -310,14 +326,14 @@ fun NoteEditorScreen(
                 value = state.summary,
                 onValueChange = viewModel::updateSummary,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Title") },
+                label = { Text(stringResource(R.string.notes_field_title)) },
                 singleLine = true,
             )
             OutlinedTextField(
                 value = state.description,
                 onValueChange = viewModel::updateDescription,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Details") },
+                label = { Text(stringResource(R.string.notes_field_details)) },
                 minLines = 6,
             )
 
@@ -327,10 +343,10 @@ fun NoteEditorScreen(
                 ?: collections.find { it.id == state.collectionId }
             ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
                 OutlinedTextField(
-                    value = selected?.displayName ?: "Collection",
+                    value = selected?.displayName ?: stringResource(R.string.collection_fallback),
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Note collection") },
+                    label = { Text(stringResource(R.string.notes_field_collection)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
                     modifier = Modifier
                         .menuAnchor(MenuAnchorType.PrimaryNotEditable)

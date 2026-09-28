@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import app.taskdav.R
 import app.taskdav.caldav.IcalMapper
 import app.taskdav.data.CollectionEntity
 import app.taskdav.data.NoteEntity
@@ -160,7 +161,7 @@ class NoteEditorViewModel(
                 val note = repository.getNote(noteId)
                 if (note == null) {
                     _state.update {
-                        it.copy(ready = true, error = "Note not found")
+                        it.copy(ready = true, error = app.getString(R.string.notes_error_not_found))
                     }
                     return@launch
                 }

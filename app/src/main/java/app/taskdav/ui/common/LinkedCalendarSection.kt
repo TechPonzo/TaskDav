@@ -16,7 +16,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import app.taskdav.R
 import app.taskdav.data.EventEntity
 
 @Composable
@@ -28,8 +30,8 @@ fun LinkedCalendarSection(
 ) {
     if (event == null && fallbackTitle.isNullOrBlank()) return
     val context = LocalContext.current
-    val linkAction = remember(event?.location, event?.description) {
-        resolveEventLink(event?.location, event?.description)
+    val linkAction = remember(event?.location, event?.description, context) {
+        resolveEventLink(context, event?.location, event?.description)
     }
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -38,28 +40,28 @@ fun LinkedCalendarSection(
             verticalAlignment = Alignment.Top,
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Calendar", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.linked_calendar), style = MaterialTheme.typography.labelMedium)
                 Text(
                     event?.summary ?: fallbackTitle.orEmpty(),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 event?.dtStartMillis?.let { start ->
                     Text(
-                        "Starts: ${DateFormats.dateTime(context, start)}",
+                        stringResource(R.string.linked_starts, DateFormats.dateTime(context, start)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
                     )
                 }
                 event?.dtEndMillis?.let { end ->
                     Text(
-                        "Ends: ${DateFormats.dateTime(context, end)}",
+                        stringResource(R.string.linked_ends, DateFormats.dateTime(context, end)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
                     )
                 }
                 if (event?.allDay == true) {
                     Text(
-                        "All-day",
+                        stringResource(R.string.linked_all_day),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
                     )
@@ -67,7 +69,7 @@ fun LinkedCalendarSection(
             }
             if (onEditEvent != null && event != null) {
                 IconButton(onClick = onEditEvent) {
-                    Icon(Icons.Default.Edit, contentDescription = "Update calendar event")
+                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.linked_cd_update))
                 }
             }
         }
@@ -101,7 +103,7 @@ fun LocationRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                linkAction?.label ?: "Location",
+                linkAction?.label ?: stringResource(R.string.linked_location),
                 style = MaterialTheme.typography.labelMedium,
             )
             if (locationText.isNotBlank()) {

@@ -41,10 +41,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.taskdav.R
 import app.taskdav.ui.common.DateFormats
 import app.taskdav.ui.theme.collectionColorOrDefault
 import java.util.Calendar
@@ -102,7 +104,11 @@ fun HourlyDaySchedule(
                     Column {
                         Text(formatDayScheduleTitle(dayStartMillis))
                         Text(
-                            if (isToday) "Today" else DateFormats.date(context, dayStartMillis),
+                            if (isToday) {
+                                stringResource(R.string.today)
+                            } else {
+                                DateFormats.date(context, dayStartMillis)
+                            },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
                         )
@@ -110,20 +116,23 @@ fun HourlyDaySchedule(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                        )
                     }
                 },
                 actions = {
                     IconButton(onClick = onPrevDay) {
                         Icon(
                             Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                            contentDescription = "Previous day",
+                            contentDescription = stringResource(R.string.calendar_cd_prev_day),
                         )
                     }
                     IconButton(onClick = onNextDay) {
                         Icon(
                             Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = "Next day",
+                            contentDescription = stringResource(R.string.calendar_cd_next_day),
                         )
                     }
                 },
@@ -140,7 +149,7 @@ fun HourlyDaySchedule(
                     onCreateAt(dayStartMillis + hour * TimeUnit.HOURS.toMillis(1))
                 },
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add event")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.calendar_cd_add_event))
             }
         },
     ) { padding ->
@@ -156,7 +165,7 @@ fun HourlyDaySchedule(
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                 ) {
                     Text(
-                        "All day",
+                        stringResource(R.string.all_day),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     )

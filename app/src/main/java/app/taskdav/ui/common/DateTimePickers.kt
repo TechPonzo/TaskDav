@@ -34,7 +34,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import app.taskdav.R
 import app.taskdav.data.DateOrderPreference
 import java.util.Calendar
 import java.util.Locale
@@ -117,7 +119,7 @@ fun InlineDateTimePicker(
         )
         AlertDialog(
             onDismissRequest = { showTimePicker = false },
-            title = { Text("Select time") },
+            title = { Text(stringResource(R.string.datetime_select_time)) },
             text = {
                 Box(
                     modifier = Modifier.fillMaxWidth(),
@@ -137,10 +139,12 @@ fun InlineDateTimePicker(
                         onValueChange(base.timeInMillis)
                         showTimePicker = false
                     },
-                ) { Text("OK") }
+                ) { Text(stringResource(R.string.action_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showTimePicker = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             },
         )
     }
@@ -172,7 +176,7 @@ fun DateTimePickerDialog(
                 selectedDateMillis = picked
                 step = 1
             },
-            confirmLabel = "Next",
+            confirmLabel = stringResource(R.string.next),
         )
     } else {
         val timeState = rememberTimePickerState(
@@ -182,7 +186,7 @@ fun DateTimePickerDialog(
         )
         AlertDialog(
             onDismissRequest = onDismiss,
-            title = { Text("Select time") },
+            title = { Text(stringResource(R.string.datetime_select_time)) },
             text = {
                 Box(
                     modifier = Modifier.fillMaxWidth(),
@@ -202,10 +206,10 @@ fun DateTimePickerDialog(
                             ),
                         )
                     },
-                ) { Text("OK") }
+                ) { Text(stringResource(R.string.action_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { step = 0 }) { Text("Back") }
+                TextButton(onClick = { step = 0 }) { Text(stringResource(R.string.back)) }
             },
         )
     }
@@ -221,8 +225,9 @@ private fun AppDatePickerDialog(
     initialMillis: Long,
     onDismiss: () -> Unit,
     onConfirmUtcMidnight: (Long) -> Unit,
-    confirmLabel: String = "OK",
+    confirmLabel: String? = null,
 ) {
+    val resolvedConfirmLabel = confirmLabel ?: stringResource(R.string.action_ok)
     val dateOrder = LocalDateOrder.current
     val initialUtc = remember(initialMillis) { utcMidnightForLocalDate(initialMillis) }
 
@@ -246,10 +251,10 @@ private fun AppDatePickerDialog(
                         val picked = dateState.selectedDateMillis ?: return@TextButton
                         onConfirmUtcMidnight(picked)
                     },
-                ) { Text(confirmLabel) }
+                ) { Text(resolvedConfirmLabel) }
             },
             dismissButton = {
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
             },
         ) {
             // Re-provide inside the dialog window so text-input mode keeps our order.

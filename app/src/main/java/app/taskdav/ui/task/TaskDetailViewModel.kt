@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import app.taskdav.R
 import app.taskdav.caldav.IcalMapper
 import app.taskdav.data.CollectionEntity
 import app.taskdav.data.EventEntity
@@ -201,7 +202,9 @@ class TaskDetailViewModel(
             val event = ui.value.linkedEvent ?: return@launch
             val e = edit.value
             if (e.endMillis < e.startMillis) {
-                edit.update { it.copy(error = "Event end must be after start") }
+                edit.update {
+                    it.copy(error = app.getString(R.string.task_detail_error_end_after_start))
+                }
                 return@launch
             }
             try {

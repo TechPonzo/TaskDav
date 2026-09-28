@@ -28,8 +28,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.taskdav.R
 import app.taskdav.ui.setup.SetupViewModel
 import app.taskdav.ui.theme.collectionColorOrDefault
 
@@ -45,10 +47,13 @@ fun CollectionsSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Collections to sync") },
+                title = { Text(stringResource(R.string.collections_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                        )
                     }
                 },
             )
@@ -62,7 +67,7 @@ fun CollectionsSettingsScreen(
                         .navigationBarsPadding()
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                 ) {
-                    Text("Done")
+                    Text(stringResource(R.string.collections_done))
                 }
             }
         },
@@ -75,7 +80,7 @@ fun CollectionsSettingsScreen(
                     .padding(24.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("No collections yet. Save your account and discover first.")
+                Text(stringResource(R.string.collections_empty))
             }
             return@Scaffold
         }
@@ -88,7 +93,7 @@ fun CollectionsSettingsScreen(
         ) {
             item {
                 Text(
-                    "Enable the lists you want TaskDav to sync. Task lists, calendars (for linked events), and note collections can be toggled separately.",
+                    stringResource(R.string.setup_collections_hint),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(vertical = 12.dp),
                 )
@@ -108,12 +113,14 @@ fun CollectionsSettingsScreen(
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(col.displayName, style = MaterialTheme.typography.bodyLarge)
-                        val caps = buildList {
-                            if (col.supportsVtodo) add("tasks")
-                            if (col.supportsVevent) add("events")
-                            if (col.supportsVjournal) add("notes")
-                        }.joinToString(" · ")
-                        Text(caps, style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            collectionCapabilityLabels(
+                                supportsVtodo = col.supportsVtodo,
+                                supportsVevent = col.supportsVevent,
+                                supportsVjournal = col.supportsVjournal,
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
                     }
                     Switch(
                         checked = col.enabled,
@@ -123,4 +130,18 @@ fun CollectionsSettingsScreen(
             }
         }
     }
+}
+
+@Composable
+private fun collectionCapabilityLabels(
+    supportsVtodo: Boolean,
+    supportsVevent: Boolean,
+    supportsVjournal: Boolean,
+): String {
+    val caps = buildList {
+        if (supportsVtodo) add(stringResource(R.string.collection_cap_tasks))
+        if (supportsVevent) add(stringResource(R.string.collection_cap_events))
+        if (supportsVjournal) add(stringResource(R.string.collection_cap_notes))
+    }
+    return caps.joinToString(" · ")
 }

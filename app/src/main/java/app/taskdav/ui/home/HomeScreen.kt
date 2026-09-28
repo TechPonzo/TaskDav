@@ -24,8 +24,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.taskdav.R
 import app.taskdav.ui.common.DateFormats
 import app.taskdav.ui.common.DenseAgendaRow
 import app.taskdav.ui.common.DockScrollPadding
@@ -35,6 +37,7 @@ import app.taskdav.ui.common.PulseChip
 import app.taskdav.ui.common.SectionLabel
 import app.taskdav.ui.theme.collectionColorOrDefault
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -60,6 +63,21 @@ fun HomeScreen(
     val dateLabel = remember {
         SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date())
     }
+    val greeting = remember {
+        when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
+            in 5..11 -> R.string.home_greeting_morning
+            in 12..17 -> R.string.home_greeting_afternoon
+            in 18..21 -> R.string.home_greeting_evening
+            else -> R.string.home_greeting_hello
+        }
+    }.let { stringResource(it) }
+    val statsLine = buildString {
+        append(stringResource(R.string.home_stats_open, ui.stats.openTasks))
+        if (ui.stats.overdueTasks > 0) {
+            append(" · ")
+            append(stringResource(R.string.home_stats_late, ui.stats.overdueTasks))
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -79,7 +97,7 @@ fun HomeScreen(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
-                            ui.greeting,
+                            greeting,
                             style = MaterialTheme.typography.headlineSmall,
                             color = MaterialTheme.colorScheme.onBackground,
                         )
@@ -90,15 +108,7 @@ fun HomeScreen(
                         )
                     }
                     Text(
-                        buildString {
-                            append(ui.stats.openTasks)
-                            append(" open")
-                            if (ui.stats.overdueTasks > 0) {
-                                append(" · ")
-                                append(ui.stats.overdueTasks)
-                                append(" late")
-                            }
-                        },
+                        statsLine,
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -115,21 +125,21 @@ fun HomeScreen(
                 ) {
                     if (ui.stats.overdueTasks > 0) {
                         PulseChip(
-                            text = "${ui.stats.overdueTasks} overdue",
+                            text = stringResource(R.string.home_chip_overdue, ui.stats.overdueTasks),
                             onClick = onSeeAllTasks,
                             alert = true,
                         )
                     }
                     PulseChip(
-                        text = "${ui.stats.dueTodayTasks} due today",
+                        text = stringResource(R.string.home_chip_due_today, ui.stats.dueTodayTasks),
                         onClick = onSeeAllTasks,
                     )
                     PulseChip(
-                        text = "${ui.stats.todayEvents} events",
+                        text = stringResource(R.string.home_chip_events, ui.stats.todayEvents),
                         onClick = onSeeCalendar,
                     )
                     PulseChip(
-                        text = "${ui.stats.notes} notes",
+                        text = stringResource(R.string.home_chip_notes, ui.stats.notes),
                         onClick = onSeeAllNotes,
                     )
                 }
@@ -137,7 +147,11 @@ fun HomeScreen(
 
             if (ui.overdue.isNotEmpty()) {
                 item {
-                    SectionLabel(title = "Needs attention", actionLabel = "All", onAction = onSeeAllTasks)
+                    SectionLabel(
+                        title = stringResource(R.string.home_section_needs_attention),
+                        actionLabel = stringResource(R.string.action_all),
+                        onAction = onSeeAllTasks,
+                    )
                 }
                 items(ui.overdue.take(4), key = { "od-${it.id}" }) { item ->
                     DenseAgendaRow(
@@ -153,16 +167,23 @@ fun HomeScreen(
 
             item {
                 Spacer(modifier = Modifier.height(8.dp))
-                SectionLabel(title = "Today", actionLabel = "Calendar", onAction = onSeeCalendar)
+                SectionLabel(
+                    title = stringResource(R.string.home_section_today),
+                    actionLabel = stringResource(R.string.home_action_calendar),
+                    onAction = onSeeCalendar,
+                )
             }
             if (!todayBusy) {
-                item { EmptyLine("Clear day.") }
+                item { EmptyLine(stringResource(R.string.home_empty_clear_day)) }
             } else {
                 items(ui.todayEvents, key = { "te-${it.id}" }) { item ->
                     DenseAgendaRow(
                         title = item.title,
-                        meta = listOfNotNull("Event", item.subtitle).joinToString(" · "),
-                        trailing = eventTimeLabel(context, item),
+                        meta = listOfNotNull(
+                            stringResource(R.string.home_meta_event),
+                            item.subtitle,
+                        ).joinToString(" · "),
+                        trailing = eventTimeLabel(item),
                         onClick = onSeeCalendar,
                         accent = collectionColorOrDefault(item.colorArgb),
                     )
@@ -170,8 +191,12 @@ fun HomeScreen(
                 items(ui.dueToday, key = { "td-${it.id}" }) { item ->
                     DenseAgendaRow(
                         title = item.title,
-                        meta = listOfNotNull("Task", item.subtitle).joinToString(" · "),
-                        trailing = item.atMillis?.let { DateFormats.time(context, it) } ?: "Due",
+                        meta = listOfNotNull(
+                            stringResource(R.string.home_meta_task),
+                            item.subtitle,
+                        ).joinToString(" · "),
+                        trailing = item.atMillis?.let { DateFormats.time(context, it) }
+                            ?: stringResource(R.string.home_trailing_due),
                         onClick = { onOpenTask(item.id) },
                         accent = collectionColorOrDefault(item.colorArgb),
                     )
@@ -185,10 +210,14 @@ fun HomeScreen(
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                SectionLabel(title = "This week", actionLabel = "Calendar", onAction = onSeeCalendar)
+                SectionLabel(
+                    title = stringResource(R.string.home_section_this_week),
+                    actionLabel = stringResource(R.string.home_action_calendar),
+                    onAction = onSeeCalendar,
+                )
             }
             if (!hasThisWeek) {
-                item { EmptyLine("Nothing else this week.") }
+                item { EmptyLine(stringResource(R.string.home_empty_nothing_this_week)) }
             } else {
                 item {
                     Row(
@@ -225,7 +254,11 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    SectionLabel(title = "Coming up", actionLabel = "Calendar", onAction = onSeeCalendar)
+                    SectionLabel(
+                        title = stringResource(R.string.home_section_coming_up),
+                        actionLabel = stringResource(R.string.home_action_calendar),
+                        onAction = onSeeCalendar,
+                    )
                 }
                 item {
                     Row(
@@ -261,10 +294,14 @@ fun HomeScreen(
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                SectionLabel(title = "Notes", actionLabel = "All", onAction = onSeeAllNotes)
+                SectionLabel(
+                    title = stringResource(R.string.home_section_notes),
+                    actionLabel = stringResource(R.string.action_all),
+                    onAction = onSeeAllNotes,
+                )
             }
             if (ui.recentNotes.isEmpty()) {
-                item { EmptyLine("No notes yet.") }
+                item { EmptyLine(stringResource(R.string.home_empty_no_notes)) }
             } else {
                 items(ui.recentNotes.take(3), key = { "n-${it.id}" }) { item ->
                     DenseAgendaRow(
@@ -280,7 +317,13 @@ fun HomeScreen(
     }
 }
 
-private fun eventTimeLabel(context: android.content.Context, item: HomeAgendaItem): String {
-    val start = item.atMillis ?: return "Event"
-    return if (item.allDay) "All day" else DateFormats.time(context, start)
+@Composable
+private fun eventTimeLabel(item: HomeAgendaItem): String {
+    val context = LocalContext.current
+    val start = item.atMillis ?: return stringResource(R.string.home_meta_event)
+    return if (item.allDay) {
+        stringResource(R.string.all_day)
+    } else {
+        DateFormats.time(context, start)
+    }
 }

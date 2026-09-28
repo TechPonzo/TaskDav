@@ -59,11 +59,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.taskdav.R
 import app.taskdav.data.CalendarViewMode
 import app.taskdav.data.CollectionEntity
 import app.taskdav.data.EventEntity
@@ -150,7 +152,7 @@ fun CalendarScreen(
                     href = null,
                     etag = null,
                     collectionId = ui.editorCollectionId ?: 0,
-                    summary = ui.editorSummary.ifBlank { "Event" },
+                    summary = ui.editorSummary.ifBlank { context.getString(R.string.calendar_untitled_event) },
                     description = ui.editorDescription.ifBlank { null },
                     location = ui.editorLocation.ifBlank { null },
                     dtStartMillis = ui.editorStartMillis,
@@ -171,7 +173,7 @@ fun CalendarScreen(
         floatingActionButton = {
             Box(modifier = Modifier.navigationBarsPadding().padding(bottom = 72.dp)) {
                 ExpressiveExtendedFab(
-                    text = "New event",
+                    text = stringResource(R.string.calendar_new_event),
                     icon = Icons.Default.Add,
                     onClick = viewModel::openCreate,
                 )
@@ -191,20 +193,20 @@ fun CalendarScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     CompactHeader(
-                        title = "Calendar",
+                        title = stringResource(R.string.calendar_title),
                         modifier = Modifier.weight(1f),
                     )
                     IconButton(onClick = viewModel::openViewPicker) {
-                        Icon(Icons.Default.Apps, contentDescription = "Calendar view")
+                        Icon(Icons.Default.Apps, contentDescription = stringResource(R.string.calendar_cd_view))
                     }
                     IconButton(onClick = viewModel::syncNow, enabled = !ui.syncing) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Sync")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.action_sync))
                     }
                 }
                 if (ui.syncing) {
                     SyncLoadingBanner(
                         message = ui.syncMessage?.takeIf { it.isNotBlank() }
-                            ?: "Syncing calendar…",
+                            ?: stringResource(R.string.calendar_syncing),
                     )
                 }
                 CollectionFilterRow(
@@ -212,6 +214,10 @@ fun CalendarScreen(
                     collectionFilter = ui.collectionFilter,
                     onFilter = viewModel::setCollectionFilter,
                 )
+                val emptyWeekMessage = stringResource(R.string.calendar_empty_week)
+                val emptyListMessage = stringResource(R.string.calendar_empty_list)
+                val emptyDayMessage = stringResource(R.string.calendar_empty_day)
+                val monthHintMessage = stringResource(R.string.calendar_month_hint)
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = DockScrollPadding,
@@ -262,6 +268,8 @@ fun CalendarScreen(
                                 onOpenTask = onOpenTask,
                                 onEdit = { viewModel.openEdit(it.event) },
                                 context = context,
+                                emptyDayMessage = emptyDayMessage,
+                                monthHintMessage = monthHintMessage,
                             )
                         }
                         CalendarViewMode.MONTHLY_AND_DAILY -> {
@@ -287,6 +295,8 @@ fun CalendarScreen(
                                 onOpenTask = onOpenTask,
                                 onEdit = { viewModel.openEdit(it.event) },
                                 context = context,
+                                emptyDayMessage = emptyDayMessage,
+                                monthHintMessage = monthHintMessage,
                             )
                         }
                         CalendarViewMode.WEEKLY -> {
@@ -309,7 +319,7 @@ fun CalendarScreen(
                             }
                             item {
                                 Text(
-                                    "This week",
+                                    stringResource(R.string.calendar_section_this_week),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -317,7 +327,7 @@ fun CalendarScreen(
                             }
                             eventRows(
                                 items = weekItems,
-                                emptyMessage = "No events this week.",
+                                emptyMessage = emptyWeekMessage,
                                 onOpenTask = onOpenTask,
                                 onEdit = { viewModel.openEdit(it.event) },
                                 context = context,
@@ -339,12 +349,14 @@ fun CalendarScreen(
                                 onEdit = { viewModel.openEdit(it.event) },
                                 context = context,
                                 requireSelection = false,
+                                emptyDayMessage = emptyDayMessage,
+                                monthHintMessage = monthHintMessage,
                             )
                         }
                         CalendarViewMode.EVENT_LIST -> {
                             item {
                                 Text(
-                                    "All events",
+                                    stringResource(R.string.calendar_section_all_events),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -352,7 +364,7 @@ fun CalendarScreen(
                             }
                             eventRows(
                                 items = upcomingItems,
-                                emptyMessage = "No events. Sync or tap + to add one.",
+                                emptyMessage = emptyListMessage,
                                 onOpenTask = onOpenTask,
                                 onEdit = { viewModel.openEdit(it.event) },
                                 context = context,
@@ -406,7 +418,7 @@ private fun CollectionFilterRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         ExpressiveFilterChip(
-            label = "All",
+            label = stringResource(R.string.action_all),
             selected = collectionFilter == null,
             onClick = { onFilter(null) },
         )
@@ -428,12 +440,14 @@ private fun LazyListScope.dayAgenda(
     onOpenTask: (Long) -> Unit,
     onEdit: (CalendarDayItem) -> Unit,
     context: android.content.Context,
+    emptyDayMessage: String,
+    monthHintMessage: String,
     requireSelection: Boolean = true,
 ) {
     if (requireSelection && selectedDay == null) {
         item {
             Text(
-                "Tap a day to see its events.",
+                monthHintMessage,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             )
@@ -443,7 +457,7 @@ private fun LazyListScope.dayAgenda(
     val day = selectedDay ?: return
     item {
         Text(
-            formatDayTitle(day),
+            formatDayTitle(context, day),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -451,7 +465,7 @@ private fun LazyListScope.dayAgenda(
     }
     eventRows(
         items = dayItems,
-        emptyMessage = "No events this day. Sync or tap + to add one.",
+        emptyMessage = emptyDayMessage,
         onOpenTask = onOpenTask,
         onEdit = onEdit,
         context = context,
@@ -503,17 +517,17 @@ private fun WeekHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onPrev) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous week")
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.calendar_cd_prev_week))
         }
         Column(
             modifier = Modifier.weight(1f),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            TextButton(onClick = onToday) { Text("Today") }
+            TextButton(onClick = onToday) { Text(stringResource(R.string.today)) }
         }
         IconButton(onClick = onNext) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next week")
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.calendar_cd_next_week))
         }
     }
 }
@@ -525,6 +539,7 @@ private fun DayNavHeader(
     onNext: () -> Unit,
     onToday: () -> Unit,
 ) {
+    val context = LocalContext.current
     val isToday = dayStart == CalendarViewModel.startOfDay(System.currentTimeMillis())
     Row(
         modifier = Modifier
@@ -533,23 +548,23 @@ private fun DayNavHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onPrev) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous day")
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.calendar_cd_prev_day))
         }
         Column(
             modifier = Modifier.weight(1f),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                formatDayTitle(dayStart),
+                formatDayTitle(context, dayStart),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
             if (!isToday) {
-                TextButton(onClick = onToday) { Text("Today") }
+                TextButton(onClick = onToday) { Text(stringResource(R.string.today)) }
             }
         }
         IconButton(onClick = onNext) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next day")
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.calendar_cd_next_day))
         }
     }
 }
@@ -580,7 +595,7 @@ private fun MonthHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onPrevMonth) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous month")
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.calendar_cd_prev_month))
         }
         Column(
             modifier = Modifier.weight(1f),
@@ -588,11 +603,11 @@ private fun MonthHeader(
         ) {
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             if (!isCurrentMonth) {
-                TextButton(onClick = onToday) { Text("Today") }
+                TextButton(onClick = onToday) { Text(stringResource(R.string.today)) }
             }
         }
         IconButton(onClick = onNextMonth) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next month")
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.calendar_cd_next_month))
         }
     }
 }
@@ -729,8 +744,8 @@ private fun EventRow(
     val context = LocalContext.current
     val event = item.event
     val color = collectionColorOrDefault(item.collection?.colorArgb)
-    val linkAction = remember(event.location, event.description) {
-        resolveEventLink(event.location, event.description)
+    val linkAction = remember(event.location, event.description, context) {
+        resolveEventLink(context, event.location, event.description)
     }
 
     SwipeRevealRow(
@@ -738,7 +753,7 @@ private fun EventRow(
         actions = { close ->
             SwipeRevealAction(
                 icon = Icons.Default.Edit,
-                contentDescription = "Edit",
+                contentDescription = stringResource(R.string.action_edit),
                 onClick = {
                     onEdit()
                     close()
@@ -749,7 +764,7 @@ private fun EventRow(
             if (onShare != null) {
                 SwipeRevealAction(
                     icon = Icons.Default.Share,
-                    contentDescription = "Share",
+                    contentDescription = stringResource(R.string.action_share),
                     onClick = {
                         onShare()
                         close()
@@ -799,9 +814,12 @@ private fun EventRow(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
+                    val linkedTaskMeta = item.linkedTask?.let { task ->
+                        context.getString(R.string.calendar_linked_task, task.summary)
+                    }
                     val meta = buildList {
                         item.collection?.displayName?.let { add(it) }
-                        item.linkedTask?.let { add("Task: ${it.summary}") }
+                        linkedTaskMeta?.let { add(it) }
                     }.joinToString(" · ")
                     if (meta.isNotEmpty()) {
                         Text(
@@ -826,7 +844,7 @@ private fun EventRow(
                             onClick = onOpenTask,
                             contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
                         ) {
-                            Text("Open task")
+                            Text(stringResource(R.string.calendar_open_task))
                         }
                     }
                 }
@@ -877,20 +895,20 @@ private fun EventEditorScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(if (isNew) "New event" else "Edit event") },
+                title = { Text(stringResource(if (isNew) R.string.calendar_new_event else R.string.calendar_edit_event)) },
                 navigationIcon = {
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     if (onShare != null) {
                         IconButton(onClick = onShare) {
-                            Icon(Icons.Default.Share, contentDescription = "Share")
+                            Icon(Icons.Default.Share, contentDescription = stringResource(R.string.action_share))
                         }
                     }
                     TextButton(onClick = onSave) {
-                        Text("Save")
+                        Text(stringResource(R.string.action_save))
                     }
                 },
             )
@@ -908,14 +926,14 @@ private fun EventEditorScreen(
                 value = summary,
                 onValueChange = onSummary,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Title") },
+                label = { Text(stringResource(R.string.event_editor_title)) },
                 singleLine = true,
             )
             OutlinedTextField(
                 value = description,
                 onValueChange = onDescription,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Description") },
+                label = { Text(stringResource(R.string.event_editor_description)) },
                 minLines = 3,
             )
             if (isNew && collections.isNotEmpty()) {
@@ -924,10 +942,10 @@ private fun EventEditorScreen(
                     onExpandedChange = { collectionExpanded = it },
                 ) {
                     OutlinedTextField(
-                        value = selected?.displayName ?: "Calendar",
+                        value = selected?.displayName ?: stringResource(R.string.linked_calendar),
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Calendar") },
+                        label = { Text(stringResource(R.string.event_editor_calendar)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(collectionExpanded) },
                         modifier = Modifier
                             .menuAnchor(MenuAnchorType.PrimaryNotEditable)
@@ -951,23 +969,23 @@ private fun EventEditorScreen(
             }
 
             Text(
-                "When",
+                stringResource(R.string.event_editor_when),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             InlineDateTimePicker(
-                label = "Starts",
+                label = stringResource(R.string.event_editor_starts),
                 valueMillis = startMillis,
                 onValueChange = onStart,
             )
             InlineDateTimePicker(
-                label = "Ends",
+                label = stringResource(R.string.event_editor_ends),
                 valueMillis = endMillis,
                 onValueChange = onEnd,
             )
 
             Text(
-                "Repeat",
+                stringResource(R.string.event_editor_repeat),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -978,28 +996,28 @@ private fun EventEditorScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ExpressiveFilterChip(
-                    label = "Never",
+                    label = stringResource(R.string.event_editor_repeat_never),
                     selected = recurrence.mode == EventRecurrence.Mode.NONE,
                     onClick = {
                         onRecurrence(recurrence.copy(mode = EventRecurrence.Mode.NONE))
                     },
                 )
                 ExpressiveFilterChip(
-                    label = "Weekly",
+                    label = stringResource(R.string.event_editor_repeat_weekly),
                     selected = recurrence.mode == EventRecurrence.Mode.WEEKLY,
                     onClick = {
                         onRecurrence(recurrence.copy(mode = EventRecurrence.Mode.WEEKLY))
                     },
                 )
                 ExpressiveFilterChip(
-                    label = "Every 2 weeks",
+                    label = stringResource(R.string.event_editor_repeat_biweekly),
                     selected = recurrence.mode == EventRecurrence.Mode.EVERY_2_WEEKS,
                     onClick = {
                         onRecurrence(recurrence.copy(mode = EventRecurrence.Mode.EVERY_2_WEEKS))
                     },
                 )
                 ExpressiveFilterChip(
-                    label = "Every N weeks",
+                    label = stringResource(R.string.event_editor_repeat_n_weeks),
                     selected = recurrence.mode == EventRecurrence.Mode.EVERY_N_WEEKS,
                     onClick = {
                         onRecurrence(
@@ -1012,7 +1030,7 @@ private fun EventEditorScreen(
                 )
                 if (recurrence.mode == EventRecurrence.Mode.OTHER) {
                     ExpressiveFilterChip(
-                        label = "Custom",
+                        label = stringResource(R.string.event_editor_repeat_custom),
                         selected = true,
                         onClick = {},
                     )
@@ -1026,7 +1044,7 @@ private fun EventEditorScreen(
                         onRecurrence(recurrence.copy(intervalWeeks = n))
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Repeat every (weeks)") },
+                    label = { Text(stringResource(R.string.event_editor_repeat_every_weeks)) },
                     singleLine = true,
                 )
             }
@@ -1040,11 +1058,11 @@ private fun EventEditorScreen(
                     onClick = {
                         onRecurrence(EventRecurrence.EditState())
                     },
-                ) { Text("Clear custom rule") }
+                ) { Text(stringResource(R.string.event_editor_clear_custom_rule)) }
             }
             if (repeats && recurrence.mode != EventRecurrence.Mode.OTHER) {
                 Text(
-                    "Ends",
+                    stringResource(R.string.event_editor_ends),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1055,12 +1073,12 @@ private fun EventEditorScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     ExpressiveFilterChip(
-                        label = "Never",
+                        label = stringResource(R.string.event_editor_repeat_never),
                         selected = recurrence.count == null,
                         onClick = { onRecurrence(recurrence.copy(count = null)) },
                     )
                     ExpressiveFilterChip(
-                        label = "After N times",
+                        label = stringResource(R.string.event_editor_ends_after_n),
                         selected = recurrence.count != null,
                         onClick = {
                             onRecurrence(recurrence.copy(count = recurrence.count ?: 10))
@@ -1075,14 +1093,14 @@ private fun EventEditorScreen(
                             onRecurrence(recurrence.copy(count = n ?: 1))
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Number of occurrences") },
+                        label = { Text(stringResource(R.string.event_editor_occurrences)) },
                         singleLine = true,
                     )
                 }
             }
 
             Text(
-                "Location",
+                stringResource(R.string.event_editor_location),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1090,9 +1108,9 @@ private fun EventEditorScreen(
                 value = location,
                 onValueChange = onLocation,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Location or meeting link") },
+                label = { Text(stringResource(R.string.event_editor_location_label)) },
                 singleLine = true,
-                placeholder = { Text("Address, Meet, Zoom…") },
+                placeholder = { Text(stringResource(R.string.event_editor_location_placeholder)) },
             )
             error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error)
@@ -1100,7 +1118,7 @@ private fun EventEditorScreen(
             if (onDelete != null) {
                 Spacer(modifier = Modifier.height(8.dp))
                 TextButton(onClick = { showDeleteConfirm = true }) {
-                    Text("Delete event", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.event_editor_delete), color = MaterialTheme.colorScheme.error)
                 }
             }
             Spacer(modifier = Modifier.height(48.dp))
@@ -1109,8 +1127,8 @@ private fun EventEditorScreen(
 
     if (showDeleteConfirm && onDelete != null) {
         ConfirmDeleteDialog(
-            title = "Delete event?",
-            body = "This permanently removes the event from the app and the server.",
+            title = stringResource(R.string.event_delete_title),
+            body = stringResource(R.string.event_delete_body),
             onConfirm = {
                 showDeleteConfirm = false
                 onDelete()
@@ -1121,8 +1139,8 @@ private fun EventEditorScreen(
 }
 
 private fun timeLabel(context: android.content.Context, event: EventEntity): String {
-    if (event.allDay) return "All day"
-    val start = event.dtStartMillis ?: return "No time"
+    if (event.allDay) return context.getString(R.string.all_day)
+    val start = event.dtStartMillis ?: return context.getString(R.string.no_time)
     val end = event.dtEndMillis
     return buildString {
         append(DateFormats.dateTime(context, start))
@@ -1135,13 +1153,13 @@ private fun timeLabel(context: android.content.Context, event: EventEntity): Str
     }
 }
 
-private fun formatDayTitle(dayStart: Long): String {
+private fun formatDayTitle(context: android.content.Context, dayStart: Long): String {
     val cal = Calendar.getInstance().apply { timeInMillis = dayStart }
     val today = CalendarViewModel.startOfDay(System.currentTimeMillis())
     return when (dayStart) {
-        today -> "Today"
-        today - CalendarViewModel.DAY_MS -> "Yesterday"
-        today + CalendarViewModel.DAY_MS -> "Tomorrow"
+        today -> context.getString(R.string.today)
+        today - CalendarViewModel.DAY_MS -> context.getString(R.string.yesterday)
+        today + CalendarViewModel.DAY_MS -> context.getString(R.string.tomorrow)
         else -> {
             val day = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.LONG, Locale.getDefault())
             val month = cal.getDisplayName(Calendar.MONTH, Calendar.SHORT, Locale.getDefault())

@@ -40,6 +40,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
+import app.taskdav.R
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
@@ -523,9 +525,9 @@ fun TagFilterIconButton(
                 Icon(
                     Icons.Default.FilterList,
                     contentDescription = if (active) {
-                        "Tag filter: $selectedTag"
+                        stringResource(R.string.tag_filter_active, selectedTag!!)
                     } else {
-                        "Filter by tag"
+                        stringResource(R.string.tag_filter)
                     },
                     tint = if (active) {
                         MaterialTheme.colorScheme.primary
@@ -540,7 +542,7 @@ fun TagFilterIconButton(
             onDismissRequest = { expanded = false },
         ) {
             DropdownMenuItem(
-                text = { Text("All tags") },
+                text = { Text(stringResource(R.string.tag_filter_all)) },
                 onClick = {
                     onSelectTag(null)
                     expanded = false

@@ -6,13 +6,36 @@
     <string name="skip">Salta</string>
     <string name="get_started">Inizia</string>
     <string name="next">Avanti</string>
+    <string name="action_cancel">Annulla</string>
+    <string name="action_ok">OK</string>
+    <string name="action_save">Salva</string>
+    <string name="action_delete">Elimina</string>
+    <string name="action_close">Chiudi</string>
+    <string name="action_edit">Modifica</string>
+    <string name="action_share">Condividi</string>
+    <string name="action_sync">Sincronizza</string>
+    <string name="action_all">Tutto</string>
+    <string name="loading">Caricamento…</string>
+    <string name="working">In corso…</string>
+    <string name="saving">Salvataggio…</string>
+    <string name="offline">Offline</string>
+    <string name="selected">Selezionato</string>
+    <string name="untitled">Senza titolo</string>
+    <string name="collection_fallback">Raccolta</string>
+    <string name="today">Oggi</string>
+    <string name="yesterday">Ieri</string>
+    <string name="tomorrow">Domani</string>
+    <string name="all_day">Tutto il giorno</string>
+    <string name="no_time">Nessuna ora</string>
 
+    <!-- Tabs -->
     <string name="tab_home">Home</string>
     <string name="tab_calendar">Cal</string>
     <string name="tab_tasks">Attività</string>
     <string name="tab_notes">Note</string>
     <string name="tab_more">Altro</string>
 
+    <!-- Settings hub -->
     <string name="settings_title">Impostazioni</string>
     <string name="settings_syncing">Sincronizzazione</string>
     <string name="settings_syncing_sub">Locale o CalDAV</string>
@@ -25,37 +48,37 @@
     <string name="settings_credits">Crediti</string>
     <string name="settings_credits_sub">Open source</string>
 
+    <!-- Language -->
     <string name="language_title">Lingua</string>
-    <string name="language_subtitle">Scegli come TaskDav ti parla</string>
+    <string name="language_subtitle">Scegli la lingua dell\'app</string>
     <string name="language_system">Lingua del telefono</string>
     <string name="language_english">English</string>
     <string name="language_spanish">Español</string>
     <string name="language_italian">Italiano</string>
 
+    <!-- Onboarding -->
     <string name="onboarding_welcome_title">Benvenuto in TaskDav</string>
-    <string name="onboarding_welcome_body">Attività, calendario e note — sul telefono o sincronizzati con il tuo server CalDAV. Nessun Google Play Services.</string>
+    <string name="onboarding_welcome_body">Attività, calendario e note sul telefono, o sincronizzati con il tuo server CalDAV. Nessun Google Play Services.</string>
     <string name="onboarding_welcome_pick_language">Scegli una lingua</string>
-
-    <string name="onboarding_sync_title">Prima di tutto tuoi</string>
-    <string name="onboarding_sync_body">Resta solo su questo dispositivo, oppure collega lo stesso server CalDAV che usi già con DAVx⁵. Puoi cambiare quando vuoi in Impostazioni.</string>
-
-    <string name="onboarding_tasks_title">Attività annidate</string>
-    <string name="onboarding_tasks_body">Organizza con cartelle di categorie annidabili, sottoattività, scadenze, tag e riordino fluido. Tutto funziona anche offline.</string>
-
-    <string name="onboarding_calendar_title">Calendario su misura</string>
-    <string name="onboarding_calendar_body">Viste giorno, settimana e mese per i tuoi eventi. Opzionalmente condividili con l’app Calendario del telefono — senza DAVx⁵ in modalità locale.</string>
-
-    <string name="onboarding_notes_title">Note accanto</string>
-    <string name="onboarding_notes_body">Cattura idee come note con tag. Si sincronizzano come VJOURNAL con CalDAV e restano sul dispositivo se resti in locale.</string>
-
-    <string name="onboarding_ready_title">Pronto quando lo sei tu</string>
-    <string name="onboarding_ready_body">Configuriamo l’archiviazione sul dispositivo così puoi iniziare subito. Collega CalDAV più tardi da Impostazioni → Sincronizzazione.</string>
+    <string name="onboarding_sync_title">Locale o CalDAV</string>
+    <string name="onboarding_sync_body">Tieni i dati solo su questo dispositivo, oppure collega lo stesso server CalDAV che usi con DAVx⁵. Puoi cambiarlo più tardi in Impostazioni.</string>
+    <string name="onboarding_tasks_title">Attività e categorie</string>
+    <string name="onboarding_tasks_body">Usa cartelle di categorie, sottoattività, scadenze, tag e trascinamento. Funziona offline; si sincronizza quando CalDAV è configurato.</string>
+    <string name="onboarding_calendar_title">Viste calendario</string>
+    <string name="onboarding_calendar_body">Viste giorno, settimana e mese per gli eventi. Puoi anche mostrarli nell\'app Calendario del telefono, anche senza DAVx⁵ in modalità locale.</string>
+    <string name="onboarding_notes_title">Note</string>
+    <string name="onboarding_notes_body">Scrivi note con tag. Si sincronizzano come VJOURNAL via CalDAV, oppure restano sul dispositivo in modalità locale.</string>
+    <string name="onboarding_ready_title">Tutto pronto</string>
+    <string name="onboarding_ready_body">Abiliteremo l\'archiviazione sul dispositivo così puoi iniziare subito. Aggiungi CalDAV più tardi in Impostazioni → Sincronizzazione.</string>
 
     <string name="caldav_error_auth">Nome utente o password errati, oppure questo account non è autorizzato sul server.</string>
-    <string name="caldav_error_network">Impossibile raggiungere il server. Controlla l’URL e la connessione di rete.</string>
+    <string name="caldav_error_network">Impossibile raggiungere il server. Controlla l\'URL e la connessione di rete.</string>
     <string name="caldav_error_generic">Impossibile connettersi al server CalDAV.</string>
-    <string name="caldav_error_invalid_url">L’URL del server non sembra valida.</string>
-    <string name="widget_calendar_description">Eventi di oggi</string>
+    <string name="caldav_error_invalid_url">L\'URL del server non sembra valida.</string>
+
+    <!-- Widgets -->
+    <string name="widget_loading">TaskDav</string>
+    <string name="widget_calendar_description">Eventi del calendario di oggi</string>
     <string name="widget_agenda_description">Eventi di questa settimana o mese</string>
     <string name="widget_tasks_description">Attività aperte con scadenza</string>
     <string name="widget_notes_description">Note recenti</string>
@@ -63,4 +86,322 @@
     <string name="widget_agenda_label">TaskDav Settimana / Mese</string>
     <string name="widget_tasks_label">TaskDav Attività</string>
     <string name="widget_notes_label">TaskDav Note</string>
+
+    <!-- Common dialogs / tags / share -->
+    <string name="datetime_select_time">Seleziona ora</string>
+    <string name="tags_title">Tag</string>
+    <string name="tags_add_label">Aggiungi tag</string>
+    <string name="tags_add">Aggiungi</string>
+    <string name="tags_cd_remove">Rimuovi %1$s</string>
+    <string name="tag_filter">Filtra per tag</string>
+    <string name="tag_filter_active">Filtro tag: %1$s</string>
+    <string name="tag_filter_all">Tutti i tag</string>
+    <string name="share_task">Condividi attività</string>
+    <string name="share_event">Condividi evento</string>
+    <string name="share_note">Condividi nota</string>
+    <string name="share_due_prefix">Scadenza: %1$s</string>
+    <string name="share_note_fallback">Nota</string>
+    <string name="linked_calendar">Calendario</string>
+    <string name="linked_starts">Inizio: %1$s</string>
+    <string name="linked_ends">Fine: %1$s</string>
+    <string name="linked_all_day">Tutto il giorno</string>
+    <string name="linked_cd_update">Aggiorna evento del calendario</string>
+    <string name="linked_location">Luogo</string>
+    <string name="collection_cap_tasks">attività</string>
+    <string name="collection_cap_events">eventi</string>
+    <string name="collection_cap_notes">note</string>
+    <string name="collection_cap_journal">diario</string>
+
+    <!-- Privacy / Credits -->
+    <string name="privacy_title">Privacy e licenza</string>
+    <string name="privacy_body">TaskDav memorizza le credenziali del tuo account e i dati sincronizzati solo su questo dispositivo.\n\nLe credenziali sono conservate in preferenze crittografate sul telefono. Attività, note e collegamenti al calendario sono salvati in un database locale e inviati solo al server CalDAV che configuri. Nulla viene caricato agli sviluppatori di TaskDav o a reti pubblicitarie.\n\nL\'app non include analitiche, SDK per segnalazione crash, annunci o Google Play Services.\n\nI tuoi dati di calendario e attività restano sotto il tuo controllo sul tuo server (o su qualsiasi host CalDAV tu scelga). Puoi eliminare l\'app o cancellarne i dati in qualsiasi momento per rimuovere la copia locale.\n\nTaskDav è software libero e open source con licenza GNU General Public License versione 3 (GPLv3). Sei libero di usarlo, studiarlo, condividerlo e migliorarlo secondo i termini di quella licenza.\n\nLe librerie di terze parti usate da TaskDav mantengono le proprie licenze; vedi Crediti.</string>
+    <string name="credits_title">Crediti</string>
+    <string name="credits_body">TaskDav\nCopyright © TaskDav contributors\nLicenza GNU General Public License v3.0 (GPLv3)\n\nContributori:\n\n• Juan Curti (@TechPonzo) - https://github.com/TechPonzo\n\nRealizzato con:\n\n• dav4jvm (bitfireAT) - Libreria client WebDAV / CalDAV\n• ical4j - Parsing e generazione iCalendar\n• AndroidX, Jetpack Compose, Room, WorkManager - Framework applicativi Android\n• OkHttp - Client HTTP\n\nTaskDav è pensato per funzionare insieme a DAVx⁵ e ad altri client CalDAV sullo stesso server. Quei progetti sono separati e conservano le proprie licenze e marchi.\n\nGrazie alla community FOSS CalDAV.</string>
+
+    <!-- Syncing -->
+    <string name="syncing_where_live">Dove devono stare calendari, attività e note?</string>
+    <string name="syncing_local_title">Solo questo dispositivo</string>
+    <string name="syncing_local_subtitle">Resta in locale, nulla viene caricato</string>
+    <string name="syncing_caldav_title">Sincronizzazione CalDAV</string>
+    <string name="syncing_caldav_subtitle">Sincronizza con il tuo server CalDAV</string>
+    <string name="syncing_local_body">Tutto resta su questo telefono. Nulla viene caricato finché non passi a CalDAV.</string>
+    <string name="syncing_use_local">Usa archiviazione locale</string>
+    <string name="syncing_caldav_body">Connettiti al tuo server CalDAV (ad esempio lo stesso usato da DAVx⁵).</string>
+    <string name="syncing_server_url">URL del server</string>
+    <string name="syncing_server_url_placeholder">https://caldav.example/user/</string>
+    <string name="syncing_username">Nome utente</string>
+    <string name="syncing_password">Password</string>
+    <string name="syncing_save_discover">Salva e scopri raccolte</string>
+    <string name="syncing_collections">Raccolte da sincronizzare</string>
+    <string name="syncing_phone_calendar">Calendario del telefono</string>
+    <string name="syncing_phone_calendar_body">Funziona senza DAVx⁵. Anche chi usa solo locale può condividere eventi con l\'app Calendario di Android.</string>
+    <string name="syncing_import_title">Importa in TaskDav</string>
+    <string name="syncing_import_body">Recupera eventi da Google Calendar e altri calendari su questo telefono.</string>
+    <string name="syncing_show_in_android">Mostra TaskDav in Calendario Android</string>
+    <string name="syncing_show_in_android_body">Crea un account TaskDav (come DAVx⁵) e pubblica i tuoi eventi. Su Samsung: Calendario → ☰ → gestisci calendari, e controlla anche Impostazioni → Account.</string>
+    <string name="syncing_publish_now">Pubblica eventi ora</string>
+    <string name="syncing_permission_denied">Permesso calendario negato.</string>
+    <string name="syncing_local_saved">Salvataggio solo su questo dispositivo.</string>
+
+    <!-- Collections / Export -->
+    <string name="collections_title">Raccolte da sincronizzare</string>
+    <string name="collections_done">Fine</string>
+    <string name="collections_empty">Nessuna raccolta ancora. Salva l\'account e scopri prima le raccolte.</string>
+    <string name="export_intro">Esporta i calendari selezionati come file ICS dai dati già sincronizzati su questo dispositivo, poi condividili.</string>
+    <string name="export_select_all">Seleziona tutto</string>
+    <string name="export_clear">Deseleziona</string>
+    <string name="export_toast_none">Seleziona almeno un calendario</string>
+    <string name="export_ready">Pronto per condividere %1$d file</string>
+    <string name="export_failed">Esportazione non riuscita</string>
+    <string name="export_busy">Esportazione…</string>
+    <string name="export_action">Esporta e condividi</string>
+
+    <!-- Appearance -->
+    <string name="appearance_brand_hint">Scegli un colore del marchio. L\'app genera tonalità più chiare e più scure da esso.</string>
+    <string name="appearance_brand_color">Colore del marchio</string>
+    <string name="appearance_light_tones">Tonalità chiare</string>
+    <string name="appearance_dark_tones">Tonalità scure</string>
+    <string name="appearance_channel_r">R</string>
+    <string name="appearance_channel_g">G</string>
+    <string name="appearance_channel_b">B</string>
+    <string name="appearance_font">Carattere</string>
+    <string name="appearance_font_hint">Usa i caratteri TaskDav o il carattere di sistema del telefono (incluso un font personalizzato nelle impostazioni Android).</string>
+    <string name="appearance_date_format">Formato data</string>
+    <string name="appearance_date_format_hint">Le date usano giorno/mese/anno per impostazione predefinita (28/09/2026). Cambia qui se preferisci mese/giorno.</string>
+    <string name="appearance_calendar_view">Vista calendario predefinita</string>
+    <string name="date_order_system">Predefinito del telefono</string>
+    <string name="date_order_dmy">Giorno / mese / anno</string>
+    <string name="date_order_mdy">Mese / giorno / anno</string>
+    <string name="font_app">Caratteri dell\'app</string>
+    <string name="font_app_subtitle">Fraunces &amp; Manrope</string>
+    <string name="font_system">Carattere del telefono</string>
+    <string name="font_system_subtitle">Usa il carattere di sistema</string>
+    <string name="calendar_view_daily">Vista giornaliera</string>
+    <string name="calendar_view_weekly">Vista settimanale</string>
+    <string name="calendar_view_monthly">Vista mensile</string>
+    <string name="calendar_view_monthly_daily">Vista mensile e giornaliera</string>
+    <string name="calendar_view_yearly">Vista annuale</string>
+    <string name="calendar_view_event_list">Elenco eventi semplice</string>
+
+    <!-- Home -->
+    <string name="home_greeting_morning">Buongiorno</string>
+    <string name="home_greeting_afternoon">Buon pomeriggio</string>
+    <string name="home_greeting_evening">Buonasera</string>
+    <string name="home_greeting_hello">Ciao</string>
+    <string name="home_stats_open">%1$d aperte</string>
+    <string name="home_stats_late">%1$d in ritardo</string>
+    <string name="home_chip_overdue">%1$d scadute</string>
+    <string name="home_chip_due_today">%1$d in scadenza oggi</string>
+    <string name="home_chip_events">%1$d eventi</string>
+    <string name="home_chip_notes">%1$d note</string>
+    <string name="home_section_needs_attention">Richiedono attenzione</string>
+    <string name="home_section_today">Oggi</string>
+    <string name="home_section_this_week">Questa settimana</string>
+    <string name="home_section_coming_up">In arrivo</string>
+    <string name="home_section_notes">Note</string>
+    <string name="home_action_calendar">Calendario</string>
+    <string name="home_empty_clear_day">Giornata libera.</string>
+    <string name="home_empty_nothing_this_week">Nient\'altro questa settimana.</string>
+    <string name="home_empty_no_notes">Nessuna nota ancora.</string>
+    <string name="home_meta_event">Evento</string>
+    <string name="home_meta_task">Attività</string>
+    <string name="home_trailing_due">Scadenza</string>
+
+    <!-- Calendar -->
+    <string name="calendar_title">Calendario</string>
+    <string name="calendar_new_event">Nuovo evento</string>
+    <string name="calendar_edit_event">Modifica evento</string>
+    <string name="calendar_cd_view">Vista calendario</string>
+    <string name="calendar_syncing">Sincronizzazione calendario…</string>
+    <string name="calendar_section_this_week">Questa settimana</string>
+    <string name="calendar_section_all_events">Tutti gli eventi</string>
+    <string name="calendar_empty_week">Nessun evento questa settimana.</string>
+    <string name="calendar_empty_list">Nessun evento. Sincronizza o tocca + per aggiungerne uno.</string>
+    <string name="calendar_empty_day">Nessun evento in questo giorno. Sincronizza o tocca + per aggiungerne uno.</string>
+    <string name="calendar_month_hint">Tocca un giorno per vedere i suoi eventi.</string>
+    <string name="calendar_cd_prev_week">Settimana precedente</string>
+    <string name="calendar_cd_next_week">Settimana successiva</string>
+    <string name="calendar_cd_prev_day">Giorno precedente</string>
+    <string name="calendar_cd_next_day">Giorno successivo</string>
+    <string name="calendar_cd_prev_month">Mese precedente</string>
+    <string name="calendar_cd_next_month">Mese successivo</string>
+    <string name="calendar_cd_prev_year">Anno precedente</string>
+    <string name="calendar_cd_next_year">Anno successivo</string>
+    <string name="calendar_cd_add_event">Aggiungi evento</string>
+    <string name="calendar_open_task">Apri attività</string>
+    <string name="calendar_linked_task">Attività: %1$s</string>
+    <string name="calendar_view_picker_title">Vista calendario</string>
+    <string name="calendar_untitled_event">Evento</string>
+    <string name="calendar_error_no_calendar">Nessun calendario disponibile. Configura prima la Sincronizzazione.</string>
+    <string name="calendar_error_pick_calendar">Scegli un calendario</string>
+    <string name="calendar_error_end_after_start">La fine deve essere dopo l\'inizio</string>
+    <string name="event_editor_title">Titolo</string>
+    <string name="event_editor_description">Descrizione</string>
+    <string name="event_editor_calendar">Calendario</string>
+    <string name="event_editor_when">Quando</string>
+    <string name="event_editor_starts">Inizio</string>
+    <string name="event_editor_ends">Fine</string>
+    <string name="event_editor_repeat">Ripeti</string>
+    <string name="event_editor_repeat_never">Mai</string>
+    <string name="event_editor_repeat_weekly">Settimanale</string>
+    <string name="event_editor_repeat_biweekly">Ogni 2 settimane</string>
+    <string name="event_editor_repeat_n_weeks">Ogni N settimane</string>
+    <string name="event_editor_repeat_custom">Personalizzato</string>
+    <string name="event_editor_repeat_every_weeks">Ripeti ogni (settimane)</string>
+    <string name="event_editor_clear_custom_rule">Cancella regola personalizzata</string>
+    <string name="event_editor_ends_never">Mai</string>
+    <string name="event_editor_ends_after_n">Dopo N volte</string>
+    <string name="event_editor_occurrences">Numero di occorrenze</string>
+    <string name="event_editor_location">Luogo</string>
+    <string name="event_editor_location_label">Luogo o link riunione</string>
+    <string name="event_editor_location_placeholder">Indirizzo, Meet, Zoom…</string>
+    <string name="event_editor_delete">Elimina evento</string>
+    <string name="event_delete_title">Eliminare l\'evento?</string>
+    <string name="event_delete_body">Rimuove definitivamente l\'evento dall\'app e dal server.</string>
+
+    <!-- Tasks -->
+    <string name="tasks_title">Attività</string>
+    <string name="tasks_new">Nuova attività</string>
+    <string name="tasks_empty_title">Nessuna attività ancora</string>
+    <string name="tasks_empty_body">Crea un\'attività per iniziare.</string>
+    <string name="tasks_syncing">Sincronizzazione attività e calendari…</string>
+    <string name="tasks_cd_hide_completed">Nascondi completate</string>
+    <string name="tasks_cd_show_completed">Mostra completate</string>
+    <string name="tasks_cd_delete">Elimina attività</string>
+    <string name="tasks_cd_expand_category">Espandi categoria</string>
+    <string name="tasks_cd_collapse_category">Comprimi categoria</string>
+    <string name="tasks_cd_linked_calendar">Elemento calendario collegato</string>
+    <string name="tasks_cd_add_in_category">Aggiungi attività in categoria</string>
+    <string name="tasks_cd_add_subtask">Aggiungi sottoattività</string>
+    <string name="tasks_cd_drag">Trascina per riordinare o annidare</string>
+    <string name="tasks_meta_category">Categoria</string>
+    <string name="tasks_meta_done">Completata</string>
+    <string name="tasks_meta_done_at">Completata · %1$s</string>
+    <string name="tasks_meta_started">Iniziata</string>
+    <string name="tasks_meta_due">Scadenza %1$s</string>
+    <string name="tasks_meta_linked_event">evento collegato</string>
+    <string name="tasks_meta_count_hidden">%1$d nascoste</string>
+    <string name="tasks_meta_count_tasks">%1$d attività</string>
+    <string name="tasks_meta_count_sub">%1$d sub</string>
+    <string name="tasks_delete_title_task">Eliminare l\'attività?</string>
+    <string name="tasks_delete_title_category">Eliminare la categoria?</string>
+    <string name="tasks_delete_body_category">Rimuove definitivamente la categoria e le attività annidate dall\'app e dal server.</string>
+    <string name="tasks_delete_body_task">Rimuove definitivamente \"%1$s\" dall\'app e dal server.</string>
+
+    <!-- Notes -->
+    <string name="notes_title">Note</string>
+    <string name="notes_new">Nuova nota</string>
+    <string name="notes_edit">Modifica nota</string>
+    <string name="notes_empty_title">Nessuna nota ancora</string>
+    <string name="notes_empty_body">Sincronizza o aggiungi una nota per iniziare.</string>
+    <string name="notes_syncing">Sincronizzazione note…</string>
+    <string name="notes_cd_delete">Elimina nota</string>
+    <string name="notes_field_title">Titolo</string>
+    <string name="notes_field_details">Dettagli</string>
+    <string name="notes_field_collection">Raccolta note</string>
+    <string name="notes_delete_title">Eliminare la nota?</string>
+    <string name="notes_delete_body">Rimuove definitivamente \"%1$s\" dall\'app e dal server.</string>
+    <string name="notes_error_not_found">Nota non trovata</string>
+
+    <!-- Editor -->
+    <string name="editor_new_task">Nuova attività</string>
+    <string name="editor_new_category">Nuova categoria</string>
+    <string name="editor_edit_task">Modifica attività</string>
+    <string name="editor_edit_category">Modifica categoria</string>
+    <string name="editor_type">Tipo</string>
+    <string name="editor_type_task">Attività</string>
+    <string name="editor_type_category">Categoria</string>
+    <string name="editor_type_hint_category">Le categorie raggruppano le attività. Gli elementi annidati restano attività dentro questa categoria.</string>
+    <string name="editor_type_hint_task">Passa a Categoria per usarlo come cartella di altre attività.</string>
+    <string name="editor_field_title">Titolo</string>
+    <string name="editor_field_category_name">Nome categoria</string>
+    <string name="editor_field_details">Dettagli</string>
+    <string name="editor_field_task_list">Lista attività</string>
+    <string name="editor_priority">Priorità: %1$d</string>
+    <string name="editor_due">Scadenza</string>
+    <string name="editor_due_datetime">Data e ora di scadenza</string>
+    <string name="editor_clear_due">Rimuovi scadenza</string>
+    <string name="editor_no_due">Nessuna scadenza</string>
+    <string name="editor_set_due">Imposta scadenza</string>
+    <string name="editor_calendar_link">Collegamento calendario</string>
+    <string name="editor_linked_event_fallback">Evento calendario collegato</string>
+    <string name="editor_unlink">Scollega</string>
+    <string name="editor_link_existing">Collega esistente</string>
+    <string name="editor_create_event">Crea evento</string>
+    <string name="editor_save_task">Salva attività</string>
+    <string name="editor_save_category">Salva categoria</string>
+    <string name="editor_link_picker_title">Collega un evento del calendario</string>
+    <string name="editor_link_picker_empty">Nessun evento calendario sincronizzato ancora. Abilita un calendario che supporta eventi, poi sincronizza.</string>
+    <string name="editor_create_event_title">Crea evento calendario</string>
+    <string name="editor_create_event_body">Crea un evento calendario nella stessa lista di questa attività, così può apparire nelle tue app calendario.</string>
+    <string name="editor_create_event_body_named">Crea un evento calendario nella stessa lista di questa attività (%1$s), così può apparire nelle tue app calendario.</string>
+    <string name="editor_event_title">Titolo</string>
+    <string name="editor_event_starts">Inizio</string>
+    <string name="editor_event_ends">Fine</string>
+    <string name="editor_event_location">Luogo</string>
+    <string name="editor_create_and_link">Crea e collega</string>
+    <string name="editor_update_event_title">Aggiorna evento calendario</string>
+    <string name="editor_error_not_found">Attività non trovata</string>
+    <string name="editor_error_end_after_start">La fine dell\'evento deve essere dopo l\'inizio</string>
+
+    <!-- Task detail -->
+    <string name="task_detail_title">Attività</string>
+    <string name="task_detail_category">Categoria</string>
+    <string name="task_detail_not_found">Attività non trovata</string>
+    <string name="task_detail_status_done">Completata</string>
+    <string name="task_detail_status_started">Iniziata</string>
+    <string name="task_detail_status_needs_action">Richiede azione</string>
+    <string name="task_detail_label_task_list">Lista attività</string>
+    <string name="task_detail_label_tags">Tag</string>
+    <string name="task_detail_label_priority">Priorità</string>
+    <string name="task_detail_subtasks">Sottoattività (%1$d)</string>
+    <string name="task_detail_tasks_in_category">Attività (%1$d)</string>
+    <string name="task_detail_label_due">Scadenza</string>
+    <string name="task_detail_calendar">Calendario</string>
+    <string name="task_detail_calendar_missing">Dettagli calendario mancanti in locale. Apri Modifica per ricollegare o creare di nuovo l\'evento.</string>
+    <string name="task_detail_label_started">Iniziata</string>
+    <string name="task_detail_label_ended">Terminata</string>
+    <string name="task_detail_start">Avvia attività</string>
+    <string name="task_detail_restart">Riavvia</string>
+    <string name="task_detail_end">Termina attività</string>
+    <string name="task_detail_convert_to_task">Converti in attività</string>
+    <string name="task_detail_convert_to_category">Converti in categoria</string>
+    <string name="task_detail_delete_task">Elimina attività</string>
+    <string name="task_detail_delete_category">Elimina categoria</string>
+    <string name="task_detail_delete_title_task">Eliminare l\'attività?</string>
+    <string name="task_detail_delete_title_category">Eliminare la categoria?</string>
+    <string name="task_detail_delete_body_task">Rimuove definitivamente l\'attività dall\'app e dal server.</string>
+    <string name="task_detail_delete_body_category">Rimuove definitivamente la categoria e le attività annidate dall\'app e dal server.</string>
+    <string name="task_detail_meta_linked_event">evento collegato</string>
+    <string name="task_detail_error_end_after_start">La fine dell\'evento deve essere dopo l\'inizio</string>
+
+    <!-- Setup -->
+    <string name="setup_subtitle">Connettiti a Radicale via CalDAV. Funziona insieme a DAVx⁵ sullo stesso server.</string>
+    <string name="setup_collections_hint">Abilita liste con attività (VTODO). I calendari con eventi servono per collegamenti opzionali.</string>
+    <string name="setup_continue">Continua alle attività</string>
+
+    <string name="link_open_maps">Apri in Maps</string>
+    <string name="link_join_meet">Partecipa a Meet</string>
+    <string name="link_open_hangouts">Apri Hangouts</string>
+    <string name="link_join_zoom">Partecipa a Zoom</string>
+    <string name="link_join_teams">Partecipa a Teams</string>
+    <string name="link_join_webex">Partecipa a Webex</string>
+    <string name="link_open_url">Apri link</string>
+
+    <string name="widget_title_tasks">Attività</string>
+    <string name="widget_title_notes">Note</string>
+    <string name="widget_subtitle_today">Oggi</string>
+    <string name="widget_subtitle_open">%1$d aperte</string>
+    <string name="widget_subtitle_recent">%1$d recenti</string>
+    <string name="widget_empty_tasks">Nessuna attività aperta.</string>
+    <string name="widget_empty_notes">Ancora nessuna nota.</string>
+    <string name="widget_empty_events">Nessun evento.</string>
+    <string name="widget_empty_events_week">Nessun evento questa settimana.</string>
+    <string name="widget_empty_events_month">Nessun evento questo mese.</string>
+    <string name="widget_subtitle_this_week">Questa settimana</string>
+    <string name="widget_subtitle_this_month">Questo mese</string>
+    <string name="widget_fallback_event">Evento</string>
+    <string name="widget_fallback_task">Attività</string>
+    <string name="widget_fallback_note">Nota</string>
+    <string name="widget_overdue_prefix">In ritardo · %1$s</string>
 </resources>

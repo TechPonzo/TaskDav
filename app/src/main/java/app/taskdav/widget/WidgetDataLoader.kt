@@ -1,7 +1,9 @@
 package app.taskdav.widget
 
 import android.content.Context
+import app.taskdav.R
 import app.taskdav.TaskDavApp
+import app.taskdav.data.LocaleHelper
 import app.taskdav.domain.EventRecurrence
 import app.taskdav.domain.TaskTreeBuilder
 import app.taskdav.ui.calendar.CalendarViewModel
@@ -56,7 +58,13 @@ data class NotesWidgetModel(
 )
 
 object WidgetDataLoader {
+    /** Resources + dates follow the in-app language preference. */
+    private fun localized(context: Context): Context = LocaleHelper.wrap(context)
+
+    private fun locale(context: Context): Locale = LocaleHelper.localeOf(context)
+
     suspend fun loadCalendar(context: Context): CalendarWidgetModel {
+        val strings = localized(context)
         val app = context.applicationContext as TaskDavApp
         val now = System.currentTimeMillis()
         val todayStart = CalendarViewModel.startOfDay(now)
@@ -64,16 +72,19 @@ object WidgetDataLoader {
         val events = app.database.events().getActive()
         val today = EventRecurrence.expandAll(events, todayStart, tomorrowStart)
             .sortedBy { it.dtStartMillis ?: Long.MAX_VALUE }
-        val header = SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date(todayStart))
+        val loc = locale(context)
+        val header = SimpleDateFormat("EEE, MMM d", loc).format(Date(todayStart))
         return CalendarWidgetModel(
             headerDate = header,
             events = today.map { event ->
                 WidgetEventRow(
                     id = event.id xor (event.dtStartMillis ?: 0L),
-                    title = event.summary.ifBlank { "Event" },
+                    title = event.summary.ifBlank {
+                        strings.getString(R.string.widget_fallback_event)
+                    },
                     timeLabel = when {
-                        event.allDay -> "All day"
-                        event.dtStartMillis != null -> DateFormats.time(context, event.dtStartMillis)
+                        event.allDay -> strings.getString(R.string.all_day)
+                        event.dtStartMillis != null -> DateFormats.time(strings, event.dtStartMillis)
                         else -> "—"
                     },
                 )
@@ -82,16 +93,23 @@ object WidgetDataLoader {
     }
 
     suspend fun loadAgenda(context: Context, range: AgendaRange): AgendaWidgetModel {
+        val strings = localized(context)
+        val loc = locale(context)
         val app = context.applicationContext as TaskDavApp
         val now = System.currentTimeMillis()
         val (rangeStart, rangeEnd, header, subtitle) = when (range) {
             AgendaRange.WEEK -> {
                 val start = CalendarViewModel.startOfWeek(now)
                 val end = start + TimeUnit.DAYS.toMillis(7)
-                val endLabel = SimpleDateFormat("MMM d", Locale.getDefault())
+                val endLabel = SimpleDateFormat("MMM d", loc)
                     .format(Date(end - TimeUnit.DAYS.toMillis(1)))
-                val startLabel = SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(start))
-                AgendaBounds(start, end, "This week", "$startLabel – $endLabel")
+                val startLabel = SimpleDateFormat("MMM d", loc).format(Date(start))
+                AgendaBounds(
+                    start,
+                    end,
+                    strings.getString(R.string.widget_subtitle_this_week),
+                    "$startLabel – $endLabel",
+                )
             }
             AgendaRange.MONTH -> {
                 val start = CalendarViewModel.startOfMonth(now)
@@ -100,14 +118,19 @@ object WidgetDataLoader {
                     add(Calendar.MONTH, 1)
                 }
                 val end = cal.timeInMillis
-                val monthLabel = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(Date(start))
-                AgendaBounds(start, end, monthLabel, "This month")
+                val monthLabel = SimpleDateFormat("MMMM yyyy", loc).format(Date(start))
+                AgendaBounds(
+                    start,
+                    end,
+                    monthLabel,
+                    strings.getString(R.string.widget_subtitle_this_month),
+                )
             }
         }
         val events = app.database.events().getActive()
         val expanded = EventRecurrence.expandAll(events, rangeStart, rangeEnd)
             .sortedBy { it.dtStartMillis ?: Long.MAX_VALUE }
-        val dayFmt = SimpleDateFormat("EEE d", Locale.getDefault())
+        val dayFmt = SimpleDateFormat("EEE d", loc)
         return AgendaWidgetModel(
             range = range,
             headerTitle = header,
@@ -116,13 +139,15 @@ object WidgetDataLoader {
                 val startMillis = event.dtStartMillis
                 val day = startMillis?.let { dayFmt.format(Date(it)) } ?: ""
                 val time = when {
-                    event.allDay -> "All day"
-                    startMillis != null -> DateFormats.time(context, startMillis)
+                    event.allDay -> strings.getString(R.string.all_day)
+                    startMillis != null -> DateFormats.time(strings, startMillis)
                     else -> "—"
                 }
                 WidgetEventRow(
                     id = event.id xor (startMillis ?: 0L),
-                    title = event.summary.ifBlank { "Event" },
+                    title = event.summary.ifBlank {
+                        strings.getString(R.string.widget_fallback_event)
+                    },
                     timeLabel = if (day.isBlank()) time else "$day · $time",
                 )
             },
@@ -130,6 +155,7 @@ object WidgetDataLoader {
     }
 
     suspend fun loadTasks(context: Context): TasksWidgetModel {
+        val strings = localized(context)
         val app = context.applicationContext as TaskDavApp
         val now = System.currentTimeMillis()
         val todayStart = CalendarViewModel.startOfDay(now)
@@ -157,8 +183,10 @@ object WidgetDataLoader {
                 val overdueFlag = d != null && d < todayStart
                 WidgetTaskRow(
                     id = task.id,
-                    title = task.summary.ifBlank { "Task" },
-                    dueLabel = task.dueMillis?.let { DateFormats.date(context, it) },
+                    title = task.summary.ifBlank {
+                        strings.getString(R.string.widget_fallback_task)
+                    },
+                    dueLabel = task.dueMillis?.let { DateFormats.date(strings, it) },
                     overdue = overdueFlag,
                 )
             },
@@ -166,13 +194,16 @@ object WidgetDataLoader {
     }
 
     suspend fun loadNotes(context: Context): NotesWidgetModel {
+        val strings = localized(context)
         val app = context.applicationContext as TaskDavApp
         val notes = app.repository.observeRecentNotes(40).first()
         return NotesWidgetModel(
             notes = notes.map { note ->
                 WidgetNoteRow(
                     id = note.id,
-                    title = note.summary.ifBlank { "Note" },
+                    title = note.summary.ifBlank {
+                        strings.getString(R.string.widget_fallback_note)
+                    },
                     subtitle = note.description?.takeIf { it.isNotBlank() }
                         ?.lineSequence()?.firstOrNull()?.take(80),
                 )

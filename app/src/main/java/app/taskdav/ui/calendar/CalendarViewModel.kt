@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import app.taskdav.R
 import app.taskdav.TaskDavApp
 import app.taskdav.data.CalendarViewMode
 import app.taskdav.data.CollectionEntity
@@ -426,7 +427,11 @@ class CalendarViewModel(
                 editorCollectionId = it.collectionFilter
                     ?: cols.firstOrNull()?.id,
                 editorRecurrence = EventRecurrence.EditState(),
-                error = if (cols.isEmpty()) "No calendar available — set up Syncing first." else null,
+                error = if (cols.isEmpty()) {
+                    app.getString(R.string.calendar_error_no_calendar)
+                } else {
+                    null
+                },
                 selectedDayStartMillis = startOfDay(start),
                 showHourlyDay = false,
             )
@@ -480,11 +485,11 @@ class CalendarViewModel(
             val state = _ui.value
             val collectionId = state.editorCollectionId
             if (collectionId == null || collectionId <= 0L) {
-                _ui.update { it.copy(error = "Pick a calendar") }
+                _ui.update { it.copy(error = app.getString(R.string.calendar_error_pick_calendar)) }
                 return@launch
             }
             if (state.editorEndMillis < state.editorStartMillis) {
-                _ui.update { it.copy(error = "End must be after start") }
+                _ui.update { it.copy(error = app.getString(R.string.calendar_error_end_after_start)) }
                 return@launch
             }
             val rrule = state.editorRecurrence.toRrule()

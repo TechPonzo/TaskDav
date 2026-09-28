@@ -3,6 +3,7 @@ package app.taskdav.ui.common
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
+import app.taskdav.R
 import app.taskdav.caldav.IcalMapper
 import app.taskdav.data.EventEntity
 import app.taskdav.data.NoteEntity
@@ -14,8 +15,8 @@ object ItemShare {
         val text = buildString {
             append(task.summary)
             task.dueMillis?.let {
-                append("\nDue: ")
-                append(DateFormats.dateTime(context, it))
+                append('\n')
+                append(context.getString(R.string.share_due_prefix, DateFormats.dateTime(context, it)))
             }
             task.description?.takeIf { it.isNotBlank() }?.let {
                 append("\n\n")
@@ -39,7 +40,13 @@ object ItemShare {
             isCategory = task.isCategory,
             sortOrder = task.sortOrder,
         )
-        share(context, text, ics, fileName = sanitizeFileName(task.summary) + ".ics", chooserTitle = "Share task")
+        share(
+            context,
+            text,
+            ics,
+            fileName = sanitizeFileName(task.summary) + ".ics",
+            chooserTitle = context.getString(R.string.share_task),
+        )
     }
 
     fun shareEvent(context: Context, event: EventEntity) {
@@ -74,7 +81,13 @@ object ItemShare {
             allDay = event.allDay,
             rrule = event.rrule,
         )
-        share(context, text, ics, fileName = sanitizeFileName(event.summary) + ".ics", chooserTitle = "Share event")
+        share(
+            context,
+            text,
+            ics,
+            fileName = sanitizeFileName(event.summary) + ".ics",
+            chooserTitle = context.getString(R.string.share_event),
+        )
     }
 
     fun shareNote(context: Context, note: NoteEntity) {
@@ -92,7 +105,13 @@ object ItemShare {
             dtStartMillis = note.dtStartMillis,
             categories = note.categories,
         )
-        share(context, text, ics, fileName = sanitizeFileName(note.summary) + ".ics", chooserTitle = "Share note")
+        share(
+            context,
+            text,
+            ics,
+            fileName = sanitizeFileName(note.summary) + ".ics",
+            chooserTitle = context.getString(R.string.share_note),
+        )
     }
 
     /** Share from note editor before the entity is fully persisted. */
@@ -105,7 +124,7 @@ object ItemShare {
         dtStartMillis: Long?,
     ) {
         val text = buildString {
-            append(summary.ifBlank { "Note" })
+            append(summary.ifBlank { context.getString(R.string.share_note_fallback) })
             description?.takeIf { it.isNotBlank() }?.let {
                 append("\n\n")
                 append(it)
@@ -113,12 +132,18 @@ object ItemShare {
         }
         val ics = IcalMapper.buildNoteIcs(
             uid = uid,
-            summary = summary.ifBlank { "Untitled" },
+            summary = summary.ifBlank { context.getString(R.string.untitled) },
             description = description,
             dtStartMillis = dtStartMillis,
             categories = categories,
         )
-        share(context, text, ics, fileName = sanitizeFileName(summary) + ".ics", chooserTitle = "Share note")
+        share(
+            context,
+            text,
+            ics,
+            fileName = sanitizeFileName(summary) + ".ics",
+            chooserTitle = context.getString(R.string.share_note),
+        )
     }
 
     private fun share(

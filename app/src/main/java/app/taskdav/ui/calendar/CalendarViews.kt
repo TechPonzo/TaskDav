@@ -28,11 +28,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import app.taskdav.R
 import app.taskdav.data.CalendarViewMode
 import java.util.Calendar
 import java.util.Locale
@@ -53,7 +55,7 @@ fun CalendarViewPickerDialog(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                "Calendar view",
+                stringResource(R.string.calendar_view_picker_title),
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(bottom = 8.dp),
             )
@@ -80,7 +82,7 @@ fun CalendarViewPickerDialog(
                         onClick = { onSelect(mode) },
                     )
                     Text(
-                        mode.label,
+                        calendarViewModeLabel(mode),
                         style = MaterialTheme.typography.titleMedium,
                         color = if (isSelected) {
                             MaterialTheme.colorScheme.onPrimaryContainer
@@ -94,10 +96,20 @@ fun CalendarViewPickerDialog(
                 onClick = onDismiss,
                 modifier = Modifier.align(Alignment.End),
             ) {
-                Text("Close")
+                Text(stringResource(R.string.action_close))
             }
         }
     }
+}
+
+@Composable
+private fun calendarViewModeLabel(mode: CalendarViewMode): String = when (mode) {
+    CalendarViewMode.DAILY -> stringResource(R.string.calendar_view_daily)
+    CalendarViewMode.WEEKLY -> stringResource(R.string.calendar_view_weekly)
+    CalendarViewMode.MONTHLY -> stringResource(R.string.calendar_view_monthly)
+    CalendarViewMode.MONTHLY_AND_DAILY -> stringResource(R.string.calendar_view_monthly_daily)
+    CalendarViewMode.YEARLY -> stringResource(R.string.calendar_view_yearly)
+    CalendarViewMode.EVENT_LIST -> stringResource(R.string.calendar_view_event_list)
 }
 
 @Composable
@@ -115,7 +127,10 @@ fun YearHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onPrev) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous year")
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                contentDescription = stringResource(R.string.calendar_cd_prev_year),
+            )
         }
         Column(
             modifier = Modifier.weight(1f),
@@ -127,11 +142,14 @@ fun YearHeader(
                 fontWeight = FontWeight.SemiBold,
             )
             if (year != thisYear) {
-                TextButton(onClick = onToday) { Text("Today") }
+                TextButton(onClick = onToday) { Text(stringResource(R.string.today)) }
             }
         }
         IconButton(onClick = onNext) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next year")
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = stringResource(R.string.calendar_cd_next_year),
+            )
         }
     }
 }

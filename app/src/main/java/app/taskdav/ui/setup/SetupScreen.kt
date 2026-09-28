@@ -27,10 +27,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.taskdav.R
 import app.taskdav.ui.theme.collectionColorOrDefault
 
 @Composable
@@ -48,9 +50,9 @@ fun SetupScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Text("TaskDav", style = MaterialTheme.typography.headlineMedium)
+            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
             Text(
-                "Connect to Radicale over CalDAV. Works alongside DAVx⁵ on the same server.",
+                stringResource(R.string.setup_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
             )
@@ -60,8 +62,8 @@ fun SetupScreen(
                 value = state.baseUrl,
                 onValueChange = viewModel::updateUrl,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Server URL") },
-                placeholder = { Text("https://radicale.example/user/") },
+                label = { Text(stringResource(R.string.syncing_server_url)) },
+                placeholder = { Text(stringResource(R.string.syncing_server_url_placeholder)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             )
@@ -71,7 +73,7 @@ fun SetupScreen(
                 value = state.username,
                 onValueChange = viewModel::updateUser,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Username") },
+                label = { Text(stringResource(R.string.syncing_username)) },
                 singleLine = true,
             )
         }
@@ -80,7 +82,7 @@ fun SetupScreen(
                 value = state.password,
                 onValueChange = viewModel::updatePassword,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Password") },
+                label = { Text(stringResource(R.string.syncing_password)) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -100,10 +102,10 @@ fun SetupScreen(
                             color = MaterialTheme.colorScheme.onPrimary,
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Working…")
+                        Text(stringResource(R.string.working))
                     }
                 } else {
-                    Text("Save & discover collections")
+                    Text(stringResource(R.string.syncing_save_discover))
                 }
             }
         }
@@ -120,9 +122,9 @@ fun SetupScreen(
         if (collections.isNotEmpty()) {
             item {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Collections to sync", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.syncing_collections), style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Enable lists with tasks (VTODO). Event-capable calendars are used for optional links.",
+                    stringResource(R.string.setup_collections_hint),
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
@@ -140,9 +142,9 @@ fun SetupScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(col.displayName, style = MaterialTheme.typography.bodyLarge)
                         val caps = buildList {
-                            if (col.supportsVtodo) add("tasks")
-                            if (col.supportsVevent) add("events")
-                            if (col.supportsVjournal) add("journal")
+                            if (col.supportsVtodo) add(stringResource(R.string.collection_cap_tasks))
+                            if (col.supportsVevent) add(stringResource(R.string.collection_cap_events))
+                            if (col.supportsVjournal) add(stringResource(R.string.collection_cap_journal))
                         }.joinToString(" · ")
                         Text(caps, style = MaterialTheme.typography.bodySmall)
                     }
@@ -154,7 +156,7 @@ fun SetupScreen(
             }
             item {
                 TextButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
-                    Text("Continue to tasks")
+                    Text(stringResource(R.string.setup_continue))
                 }
             }
         }

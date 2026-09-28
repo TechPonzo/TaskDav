@@ -15,10 +15,10 @@ private val Context.appearanceDataStore: DataStore<Preferences> by preferencesDa
     name = "taskdav_appearance",
 )
 
-enum class DateOrderPreference(val id: String, val label: String) {
-    SYSTEM("system", "Phone default"),
-    DAY_MONTH_YEAR("dmy", "Day / month / year"),
-    MONTH_DAY_YEAR("mdy", "Month / day / year"),
+enum class DateOrderPreference(val id: String) {
+    SYSTEM("system"),
+    DAY_MONTH_YEAR("dmy"),
+    MONTH_DAY_YEAR("mdy"),
     ;
 
     companion object {
@@ -27,17 +27,9 @@ enum class DateOrderPreference(val id: String, val label: String) {
     }
 }
 
-enum class FontPreference(val id: String, val label: String, val subtitle: String) {
-    APP(
-        id = "app",
-        label = "App fonts",
-        subtitle = "Fraunces & Manrope",
-    ),
-    SYSTEM(
-        id = "system",
-        label = "Phone font",
-        subtitle = "Use your system typeface",
-    ),
+enum class FontPreference(val id: String) {
+    APP(id = "app"),
+    SYSTEM(id = "system"),
     ;
 
     companion object {
@@ -46,13 +38,13 @@ enum class FontPreference(val id: String, val label: String, val subtitle: Strin
     }
 }
 
-enum class CalendarViewMode(val id: String, val label: String) {
-    DAILY("daily", "Daily view"),
-    WEEKLY("weekly", "Weekly view"),
-    MONTHLY("monthly", "Monthly view"),
-    MONTHLY_AND_DAILY("monthly_daily", "Monthly and daily view"),
-    YEARLY("yearly", "Yearly view"),
-    EVENT_LIST("event_list", "Simple event list"),
+enum class CalendarViewMode(val id: String) {
+    DAILY("daily"),
+    WEEKLY("weekly"),
+    MONTHLY("monthly"),
+    MONTHLY_AND_DAILY("monthly_daily"),
+    YEARLY("yearly"),
+    EVENT_LIST("event_list"),
     ;
 
     companion object {

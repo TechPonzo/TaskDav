@@ -32,18 +32,20 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import app.taskdav.TaskDavApp
+import app.taskdav.data.LocaleHelper
 import app.taskdav.sync.CalDavSyncWorker
 
 private val TaskIdKey = ActionParameters.Key<Long>("task_id")
 
 class TasksWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val localized = LocaleHelper.wrap(context)
         val colors = WidgetTheme.colors(context)
         val model = WidgetDataLoader.loadTasks(context)
         val openTasks = actionStartActivity(WidgetIntents.openTab(context, "tasks"))
         provideContent {
             GlanceTheme {
-                TasksWidgetContent(context, colors, model, openTasks)
+                TasksWidgetContent(localized, colors, model, openTasks)
             }
         }
     }
@@ -58,12 +60,12 @@ private fun TasksWidgetContent(
 ) {
     WidgetShell(
         colors = colors,
-        title = "Tasks",
-        subtitle = "${model.openCount} open",
+        title = context.getString(app.taskdav.R.string.widget_title_tasks),
+        subtitle = context.getString(app.taskdav.R.string.widget_subtitle_open, model.openCount),
         headerAction = openTasks,
     ) {
         if (model.tasks.isEmpty()) {
-            WidgetEmptyLine(colors, "No open tasks.")
+            WidgetEmptyLine(colors, context.getString(app.taskdav.R.string.widget_empty_tasks))
         } else {
             LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
                 items(model.tasks, itemId = { it.id }) { task ->
@@ -110,7 +112,10 @@ private fun TasksWidgetContent(
                             if (task.dueLabel != null) {
                                 Text(
                                     text = if (task.overdue) {
-                                        "Overdue · ${task.dueLabel}"
+                                        context.getString(
+                                            app.taskdav.R.string.widget_overdue_prefix,
+                                            task.dueLabel,
+                                        )
                                     } else {
                                         task.dueLabel
                                     },

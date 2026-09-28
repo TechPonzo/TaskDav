@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
 data class HomeStats(
@@ -40,7 +39,6 @@ data class HomeAgendaItem(
 enum class HomeItemKind { EVENT, TASK, NOTE }
 
 data class HomeUiState(
-    val greeting: String = "Home",
     val syncMessage: String? = null,
     val lastSyncAt: Long = 0L,
     val stats: HomeStats = HomeStats(),
@@ -138,7 +136,6 @@ class HomeViewModel(
             .take(8)
 
         return HomeUiState(
-            greeting = greetingForHour(Calendar.getInstance().get(Calendar.HOUR_OF_DAY)),
             syncMessage = repository.lastSyncMessage(),
             lastSyncAt = repository.lastSyncAt(),
             stats = HomeStats(
@@ -170,13 +167,6 @@ class HomeViewModel(
                     )
                 },
         )
-    }
-
-    private fun greetingForHour(hour: Int): String = when (hour) {
-        in 5..11 -> "Good morning"
-        in 12..17 -> "Good afternoon"
-        in 18..21 -> "Good evening"
-        else -> "Hello"
     }
 
     class Factory(

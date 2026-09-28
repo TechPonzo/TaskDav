@@ -25,8 +25,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import app.taskdav.R
 
 /**
  * Tag chips plus an autocomplete field that suggests tags already used
@@ -79,7 +81,7 @@ fun TagsEditor(
         menuExpanded = false
     }
 
-    Text("Tags", style = MaterialTheme.typography.titleSmall, modifier = modifier)
+    Text(stringResource(R.string.tags_title), style = MaterialTheme.typography.titleSmall, modifier = modifier)
     if (selected.isNotEmpty()) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             selected.forEach { tag ->
@@ -88,7 +90,10 @@ fun TagsEditor(
                     onClick = { onRemove(tag) },
                     label = { Text(tag) },
                     trailingIcon = {
-                        Icon(Icons.Default.Close, contentDescription = "Remove $tag")
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = stringResource(R.string.tags_cd_remove, tag),
+                        )
                     },
                 )
             }
@@ -112,7 +117,7 @@ fun TagsEditor(
                 modifier = Modifier
                     .menuAnchor(MenuAnchorType.PrimaryEditable)
                     .fillMaxWidth(),
-                label = { Text("Add tag") },
+                label = { Text(stringResource(R.string.tags_add_label)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { commitDraft() }),
@@ -134,7 +139,7 @@ fun TagsEditor(
             }
         }
         OutlinedButton(onClick = { commitDraft() }) {
-            Text("Add")
+            Text(stringResource(R.string.tags_add))
         }
     }
 }

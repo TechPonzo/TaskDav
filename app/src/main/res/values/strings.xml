@@ -6,6 +6,27 @@
     <string name="skip">Skip</string>
     <string name="get_started">Get started</string>
     <string name="next">Next</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_ok">OK</string>
+    <string name="action_save">Save</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_close">Close</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_share">Share</string>
+    <string name="action_sync">Sync</string>
+    <string name="action_all">All</string>
+    <string name="loading">Loading…</string>
+    <string name="working">Working…</string>
+    <string name="saving">Saving…</string>
+    <string name="offline">Offline</string>
+    <string name="selected">Selected</string>
+    <string name="untitled">Untitled</string>
+    <string name="collection_fallback">Collection</string>
+    <string name="today">Today</string>
+    <string name="yesterday">Yesterday</string>
+    <string name="tomorrow">Tomorrow</string>
+    <string name="all_day">All day</string>
+    <string name="no_time">No time</string>
 
     <!-- Tabs -->
     <string name="tab_home">Home</string>
@@ -29,7 +50,7 @@
 
     <!-- Language -->
     <string name="language_title">Language</string>
-    <string name="language_subtitle">Choose how TaskDav speaks to you</string>
+    <string name="language_subtitle">Choose the app language</string>
     <string name="language_system">Phone language</string>
     <string name="language_english">English</string>
     <string name="language_spanish">Español</string>
@@ -37,35 +58,352 @@
 
     <!-- Onboarding -->
     <string name="onboarding_welcome_title">Welcome to TaskDav</string>
-    <string name="onboarding_welcome_body">Tasks, calendar, and notes — on your phone or synced to your CalDAV server. No Google Play Services required.</string>
+    <string name="onboarding_welcome_body">Tasks, calendar, and notes on your phone, or synced to your own CalDAV server. No Google Play Services.</string>
     <string name="onboarding_welcome_pick_language">Pick a language</string>
-
-    <string name="onboarding_sync_title">Yours first</string>
-    <string name="onboarding_sync_body">Stay local-only on this device, or connect the same CalDAV server you already use with DAVx⁵. Switch anytime in Settings.</string>
-
-    <string name="onboarding_tasks_title">Tasks that nest</string>
-    <string name="onboarding_tasks_body">Organize with nestable category folders, subtasks, due dates, tags, and smooth reordering. Everything stays offline-first.</string>
-
-    <string name="onboarding_calendar_title">Calendar that fits</string>
-    <string name="onboarding_calendar_body">Day, week, and month views for your events. Optionally share with the phone Calendar app — no DAVx⁵ required for local use.</string>
-
-    <string name="onboarding_notes_title">Notes alongside</string>
-    <string name="onboarding_notes_body">Capture ideas as notes with tags. They sync as VJOURNAL when you use CalDAV, and live on-device when you stay local.</string>
-
-    <string name="onboarding_ready_title">Ready when you are</string>
-    <string name="onboarding_ready_body">We’ll set up on-device storage so you can start right away. Connect CalDAV later from Settings → Syncing.</string>
+    <string name="onboarding_sync_title">Local or CalDAV</string>
+    <string name="onboarding_sync_body">Keep data on this device only, or connect the same CalDAV server you use with DAVx⁵. You can change this later in Settings.</string>
+    <string name="onboarding_tasks_title">Tasks and categories</string>
+    <string name="onboarding_tasks_body">Use category folders, subtasks, due dates, tags, and drag-and-drop. Works offline; syncs when CalDAV is set up.</string>
+    <string name="onboarding_calendar_title">Calendar views</string>
+    <string name="onboarding_calendar_body">Day, week, and month views for events. You can also show them in the phone Calendar app, even without DAVx⁵ in local mode.</string>
+    <string name="onboarding_notes_title">Notes</string>
+    <string name="onboarding_notes_body">Write notes with tags. They sync as VJOURNAL over CalDAV, or stay on the device in local mode.</string>
+    <string name="onboarding_ready_title">You\'re set</string>
+    <string name="onboarding_ready_body">We\'ll enable on-device storage so you can start now. Add CalDAV later under Settings → Syncing.</string>
 
     <string name="caldav_error_auth">Username or password is wrong, or this account is not allowed on the server.</string>
     <string name="caldav_error_network">Could not reach the server. Check the URL and your network connection.</string>
     <string name="caldav_error_generic">Could not connect to the CalDAV server.</string>
     <string name="caldav_error_invalid_url">That server URL does not look valid.</string>
+
+    <!-- Widgets -->
     <string name="widget_loading">TaskDav</string>
-    <string name="widget_calendar_description">Today’s calendar events</string>
-    <string name="widget_agenda_description">This week or month’s events</string>
+    <string name="widget_calendar_description">Today\'s calendar events</string>
+    <string name="widget_agenda_description">This week or month\'s events</string>
     <string name="widget_tasks_description">Open tasks with due dates</string>
     <string name="widget_notes_description">Recent notes</string>
     <string name="widget_calendar_label">TaskDav Today</string>
     <string name="widget_agenda_label">TaskDav Week / Month</string>
     <string name="widget_tasks_label">TaskDav Tasks</string>
     <string name="widget_notes_label">TaskDav Notes</string>
+
+    <!-- Common dialogs / tags / share -->
+    <string name="datetime_select_time">Select time</string>
+    <string name="tags_title">Tags</string>
+    <string name="tags_add_label">Add tag</string>
+    <string name="tags_add">Add</string>
+    <string name="tags_cd_remove">Remove %1$s</string>
+    <string name="tag_filter">Filter by tag</string>
+    <string name="tag_filter_active">Tag filter: %1$s</string>
+    <string name="tag_filter_all">All tags</string>
+    <string name="share_task">Share task</string>
+    <string name="share_event">Share event</string>
+    <string name="share_note">Share note</string>
+    <string name="share_due_prefix">Due: %1$s</string>
+    <string name="share_note_fallback">Note</string>
+    <string name="linked_calendar">Calendar</string>
+    <string name="linked_starts">Starts: %1$s</string>
+    <string name="linked_ends">Ends: %1$s</string>
+    <string name="linked_all_day">All-day</string>
+    <string name="linked_cd_update">Update calendar event</string>
+    <string name="linked_location">Location</string>
+    <string name="collection_cap_tasks">tasks</string>
+    <string name="collection_cap_events">events</string>
+    <string name="collection_cap_notes">notes</string>
+    <string name="collection_cap_journal">journal</string>
+
+    <!-- Privacy / Credits -->
+    <string name="privacy_title">Privacy &amp; license</string>
+    <string name="privacy_body">TaskDav stores your account credentials and synced data only on this device.\n\nCredentials are kept in encrypted preferences on the phone. Tasks, notes, and calendar links are saved in a local database and sent only to the CalDAV server you configure. Nothing is uploaded to TaskDav developers or advertising networks.\n\nThe app does not include analytics, crash-reporting SDKs, ads, or Google Play Services.\n\nYour calendar and task data remains under your control on your own server (or any CalDAV host you choose). You can delete the app or clear its data at any time to remove the local copy.\n\nTaskDav is free and open-source software licensed under the GNU General Public License version 3 (GPLv3). You are free to use, study, share, and improve it under the terms of that license.\n\nThird-party libraries used by TaskDav keep their own licenses; see Credits.</string>
+    <string name="credits_title">Credits</string>
+    <string name="credits_body">TaskDav\nCopyright © TaskDav contributors\nLicensed under the GNU General Public License v3.0 (GPLv3)\n\nContributors:\n\n• Juan Curti (@TechPonzo) - https://github.com/TechPonzo\n\nBuilt with:\n\n• dav4jvm (bitfireAT) - WebDAV / CalDAV client library\n• ical4j - iCalendar parsing and generation\n• AndroidX, Jetpack Compose, Room, WorkManager - Android application frameworks\n• OkHttp - HTTP client\n\nTaskDav is designed to work alongside DAVx⁵ and other CalDAV clients on the same server. Those projects are separate and retain their own licenses and trademarks.\n\nThank you to the FOSS CalDAV community.</string>
+
+    <!-- Syncing -->
+    <string name="syncing_where_live">Where should calendars, tasks, and notes live?</string>
+    <string name="syncing_local_title">This device only</string>
+    <string name="syncing_local_subtitle">Stay local, nothing uploaded</string>
+    <string name="syncing_caldav_title">CalDAV sync</string>
+    <string name="syncing_caldav_subtitle">Sync with your CalDAV server</string>
+    <string name="syncing_local_body">Everything stays on this phone. Nothing is uploaded until you switch to CalDAV.</string>
+    <string name="syncing_use_local">Use local storage</string>
+    <string name="syncing_caldav_body">Connect to your CalDAV server (for example the same one DAVx⁵ uses).</string>
+    <string name="syncing_server_url">Server URL</string>
+    <string name="syncing_server_url_placeholder">https://caldav.example/user/</string>
+    <string name="syncing_username">Username</string>
+    <string name="syncing_password">Password</string>
+    <string name="syncing_save_discover">Save &amp; discover collections</string>
+    <string name="syncing_collections">Collections to sync</string>
+    <string name="syncing_phone_calendar">Phone calendar</string>
+    <string name="syncing_phone_calendar_body">Works without DAVx⁵. Local-only users can still share events with the Android Calendar app.</string>
+    <string name="syncing_import_title">Import into TaskDav</string>
+    <string name="syncing_import_body">Pull events from Google Calendar and other calendars on this phone.</string>
+    <string name="syncing_show_in_android">Show TaskDav in Android Calendar</string>
+    <string name="syncing_show_in_android_body">Creates a TaskDav account (like DAVx⁵) and publishes your events. On Samsung: Calendar → ☰ → manage calendars, and also check Settings → Accounts.</string>
+    <string name="syncing_publish_now">Publish events now</string>
+    <string name="syncing_permission_denied">Calendar permission denied.</string>
+    <string name="syncing_local_saved">Saving on this device only.</string>
+
+    <!-- Collections / Export -->
+    <string name="collections_title">Collections to sync</string>
+    <string name="collections_done">Done</string>
+    <string name="collections_empty">No collections yet. Save your account and discover first.</string>
+    <string name="export_intro">Export selected calendars as ICS files from data already synced on this device, then share them.</string>
+    <string name="export_select_all">Select all</string>
+    <string name="export_clear">Clear</string>
+    <string name="export_toast_none">Select at least one calendar</string>
+    <string name="export_ready">Ready to share %1$d file(s)</string>
+    <string name="export_failed">Export failed</string>
+    <string name="export_busy">Exporting…</string>
+    <string name="export_action">Export &amp; share</string>
+
+    <!-- Appearance -->
+    <string name="appearance_brand_hint">Pick a brand color. The app builds lighter and darker tones from it.</string>
+    <string name="appearance_brand_color">Brand color</string>
+    <string name="appearance_light_tones">Light tones</string>
+    <string name="appearance_dark_tones">Dark tones</string>
+    <string name="appearance_channel_r">R</string>
+    <string name="appearance_channel_g">G</string>
+    <string name="appearance_channel_b">B</string>
+    <string name="appearance_font">Font</string>
+    <string name="appearance_font_hint">Use TaskDav typefaces, or your phone system font (including any custom font set in Android settings).</string>
+    <string name="appearance_date_format">Date format</string>
+    <string name="appearance_date_format_hint">Dates use day/month/year by default (28/09/2026). Change here if you prefer month/day.</string>
+    <string name="appearance_calendar_view">Default calendar view</string>
+    <string name="date_order_system">Phone default</string>
+    <string name="date_order_dmy">Day / month / year</string>
+    <string name="date_order_mdy">Month / day / year</string>
+    <string name="font_app">App fonts</string>
+    <string name="font_app_subtitle">Fraunces &amp; Manrope</string>
+    <string name="font_system">Phone font</string>
+    <string name="font_system_subtitle">Use your system typeface</string>
+    <string name="calendar_view_daily">Daily view</string>
+    <string name="calendar_view_weekly">Weekly view</string>
+    <string name="calendar_view_monthly">Monthly view</string>
+    <string name="calendar_view_monthly_daily">Monthly and daily view</string>
+    <string name="calendar_view_yearly">Yearly view</string>
+    <string name="calendar_view_event_list">Simple event list</string>
+
+    <!-- Home -->
+    <string name="home_greeting_morning">Good morning</string>
+    <string name="home_greeting_afternoon">Good afternoon</string>
+    <string name="home_greeting_evening">Good evening</string>
+    <string name="home_greeting_hello">Hello</string>
+    <string name="home_stats_open">%1$d open</string>
+    <string name="home_stats_late">%1$d late</string>
+    <string name="home_chip_overdue">%1$d overdue</string>
+    <string name="home_chip_due_today">%1$d due today</string>
+    <string name="home_chip_events">%1$d events</string>
+    <string name="home_chip_notes">%1$d notes</string>
+    <string name="home_section_needs_attention">Needs attention</string>
+    <string name="home_section_today">Today</string>
+    <string name="home_section_this_week">This week</string>
+    <string name="home_section_coming_up">Coming up</string>
+    <string name="home_section_notes">Notes</string>
+    <string name="home_action_calendar">Calendar</string>
+    <string name="home_empty_clear_day">Clear day.</string>
+    <string name="home_empty_nothing_this_week">Nothing else this week.</string>
+    <string name="home_empty_no_notes">No notes yet.</string>
+    <string name="home_meta_event">Event</string>
+    <string name="home_meta_task">Task</string>
+    <string name="home_trailing_due">Due</string>
+
+    <!-- Calendar -->
+    <string name="calendar_title">Calendar</string>
+    <string name="calendar_new_event">New event</string>
+    <string name="calendar_edit_event">Edit event</string>
+    <string name="calendar_cd_view">Calendar view</string>
+    <string name="calendar_syncing">Syncing calendar…</string>
+    <string name="calendar_section_this_week">This week</string>
+    <string name="calendar_section_all_events">All events</string>
+    <string name="calendar_empty_week">No events this week.</string>
+    <string name="calendar_empty_list">No events. Sync or tap + to add one.</string>
+    <string name="calendar_empty_day">No events this day. Sync or tap + to add one.</string>
+    <string name="calendar_month_hint">Tap a day to see its events.</string>
+    <string name="calendar_cd_prev_week">Previous week</string>
+    <string name="calendar_cd_next_week">Next week</string>
+    <string name="calendar_cd_prev_day">Previous day</string>
+    <string name="calendar_cd_next_day">Next day</string>
+    <string name="calendar_cd_prev_month">Previous month</string>
+    <string name="calendar_cd_next_month">Next month</string>
+    <string name="calendar_cd_prev_year">Previous year</string>
+    <string name="calendar_cd_next_year">Next year</string>
+    <string name="calendar_cd_add_event">Add event</string>
+    <string name="calendar_open_task">Open task</string>
+    <string name="calendar_linked_task">Task: %1$s</string>
+    <string name="calendar_view_picker_title">Calendar view</string>
+    <string name="calendar_untitled_event">Event</string>
+    <string name="calendar_error_no_calendar">No calendar available. Set up Syncing first.</string>
+    <string name="calendar_error_pick_calendar">Pick a calendar</string>
+    <string name="calendar_error_end_after_start">End must be after start</string>
+    <string name="event_editor_title">Title</string>
+    <string name="event_editor_description">Description</string>
+    <string name="event_editor_calendar">Calendar</string>
+    <string name="event_editor_when">When</string>
+    <string name="event_editor_starts">Starts</string>
+    <string name="event_editor_ends">Ends</string>
+    <string name="event_editor_repeat">Repeat</string>
+    <string name="event_editor_repeat_never">Never</string>
+    <string name="event_editor_repeat_weekly">Weekly</string>
+    <string name="event_editor_repeat_biweekly">Every 2 weeks</string>
+    <string name="event_editor_repeat_n_weeks">Every N weeks</string>
+    <string name="event_editor_repeat_custom">Custom</string>
+    <string name="event_editor_repeat_every_weeks">Repeat every (weeks)</string>
+    <string name="event_editor_clear_custom_rule">Clear custom rule</string>
+    <string name="event_editor_ends_never">Never</string>
+    <string name="event_editor_ends_after_n">After N times</string>
+    <string name="event_editor_occurrences">Number of occurrences</string>
+    <string name="event_editor_location">Location</string>
+    <string name="event_editor_location_label">Location or meeting link</string>
+    <string name="event_editor_location_placeholder">Address, Meet, Zoom…</string>
+    <string name="event_editor_delete">Delete event</string>
+    <string name="event_delete_title">Delete event?</string>
+    <string name="event_delete_body">This permanently removes the event from the app and the server.</string>
+
+    <!-- Tasks -->
+    <string name="tasks_title">Tasks</string>
+    <string name="tasks_new">New task</string>
+    <string name="tasks_empty_title">No tasks yet</string>
+    <string name="tasks_empty_body">Create a task to get started.</string>
+    <string name="tasks_syncing">Syncing tasks and calendars…</string>
+    <string name="tasks_cd_hide_completed">Hide completed</string>
+    <string name="tasks_cd_show_completed">Show completed</string>
+    <string name="tasks_cd_delete">Delete task</string>
+    <string name="tasks_cd_expand_category">Expand category</string>
+    <string name="tasks_cd_collapse_category">Collapse category</string>
+    <string name="tasks_cd_linked_calendar">Linked calendar item</string>
+    <string name="tasks_cd_add_in_category">Add task in category</string>
+    <string name="tasks_cd_add_subtask">Add subtask</string>
+    <string name="tasks_cd_drag">Drag to reorder or nest</string>
+    <string name="tasks_meta_category">Category</string>
+    <string name="tasks_meta_done">Done</string>
+    <string name="tasks_meta_done_at">Done · %1$s</string>
+    <string name="tasks_meta_started">Started</string>
+    <string name="tasks_meta_due">Due %1$s</string>
+    <string name="tasks_meta_linked_event">linked event</string>
+    <string name="tasks_meta_count_hidden">%1$d hidden</string>
+    <string name="tasks_meta_count_tasks">%1$d tasks</string>
+    <string name="tasks_meta_count_sub">%1$d sub</string>
+    <string name="tasks_delete_title_task">Delete task?</string>
+    <string name="tasks_delete_title_category">Delete category?</string>
+    <string name="tasks_delete_body_category">This permanently removes the category and its nested tasks from the app and the server.</string>
+    <string name="tasks_delete_body_task">This permanently removes \"%1$s\" from the app and the server.</string>
+
+    <!-- Notes -->
+    <string name="notes_title">Notes</string>
+    <string name="notes_new">New note</string>
+    <string name="notes_edit">Edit note</string>
+    <string name="notes_empty_title">No notes yet</string>
+    <string name="notes_empty_body">Sync or add a note to get started.</string>
+    <string name="notes_syncing">Syncing notes…</string>
+    <string name="notes_cd_delete">Delete note</string>
+    <string name="notes_field_title">Title</string>
+    <string name="notes_field_details">Details</string>
+    <string name="notes_field_collection">Note collection</string>
+    <string name="notes_delete_title">Delete note?</string>
+    <string name="notes_delete_body">This permanently removes \"%1$s\" from the app and the server.</string>
+    <string name="notes_error_not_found">Note not found</string>
+
+    <!-- Editor -->
+    <string name="editor_new_task">New task</string>
+    <string name="editor_new_category">New category</string>
+    <string name="editor_edit_task">Edit task</string>
+    <string name="editor_edit_category">Edit category</string>
+    <string name="editor_type">Type</string>
+    <string name="editor_type_task">Task</string>
+    <string name="editor_type_category">Category</string>
+    <string name="editor_type_hint_category">Categories group tasks. Nested items stay as tasks inside this category.</string>
+    <string name="editor_type_hint_task">Switch to Category to use this as a folder for other tasks.</string>
+    <string name="editor_field_title">Title</string>
+    <string name="editor_field_category_name">Category name</string>
+    <string name="editor_field_details">Details</string>
+    <string name="editor_field_task_list">Task list</string>
+    <string name="editor_priority">Priority: %1$d</string>
+    <string name="editor_due">Due</string>
+    <string name="editor_due_datetime">Due date &amp; time</string>
+    <string name="editor_clear_due">Clear due</string>
+    <string name="editor_no_due">No due date</string>
+    <string name="editor_set_due">Set due date</string>
+    <string name="editor_calendar_link">Calendar link</string>
+    <string name="editor_linked_event_fallback">Linked calendar event</string>
+    <string name="editor_unlink">Unlink</string>
+    <string name="editor_link_existing">Link existing</string>
+    <string name="editor_create_event">Create event</string>
+    <string name="editor_save_task">Save task</string>
+    <string name="editor_save_category">Save category</string>
+    <string name="editor_link_picker_title">Link a calendar event</string>
+    <string name="editor_link_picker_empty">No calendar events synced yet. Enable a calendar that supports events, then sync.</string>
+    <string name="editor_create_event_title">Create calendar event</string>
+    <string name="editor_create_event_body">Creates a calendar event on the same list as this task, so it can appear in your calendar apps.</string>
+    <string name="editor_create_event_body_named">Creates a calendar event on the same list as this task (%1$s), so it can appear in your calendar apps.</string>
+    <string name="editor_event_title">Title</string>
+    <string name="editor_event_starts">Starts</string>
+    <string name="editor_event_ends">Ends</string>
+    <string name="editor_event_location">Location</string>
+    <string name="editor_create_and_link">Create &amp; link</string>
+    <string name="editor_update_event_title">Update calendar event</string>
+    <string name="editor_error_not_found">Task not found</string>
+    <string name="editor_error_end_after_start">Event end must be after start</string>
+
+    <!-- Task detail -->
+    <string name="task_detail_title">Task</string>
+    <string name="task_detail_category">Category</string>
+    <string name="task_detail_not_found">Task not found</string>
+    <string name="task_detail_status_done">Done</string>
+    <string name="task_detail_status_started">Started</string>
+    <string name="task_detail_status_needs_action">Needs action</string>
+    <string name="task_detail_label_task_list">Task list</string>
+    <string name="task_detail_label_tags">Tags</string>
+    <string name="task_detail_label_priority">Priority</string>
+    <string name="task_detail_subtasks">Subtasks (%1$d)</string>
+    <string name="task_detail_tasks_in_category">Tasks (%1$d)</string>
+    <string name="task_detail_label_due">Due</string>
+    <string name="task_detail_calendar">Calendar</string>
+    <string name="task_detail_calendar_missing">Calendar details are missing locally. Open Edit to re-link or create the event again.</string>
+    <string name="task_detail_label_started">Started</string>
+    <string name="task_detail_label_ended">Ended</string>
+    <string name="task_detail_start">Start task</string>
+    <string name="task_detail_restart">Restart</string>
+    <string name="task_detail_end">End task</string>
+    <string name="task_detail_convert_to_task">Convert to task</string>
+    <string name="task_detail_convert_to_category">Convert to category</string>
+    <string name="task_detail_delete_task">Delete task</string>
+    <string name="task_detail_delete_category">Delete category</string>
+    <string name="task_detail_delete_title_task">Delete task?</string>
+    <string name="task_detail_delete_title_category">Delete category?</string>
+    <string name="task_detail_delete_body_task">This permanently removes the task from the app and the server.</string>
+    <string name="task_detail_delete_body_category">This permanently removes the category and its nested tasks from the app and the server.</string>
+    <string name="task_detail_meta_linked_event">linked event</string>
+    <string name="task_detail_error_end_after_start">Event end must be after start</string>
+
+    <!-- Setup -->
+    <string name="setup_subtitle">Connect to Radicale over CalDAV. Works alongside DAVx⁵ on the same server.</string>
+    <string name="setup_collections_hint">Enable lists with tasks (VTODO). Event-capable calendars are used for optional links.</string>
+    <string name="setup_continue">Continue to tasks</string>
+
+    <!-- Event link actions -->
+    <string name="link_open_maps">Open in Maps</string>
+    <string name="link_join_meet">Join Meet</string>
+    <string name="link_open_hangouts">Open Hangouts</string>
+    <string name="link_join_zoom">Join Zoom</string>
+    <string name="link_join_teams">Join Teams</string>
+    <string name="link_join_webex">Join Webex</string>
+    <string name="link_open_url">Open link</string>
+
+    <!-- Widget chrome -->
+    <string name="widget_title_tasks">Tasks</string>
+    <string name="widget_title_notes">Notes</string>
+    <string name="widget_subtitle_today">Today</string>
+    <string name="widget_subtitle_open">%1$d open</string>
+    <string name="widget_subtitle_recent">%1$d recent</string>
+    <string name="widget_empty_tasks">No open tasks.</string>
+    <string name="widget_empty_notes">No notes yet.</string>
+    <string name="widget_empty_events">No events.</string>
+    <string name="widget_empty_events_week">No events this week.</string>
+    <string name="widget_empty_events_month">No events this month.</string>
+    <string name="widget_subtitle_this_week">This week</string>
+    <string name="widget_subtitle_this_month">This month</string>
+    <string name="widget_fallback_event">Event</string>
+    <string name="widget_fallback_task">Task</string>
+    <string name="widget_fallback_note">Note</string>
+    <string name="widget_overdue_prefix">Overdue · %1$s</string>
 </resources>

@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import app.taskdav.R
 import app.taskdav.caldav.IcalMapper
 import app.taskdav.data.CollectionEntity
 import app.taskdav.data.EventEntity
@@ -74,7 +75,7 @@ class EditorViewModel(
         if (taskId != null) {
             val task = repository.getTask(taskId)
             if (task == null) {
-                _ui.update { it.copy(ready = true, error = "Task not found") }
+                _ui.update { it.copy(ready = true, error = app.getString(R.string.editor_error_not_found)) }
                 return
             }
             val linked = repository.ensureLinkedEvent(taskId)
@@ -224,7 +225,7 @@ class EditorViewModel(
             val editor = state.editor ?: return@launch
             val collectionId = editor.collectionId.takeIf { it > 0 } ?: return@launch
             if (state.eventEndMillis < state.eventStartMillis) {
-                _ui.update { it.copy(error = "Event end must be after start") }
+                _ui.update { it.copy(error = app.getString(R.string.editor_error_end_after_start)) }
                 return@launch
             }
             try {
@@ -260,7 +261,7 @@ class EditorViewModel(
             val editor = state.editor ?: return@launch
             val event = editor.linkedEvent ?: return@launch
             if (state.eventEndMillis < state.eventStartMillis) {
-                _ui.update { it.copy(error = "Event end must be after start") }
+                _ui.update { it.copy(error = app.getString(R.string.editor_error_end_after_start)) }
                 return@launch
             }
             try {

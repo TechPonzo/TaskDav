@@ -38,6 +38,7 @@ import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import app.taskdav.data.LocaleHelper
 
 /**
  * Week/Month toggle is doable in Glance, but only via Glance Preferences state + a
@@ -53,6 +54,7 @@ class AgendaCalendarWidget : GlanceAppWidget() {
     override val stateDefinition: GlanceStateDefinition<*> = PreferencesGlanceStateDefinition
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val localized = LocaleHelper.wrap(context)
         val colors = WidgetTheme.colors(context)
         val weekModel = WidgetDataLoader.loadAgenda(context, AgendaRange.WEEK)
         val monthModel = WidgetDataLoader.loadAgenda(context, AgendaRange.MONTH)
@@ -62,6 +64,7 @@ class AgendaCalendarWidget : GlanceAppWidget() {
             val model = if (range == AgendaRange.MONTH) monthModel else weekModel
             GlanceTheme {
                 AgendaCalendarContent(
+                    context = localized,
                     colors = colors,
                     model = model,
                     openCalendar = openCalendar,
@@ -80,6 +83,7 @@ class AgendaCalendarWidget : GlanceAppWidget() {
 
 @Composable
 private fun AgendaCalendarContent(
+    context: Context,
     colors: WidgetColors,
     model: AgendaWidgetModel,
     openCalendar: androidx.glance.action.Action,
@@ -134,9 +138,9 @@ private fun AgendaCalendarContent(
             WidgetEmptyLine(
                 colors,
                 if (model.range == AgendaRange.WEEK) {
-                    "No events this week."
+                    context.getString(app.taskdav.R.string.widget_empty_events_week)
                 } else {
-                    "No events this month."
+                    context.getString(app.taskdav.R.string.widget_empty_events_month)
                 },
             )
         } else {

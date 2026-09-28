@@ -20,15 +20,17 @@ import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.padding
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import app.taskdav.data.LocaleHelper
 
 class NotesWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val localized = LocaleHelper.wrap(context)
         val colors = WidgetTheme.colors(context)
         val model = WidgetDataLoader.loadNotes(context)
         val openNotes = actionStartActivity(WidgetIntents.openTab(context, "notes"))
         provideContent {
             GlanceTheme {
-                NotesWidgetContent(context, colors, model, openNotes)
+                NotesWidgetContent(localized, colors, model, openNotes)
             }
         }
     }
@@ -43,12 +45,16 @@ private fun NotesWidgetContent(
 ) {
     WidgetShell(
         colors = colors,
-        title = "Notes",
-        subtitle = if (model.notes.isEmpty()) null else "${model.notes.size} recent",
+        title = context.getString(app.taskdav.R.string.widget_title_notes),
+        subtitle = if (model.notes.isEmpty()) {
+            null
+        } else {
+            context.getString(app.taskdav.R.string.widget_subtitle_recent, model.notes.size)
+        },
         headerAction = openNotes,
     ) {
         if (model.notes.isEmpty()) {
-            WidgetEmptyLine(colors, "No notes yet.")
+            WidgetEmptyLine(colors, context.getString(app.taskdav.R.string.widget_empty_notes))
         } else {
             LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
                 items(model.notes, itemId = { it.id }) { note ->

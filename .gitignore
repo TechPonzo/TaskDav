@@ -10,3 +10,5 @@ captures/
 *.aab
 .cxx/
 kotlin-engine-store/
+.kotlin/
+screenshot*.png

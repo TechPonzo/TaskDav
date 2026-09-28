@@ -61,6 +61,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import app.taskdav.R
+import app.taskdav.ui.common.DateFormats
+import app.taskdav.ui.common.LocalDateOrder
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -68,9 +73,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.taskdav.data.EventEntity
 import app.taskdav.domain.TaskNode
 import app.taskdav.domain.TaskTreeBuilder
-import androidx.compose.ui.platform.LocalContext
-import app.taskdav.ui.common.DateFormats
-import app.taskdav.ui.common.LocalDateOrder
 import app.taskdav.ui.common.parseCategories
 import app.taskdav.ui.theme.collectionColorOrDefault
 import sh.calvin.reorderable.ReorderableItem
@@ -110,13 +112,18 @@ fun TasksScreen(
     }
 
     pendingDelete?.let { node ->
-        val label = if (node.task.isCategory) "category" else "task"
         ConfirmDeleteDialog(
-            title = "Delete $label?",
+            title = stringResource(
+                if (node.task.isCategory) {
+                    R.string.tasks_delete_title_category
+                } else {
+                    R.string.tasks_delete_title_task
+                },
+            ),
             body = if (node.task.isCategory) {
-                "This permanently removes the category and its nested tasks from the app and the server."
+                stringResource(R.string.tasks_delete_body_category)
             } else {
-                "This permanently removes “${node.task.summary}” from the app and the server."
+                stringResource(R.string.tasks_delete_body_task, node.task.summary)
             },
             onConfirm = {
                 viewModel.deleteTask(node.task.id)
@@ -132,7 +139,7 @@ fun TasksScreen(
         floatingActionButton = {
             Box(modifier = Modifier.navigationBarsPadding().padding(bottom = 72.dp)) {
                 ExpressiveExtendedFab(
-                    text = "New task",
+                    text = stringResource(R.string.tasks_new),
                     icon = Icons.Default.Add,
                     onClick = { onEditTask(null, false, ui.collectionFilter) },
                 )
@@ -152,19 +159,19 @@ fun TasksScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     CompactHeader(
-                        title = "Tasks",
+                        title = stringResource(R.string.tasks_title),
                         modifier = Modifier.weight(1f),
                     )
                     IconButton(onClick = { viewModel.setShowCompleted(!ui.showCompleted) }) {
                         if (ui.showCompleted) {
                             Icon(
                                 Icons.Default.VisibilityOff,
-                                contentDescription = "Hide completed",
+                                contentDescription = stringResource(R.string.tasks_cd_hide_completed),
                             )
                         } else {
                             Icon(
                                 Icons.Default.Visibility,
-                                contentDescription = "Show completed",
+                                contentDescription = stringResource(R.string.tasks_cd_show_completed),
                             )
                         }
                     }
@@ -177,13 +184,13 @@ fun TasksScreen(
                         onClick = viewModel::syncNow,
                         enabled = !ui.syncing,
                     ) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Sync")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.action_sync))
                     }
                 }
                 if (ui.syncing) {
                     SyncLoadingBanner(
                         message = ui.syncMessage?.takeIf { it.isNotBlank() }
-                            ?: "Syncing tasks and calendars…",
+                            ?: stringResource(R.string.tasks_syncing),
                     )
                 }
                 Row(
@@ -194,7 +201,7 @@ fun TasksScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     ExpressiveFilterChip(
-                        label = "All",
+                        label = stringResource(R.string.action_all),
                         selected = ui.collectionFilter == null,
                         onClick = { viewModel.setCollectionFilter(null) },
                     )
@@ -209,9 +216,9 @@ fun TasksScreen(
 
                 if (displayList.isEmpty()) {
                     ExpressiveEmptyState(
-                        title = "No tasks yet",
-                        body = "Create a task to get started.",
-                        actionLabel = "New task",
+                        title = stringResource(R.string.tasks_empty_title),
+                        body = stringResource(R.string.tasks_empty_body),
+                        actionLabel = stringResource(R.string.tasks_new),
                         onAction = { onEditTask(null, false, ui.collectionFilter) },
                         modifier = Modifier.fillMaxSize(),
                     )
@@ -468,7 +475,7 @@ private fun TaskRow(
         actions = { close ->
             SwipeRevealAction(
                 icon = Icons.Default.Delete,
-                contentDescription = "Delete task",
+                contentDescription = stringResource(R.string.tasks_cd_delete),
                 onClick = {
                     onDelete()
                     close()
@@ -500,9 +507,9 @@ private fun TaskRow(
                     Icon(
                         if (collapsed) Icons.Default.Folder else Icons.Default.FolderOpen,
                         contentDescription = if (collapsed) {
-                            "Expand category"
+                            stringResource(R.string.tasks_cd_expand_category)
                         } else {
-                            "Collapse category"
+                            stringResource(R.string.tasks_cd_collapse_category)
                         },
                         modifier = Modifier.size(18.dp),
                         tint = color,
@@ -525,16 +532,22 @@ private fun TaskRow(
                     DateFormats.time(context, millis)
                 }
                 val meta = buildList {
-                    if (isCategory) add("category")
+                    if (isCategory) add(stringResource(R.string.tasks_meta_category))
                     when {
-                        completed -> add(if (endLabel != null) "Done · $endLabel" else "Done")
-                        started -> add("Started")
+                        completed -> add(
+                            if (endLabel != null) {
+                                stringResource(R.string.tasks_meta_done_at, endLabel)
+                            } else {
+                                stringResource(R.string.tasks_meta_done)
+                            },
+                        )
+                        started -> add(stringResource(R.string.tasks_meta_started))
                     }
                     node.collection?.displayName?.let { add(it) }
                     val tags = parseCategories(node.task.categories)
                     if (tags.isNotEmpty()) add(tags.joinToString(", "))
                     node.task.dueMillis?.let { due ->
-                        add("Due ${DateFormats.dateTime(context, due, dateOrder)}")
+                        add(stringResource(R.string.tasks_meta_due, DateFormats.dateTime(context, due, dateOrder)))
                     }
                     val eventStart = linkedEvent?.dtStartMillis
                     when {
@@ -550,15 +563,17 @@ private fun TaskRow(
                                 },
                             )
                         }
-                        !node.task.linkedEventUid.isNullOrBlank() -> add("linked event")
+                        !node.task.linkedEventUid.isNullOrBlank() -> add(stringResource(R.string.tasks_meta_linked_event))
                     }
                     if (node.children.isNotEmpty()) {
                         val count = node.children.size
                         add(
                             if (collapsed) {
-                                "$count hidden"
+                                stringResource(R.string.tasks_meta_count_hidden, count)
+                            } else if (isCategory) {
+                                stringResource(R.string.tasks_meta_count_tasks, count)
                             } else {
-                                "$count ${if (isCategory) "tasks" else "sub"}"
+                                stringResource(R.string.tasks_meta_count_sub, count)
                             },
                         )
                     }
@@ -570,7 +585,7 @@ private fun TaskRow(
             if (!node.task.linkedEventUid.isNullOrBlank()) {
                 Icon(
                     Icons.Default.Event,
-                    contentDescription = "Linked calendar item",
+                    contentDescription = stringResource(R.string.tasks_cd_linked_calendar),
                     modifier = Modifier.size(18.dp),
                     tint = color,
                 )
@@ -578,14 +593,18 @@ private fun TaskRow(
             IconButton(onClick = onAddChild) {
                 Icon(
                     Icons.Default.Add,
-                    contentDescription = if (isCategory) "Add task in category" else "Add subtask",
+                    contentDescription = if (isCategory) {
+                        stringResource(R.string.tasks_cd_add_in_category)
+                    } else {
+                        stringResource(R.string.tasks_cd_add_subtask)
+                    },
                 )
             }
             IconButton(
                 onClick = {},
                 modifier = dragHandleModifier,
             ) {
-                Icon(Icons.Default.DragHandle, contentDescription = "Drag to reorder or nest")
+                Icon(Icons.Default.DragHandle, contentDescription = stringResource(R.string.tasks_cd_drag))
             }
         }
     }

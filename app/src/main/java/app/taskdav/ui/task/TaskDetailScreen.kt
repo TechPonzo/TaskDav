@@ -36,10 +36,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.taskdav.R
 import app.taskdav.data.TaskEntity
 import app.taskdav.domain.TaskTreeBuilder
 import app.taskdav.ui.common.DateFormats
@@ -70,26 +72,37 @@ fun TaskDetailScreen(
             TopAppBar(
                 title = {
                     Text(
-                        when {
-                            task == null -> "Task"
-                            task.isCategory -> "Category"
-                            else -> "Task"
-                        },
+                        stringResource(
+                            when {
+                                task == null -> R.string.task_detail_title
+                                task.isCategory -> R.string.task_detail_category
+                                else -> R.string.task_detail_title
+                            },
+                        ),
                         style = MaterialTheme.typography.headlineSmall,
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                        )
                     }
                 },
                 actions = {
                     if (task != null) {
                         IconButton(onClick = { ItemShare.shareTask(context, task) }) {
-                            Icon(Icons.Default.Share, contentDescription = "Share")
+                            Icon(
+                                Icons.Default.Share,
+                                contentDescription = stringResource(R.string.action_share),
+                            )
                         }
                         IconButton(onClick = onEdit) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit")
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = stringResource(R.string.action_edit),
+                            )
                         }
                     }
                 },
@@ -98,11 +111,14 @@ fun TaskDetailScreen(
     ) { padding ->
         when {
             ui.loading -> {
-                Text("Loading…", modifier = Modifier.padding(padding).padding(16.dp))
+                Text(
+                    stringResource(R.string.loading),
+                    modifier = Modifier.padding(padding).padding(16.dp),
+                )
             }
             task == null -> {
                 Text(
-                    "Task not found",
+                    stringResource(R.string.task_detail_not_found),
                     modifier = Modifier.padding(padding).padding(16.dp),
                 )
             }
@@ -122,10 +138,10 @@ fun TaskDetailScreen(
                     Text(task.summary, style = MaterialTheme.typography.headlineSmall)
 
                     val statusLabel = when {
-                        task.isCategory -> "Category"
-                        completed -> "Done"
-                        started -> "Started"
-                        else -> task.status ?: "Needs action"
+                        task.isCategory -> stringResource(R.string.task_detail_category)
+                        completed -> stringResource(R.string.task_detail_status_done)
+                        started -> stringResource(R.string.task_detail_status_started)
+                        else -> task.status ?: stringResource(R.string.task_detail_status_needs_action)
                     }
                     Text(statusLabel, style = MaterialTheme.typography.labelLarge)
 
@@ -134,25 +150,37 @@ fun TaskDetailScreen(
                     }
 
                     ui.collection?.let { col ->
-                        DetailRow(label = "Task list", value = col.displayName)
+                        DetailRow(
+                            label = stringResource(R.string.task_detail_label_task_list),
+                            value = col.displayName,
+                        )
                     }
 
                     if (tags.isNotEmpty()) {
-                        DetailRow(label = "Tags", value = tags.joinToString(", "))
+                        DetailRow(
+                            label = stringResource(R.string.task_detail_label_tags),
+                            value = tags.joinToString(", "),
+                        )
                     }
 
                     val priority = task.priority ?: 0
                     if (!task.isCategory && priority > 0) {
-                        DetailRow(label = "Priority", value = priority.toString())
+                        DetailRow(
+                            label = stringResource(R.string.task_detail_label_priority),
+                            value = priority.toString(),
+                        )
                     }
 
                     if (ui.subtasks.isNotEmpty()) {
                         Text(
-                            if (task.isCategory) {
-                                "Tasks (${ui.subtasks.size})"
-                            } else {
-                                "Subtasks (${ui.subtasks.size})"
-                            },
+                            stringResource(
+                                if (task.isCategory) {
+                                    R.string.task_detail_tasks_in_category
+                                } else {
+                                    R.string.task_detail_subtasks
+                                },
+                                ui.subtasks.size,
+                            ),
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -166,7 +194,10 @@ fun TaskDetailScreen(
                     }
 
                     task.dueMillis?.let {
-                        DetailRow(label = "Due", value = DateFormats.dateTime(context, it))
+                        DetailRow(
+                            label = stringResource(R.string.task_detail_label_due),
+                            value = DateFormats.dateTime(context, it),
+                        )
                     }
 
                     when {
@@ -177,9 +208,12 @@ fun TaskDetailScreen(
                             )
                         }
                         !task.linkedEventUid.isNullOrBlank() -> {
-                            Text("Calendar", style = MaterialTheme.typography.labelMedium)
                             Text(
-                                "Calendar details are missing locally. Open Edit to re-link or create the event again.",
+                                stringResource(R.string.task_detail_calendar),
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                            Text(
+                                stringResource(R.string.task_detail_calendar_missing),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                             )
@@ -187,11 +221,17 @@ fun TaskDetailScreen(
                     }
 
                     task.dtStartMillis?.let {
-                        DetailRow(label = "Started", value = DateFormats.dateTime(context, it))
+                        DetailRow(
+                            label = stringResource(R.string.task_detail_label_started),
+                            value = DateFormats.dateTime(context, it),
+                        )
                     }
 
                     task.completedMillis?.let {
-                        DetailRow(label = "Ended", value = DateFormats.dateTime(context, it))
+                        DetailRow(
+                            label = stringResource(R.string.task_detail_label_ended),
+                            value = DateFormats.dateTime(context, it),
+                        )
                     }
 
                     ui.error?.let {
@@ -208,14 +248,22 @@ fun TaskDetailScreen(
                                 enabled = !completed,
                                 modifier = Modifier.weight(1f),
                             ) {
-                                Text(if (started) "Restart" else "Start task")
+                                Text(
+                                    stringResource(
+                                        if (started) {
+                                            R.string.task_detail_restart
+                                        } else {
+                                            R.string.task_detail_start
+                                        },
+                                    ),
+                                )
                             }
                             Button(
                                 onClick = viewModel::endTask,
                                 enabled = !completed,
                                 modifier = Modifier.weight(1f),
                             ) {
-                                Text("End task")
+                                Text(stringResource(R.string.task_detail_end))
                             }
                         }
                     }
@@ -224,7 +272,7 @@ fun TaskDetailScreen(
                         onClick = onEdit,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("Edit")
+                        Text(stringResource(R.string.action_edit))
                     }
 
                     if (task.parentUid.isNullOrBlank()) {
@@ -233,11 +281,13 @@ fun TaskDetailScreen(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(
-                                if (task.isCategory) {
-                                    "Convert to task"
-                                } else {
-                                    "Convert to category"
-                                },
+                                stringResource(
+                                    if (task.isCategory) {
+                                        R.string.task_detail_convert_to_task
+                                    } else {
+                                        R.string.task_detail_convert_to_category
+                                    },
+                                ),
                             )
                         }
                     }
@@ -249,7 +299,15 @@ fun TaskDetailScreen(
                             contentColor = MaterialTheme.colorScheme.error,
                         ),
                     ) {
-                        Text(if (task.isCategory) "Delete category" else "Delete task")
+                        Text(
+                            stringResource(
+                                if (task.isCategory) {
+                                    R.string.task_detail_delete_category
+                                } else {
+                                    R.string.task_detail_delete_task
+                                },
+                            ),
+                        )
                     }
                 }
             }
@@ -257,17 +315,28 @@ fun TaskDetailScreen(
     }
 
     if (showDeleteConfirm && task != null) {
-        val label = if (task.isCategory) "category" else "task"
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete $label?") },
+            title = {
+                Text(
+                    stringResource(
+                        if (task.isCategory) {
+                            R.string.task_detail_delete_title_category
+                        } else {
+                            R.string.task_detail_delete_title_task
+                        },
+                    ),
+                )
+            },
             text = {
                 Text(
-                    if (task.isCategory) {
-                        "This permanently removes the category and its nested tasks from the app and the server."
-                    } else {
-                        "This permanently removes the task from the app and the server."
-                    },
+                    stringResource(
+                        if (task.isCategory) {
+                            R.string.task_detail_delete_body_category
+                        } else {
+                            R.string.task_detail_delete_body_task
+                        },
+                    ),
                 )
             },
             confirmButton = {
@@ -277,11 +346,16 @@ fun TaskDetailScreen(
                         viewModel.deleteTask()
                     },
                 ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(
+                        stringResource(R.string.action_delete),
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             },
         )
     }
@@ -289,23 +363,23 @@ fun TaskDetailScreen(
     if (ui.showEditEvent) {
         AlertDialog(
             onDismissRequest = { viewModel.setShowEditEvent(false) },
-            title = { Text("Update calendar event") },
+            title = { Text(stringResource(R.string.editor_update_event_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = ui.eventSummary,
                         onValueChange = viewModel::setEventSummary,
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Title") },
+                        label = { Text(stringResource(R.string.editor_event_title)) },
                         singleLine = true,
                     )
                     InlineDateTimePicker(
-                        label = "Starts",
+                        label = stringResource(R.string.editor_event_starts),
                         valueMillis = ui.eventStartMillis,
                         onValueChange = viewModel::setEventStart,
                     )
                     InlineDateTimePicker(
-                        label = "Ends",
+                        label = stringResource(R.string.editor_event_ends),
                         valueMillis = ui.eventEndMillis,
                         onValueChange = viewModel::setEventEnd,
                     )
@@ -313,7 +387,7 @@ fun TaskDetailScreen(
                         value = ui.eventLocation,
                         onValueChange = viewModel::setEventLocation,
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Location") },
+                        label = { Text(stringResource(R.string.editor_event_location)) },
                         singleLine = true,
                     )
                     ui.error?.let {
@@ -325,10 +399,12 @@ fun TaskDetailScreen(
                 TextButton(
                     onClick = viewModel::saveLinkedEvent,
                     enabled = ui.eventEndMillis >= ui.eventStartMillis,
-                ) { Text("Save") }
+                ) { Text(stringResource(R.string.action_save)) }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.setShowEditEvent(false) }) { Text("Cancel") }
+                TextButton(onClick = { viewModel.setShowEditEvent(false) }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             },
         )
     }
@@ -357,11 +433,13 @@ private fun SubtaskRow(
             )
             val meta = buildList {
                 when {
-                    done -> add("Done")
-                    TaskTreeBuilder.isStarted(task) -> add("Started")
+                    done -> add(stringResource(R.string.task_detail_status_done))
+                    TaskTreeBuilder.isStarted(task) -> add(stringResource(R.string.task_detail_status_started))
                     !task.status.isNullOrBlank() -> add(task.status)
                 }
-                if (!task.linkedEventUid.isNullOrBlank()) add("linked event")
+                if (!task.linkedEventUid.isNullOrBlank()) {
+                    add(stringResource(R.string.task_detail_meta_linked_event))
+                }
             }.joinToString(" · ")
             if (meta.isNotEmpty()) {
                 Text(meta, style = MaterialTheme.typography.labelSmall)

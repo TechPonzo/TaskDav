@@ -44,11 +44,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.taskdav.R
 import app.taskdav.TaskDavApp
 import app.taskdav.data.SyncBackend
 import app.taskdav.ui.setup.SetupViewModel
@@ -64,7 +66,8 @@ fun AccountSettingsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val isLocal = state.syncBackend == SyncBackend.LOCAL
-    val app = LocalContext.current.applicationContext as TaskDavApp
+    val context = LocalContext.current
+    val app = context.applicationContext as TaskDavApp
     val mirrorEnabled by app.phoneCalendarMirror.collectAsStateWithLifecycle()
     val importEnabled by app.phoneCalendarImport.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -97,7 +100,7 @@ fun AccountSettingsScreen(
         } else {
             app.repository.setPhoneCalendarMirrorEnabled(false)
             app.notifyPhoneCalendarMirrorChanged()
-            publishMessage = "Calendar permission denied."
+            publishMessage = context.getString(R.string.syncing_permission_denied)
         }
     }
 
@@ -170,10 +173,13 @@ fun AccountSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Syncing") },
+                title = { Text(stringResource(R.string.settings_syncing)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                        )
                     }
                 },
             )
@@ -188,20 +194,20 @@ fun AccountSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                "Where should calendars, tasks, and notes live?",
+                stringResource(R.string.syncing_where_live),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
             )
             Column(modifier = Modifier.fillMaxWidth().selectableGroup()) {
                 SyncBackendRow(
-                    title = "This device only",
-                    subtitle = "Stay local — nothing uploaded",
+                    title = stringResource(R.string.syncing_local_title),
+                    subtitle = stringResource(R.string.syncing_local_subtitle),
                     selected = isLocal,
                     onClick = { viewModel.selectSyncBackend(SyncBackend.LOCAL) },
                 )
                 SyncBackendRow(
-                    title = "CalDAV sync",
-                    subtitle = "Sync with your CalDAV server",
+                    title = stringResource(R.string.syncing_caldav_title),
+                    subtitle = stringResource(R.string.syncing_caldav_subtitle),
                     selected = !isLocal,
                     onClick = { viewModel.selectSyncBackend(SyncBackend.CALDAV) },
                 )
@@ -209,7 +215,7 @@ fun AccountSettingsScreen(
 
             if (isLocal) {
                 Text(
-                    "Everything stays on this phone. Nothing is uploaded until you switch to CalDAV.",
+                    stringResource(R.string.syncing_local_body),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 )
@@ -230,15 +236,15 @@ fun AccountSettingsScreen(
                                 color = MaterialTheme.colorScheme.onPrimary,
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Working…")
+                            Text(stringResource(R.string.working))
                         }
                     } else {
-                        Text("Use local storage")
+                        Text(stringResource(R.string.syncing_use_local))
                     }
                 }
             } else {
                 Text(
-                    "Connect to your CalDAV server (for example the same one DAVx⁵ uses).",
+                    stringResource(R.string.syncing_caldav_body),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 )
@@ -246,8 +252,8 @@ fun AccountSettingsScreen(
                     value = state.baseUrl,
                     onValueChange = viewModel::updateUrl,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Server URL") },
-                    placeholder = { Text("https://caldav.example/user/") },
+                    label = { Text(stringResource(R.string.syncing_server_url)) },
+                    placeholder = { Text(stringResource(R.string.syncing_server_url_placeholder)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 )
@@ -255,14 +261,14 @@ fun AccountSettingsScreen(
                     value = state.username,
                     onValueChange = viewModel::updateUser,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Username") },
+                    label = { Text(stringResource(R.string.syncing_username)) },
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = state.password,
                     onValueChange = viewModel::updatePassword,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Password") },
+                    label = { Text(stringResource(R.string.syncing_password)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -280,10 +286,10 @@ fun AccountSettingsScreen(
                                 color = MaterialTheme.colorScheme.onPrimary,
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Working…")
+                            Text(stringResource(R.string.working))
                         }
                     } else {
-                        Text("Save & discover collections")
+                        Text(stringResource(R.string.syncing_save_discover))
                     }
                 }
                 state.error?.let { err ->
@@ -307,16 +313,16 @@ fun AccountSettingsScreen(
                         onClick = onOpenCollections,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("Collections to sync")
+                        Text(stringResource(R.string.syncing_collections))
                     }
                 }
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-            Text("Phone calendar", style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.syncing_phone_calendar), style = MaterialTheme.typography.titleSmall)
             Text(
-                "Works without DAVx⁵. Local-only users can still share events with the Android Calendar app.",
+                stringResource(R.string.syncing_phone_calendar_body),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             )
@@ -325,9 +331,9 @@ fun AccountSettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Import into TaskDav")
+                    Text(stringResource(R.string.syncing_import_title))
                     Text(
-                        "Pull events from Google Calendar and other calendars on this phone.",
+                        stringResource(R.string.syncing_import_body),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
                     )
@@ -342,9 +348,9 @@ fun AccountSettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Show TaskDav in Android Calendar")
+                    Text(stringResource(R.string.syncing_show_in_android))
                     Text(
-                        "Creates a TaskDav account (like DAVx⁵) and publishes your events. On Samsung: Calendar → ☰ → manage calendars, and also check Settings → Accounts.",
+                        stringResource(R.string.syncing_show_in_android_body),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
                     )
@@ -368,7 +374,7 @@ fun AccountSettingsScreen(
                     onClick = { runPublish() },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Publish events now")
+                    Text(stringResource(R.string.syncing_publish_now))
                 }
             }
             publishMessage?.let {

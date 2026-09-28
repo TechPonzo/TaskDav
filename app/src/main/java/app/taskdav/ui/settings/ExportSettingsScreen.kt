@@ -30,8 +30,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.taskdav.R
 import app.taskdav.TaskDavApp
 import app.taskdav.caldav.CollectionExporter
 import kotlinx.coroutines.Dispatchers
@@ -47,27 +49,35 @@ fun ExportSettingsScreen(onBack: () -> Unit) {
     var selected by remember { mutableStateOf(setOf<Long>()) }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val allSelected = selected.size == collections.size && collections.isNotEmpty()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Export") },
+                title = { Text(stringResource(R.string.settings_export)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                        )
                     }
                 },
                 actions = {
                     TextButton(
                         onClick = {
-                            selected = if (selected.size == collections.size) {
+                            selected = if (allSelected) {
                                 emptySet()
                             } else {
                                 collections.map { it.id }.toSet()
                             }
                         },
                     ) {
-                        Text(if (selected.size == collections.size && collections.isNotEmpty()) "Clear" else "Select all")
+                        Text(
+                            stringResource(
+                                if (allSelected) R.string.export_clear else R.string.export_select_all,
+                            ),
+                        )
                     }
                 },
             )
@@ -81,7 +91,7 @@ fun ExportSettingsScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                "Export selected calendars as ICS files from data already synced on this device, then share them.",
+                stringResource(R.string.export_intro),
                 style = MaterialTheme.typography.bodySmall,
             )
             LazyColumn(
@@ -101,12 +111,14 @@ fun ExportSettingsScreen(onBack: () -> Unit) {
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(col.displayName, style = MaterialTheme.typography.bodyLarge)
-                            val caps = buildList {
-                                if (col.supportsVtodo) add("tasks")
-                                if (col.supportsVevent) add("events")
-                                if (col.supportsVjournal) add("notes")
-                            }.joinToString(" · ")
-                            Text(caps, style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                collectionCapabilityLabels(
+                                    supportsVtodo = col.supportsVtodo,
+                                    supportsVevent = col.supportsVevent,
+                                    supportsVjournal = col.supportsVjournal,
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
                         }
                     }
                 }
@@ -114,7 +126,11 @@ fun ExportSettingsScreen(onBack: () -> Unit) {
             Button(
                 onClick = {
                     if (selected.isEmpty()) {
-                        Toast.makeText(context, "Select at least one calendar", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.export_toast_none),
+                            Toast.LENGTH_SHORT,
+                        ).show()
                         return@Button
                     }
                     scope.launch {
@@ -128,13 +144,13 @@ fun ExportSettingsScreen(onBack: () -> Unit) {
                             exporter.shareFiles(context, files)
                             Toast.makeText(
                                 context,
-                                "Ready to share ${files.size} file(s)",
+                                context.getString(R.string.export_ready, files.size),
                                 Toast.LENGTH_SHORT,
                             ).show()
                         } catch (e: Exception) {
                             Toast.makeText(
                                 context,
-                                e.message ?: "Export failed",
+                                e.message ?: context.getString(R.string.export_failed),
                                 Toast.LENGTH_LONG,
                             ).show()
                         } finally {
@@ -145,8 +161,24 @@ fun ExportSettingsScreen(onBack: () -> Unit) {
                 enabled = !busy && selected.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(if (busy) "Exporting…" else "Export & share")
+                Text(
+                    stringResource(if (busy) R.string.export_busy else R.string.export_action),
+                )
             }
         }
     }
+}
+
+@Composable
+private fun collectionCapabilityLabels(
+    supportsVtodo: Boolean,
+    supportsVevent: Boolean,
+    supportsVjournal: Boolean,
+): String {
+    val caps = buildList {
+        if (supportsVtodo) add(stringResource(R.string.collection_cap_tasks))
+        if (supportsVevent) add(stringResource(R.string.collection_cap_events))
+        if (supportsVjournal) add(stringResource(R.string.collection_cap_notes))
+    }
+    return caps.joinToString(" · ")
 }

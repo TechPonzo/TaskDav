@@ -85,7 +85,7 @@ class SetupViewModel(
                 _state.value = _state.value.copy(
                     busy = false,
                     syncBackend = SyncBackend.LOCAL,
-                    message = "Saving on this device only.",
+                    message = app.getString(R.string.syncing_local_saved),
                 )
                 onReady()
             } catch (e: Exception) {
