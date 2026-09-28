@@ -3,6 +3,7 @@ package app.taskdav.widget
 import android.content.Context
 import app.taskdav.R
 import app.taskdav.TaskDavApp
+import app.taskdav.data.EventEntity
 import app.taskdav.data.LocaleHelper
 import app.taskdav.domain.EventRecurrence
 import app.taskdav.domain.TaskTreeBuilder
@@ -97,30 +98,28 @@ object WidgetDataLoader {
         val loc = locale(context)
         val app = context.applicationContext as TaskDavApp
         val now = System.currentTimeMillis()
-        val (rangeStart, rangeEnd, header, subtitle) = when (range) {
+        val (rangeEnd, header, subtitle) = when (range) {
             AgendaRange.WEEK -> {
-                val start = CalendarViewModel.startOfWeek(now)
-                val end = start + TimeUnit.DAYS.toMillis(7)
+                val weekStart = CalendarViewModel.startOfWeek(now)
+                val end = weekStart + TimeUnit.DAYS.toMillis(7)
                 val endLabel = SimpleDateFormat("MMM d", loc)
                     .format(Date(end - TimeUnit.DAYS.toMillis(1)))
-                val startLabel = SimpleDateFormat("MMM d", loc).format(Date(start))
+                val startLabel = SimpleDateFormat("MMM d", loc).format(Date(now))
                 AgendaBounds(
-                    start,
                     end,
                     strings.getString(R.string.widget_subtitle_this_week),
                     "$startLabel – $endLabel",
                 )
             }
             AgendaRange.MONTH -> {
-                val start = CalendarViewModel.startOfMonth(now)
+                val monthStart = CalendarViewModel.startOfMonth(now)
                 val cal = Calendar.getInstance().apply {
-                    timeInMillis = start
+                    timeInMillis = monthStart
                     add(Calendar.MONTH, 1)
                 }
                 val end = cal.timeInMillis
-                val monthLabel = SimpleDateFormat("MMMM yyyy", loc).format(Date(start))
+                val monthLabel = SimpleDateFormat("MMMM yyyy", loc).format(Date(monthStart))
                 AgendaBounds(
-                    start,
                     end,
                     monthLabel,
                     strings.getString(R.string.widget_subtitle_this_month),
@@ -128,7 +127,9 @@ object WidgetDataLoader {
             }
         }
         val events = app.database.events().getActive()
-        val expanded = EventRecurrence.expandAll(events, rangeStart, rangeEnd)
+        // From now forward only — skip earlier days this week/month and events that already ended.
+        val expanded = EventRecurrence.expandAll(events, now, rangeEnd)
+            .filter { event -> eventStillRelevant(event, now) }
             .sortedBy { it.dtStartMillis ?: Long.MAX_VALUE }
         val dayFmt = SimpleDateFormat("EEE d", loc)
         return AgendaWidgetModel(
@@ -152,6 +153,18 @@ object WidgetDataLoader {
                 )
             },
         )
+    }
+
+    /** True while the occurrence has not finished (ongoing or future). */
+    private fun eventStillRelevant(event: EventEntity, now: Long): Boolean {
+        val start = event.dtStartMillis ?: return false
+        val end = event.dtEndMillis?.takeIf { it > start }
+            ?: if (event.allDay) {
+                start + TimeUnit.DAYS.toMillis(1)
+            } else {
+                start + TimeUnit.HOURS.toMillis(1)
+            }
+        return end > now
     }
 
     suspend fun loadTasks(context: Context): TasksWidgetModel {
@@ -212,7 +225,6 @@ object WidgetDataLoader {
     }
 
     private data class AgendaBounds(
-        val start: Long,
         val end: Long,
         val header: String,
         val subtitle: String,
