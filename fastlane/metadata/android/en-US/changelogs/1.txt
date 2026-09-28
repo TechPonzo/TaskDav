@@ -1,0 +1,5 @@
+First public metadata packaging for F-Droid.
+
+• Local-only and CalDAV sync for tasks, notes, and events
+• Home-screen widgets, themes, and EN/ES/IT UI
+• Release builds use R8 minify and resource shrinking

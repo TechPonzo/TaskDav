@@ -60,7 +60,16 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ### Stores
 
-TaskDav is intended for **F-Droid** and similar free-software catalogs. Links will be added here once the packages are published. Until then, build from this repository.
+TaskDav is intended for **F-Droid** and similar free-software catalogs. Store listing text and screenshots live under [`fastlane/metadata/android/`](fastlane/metadata/android/) (EN / ES / IT). Links will be added here once the packages are published. Until then, build from this repository.
+
+### Release build (minified)
+
+```bash
+./gradlew assembleRelease
+# APK: app/build/outputs/apk/release/app-release.apk
+```
+
+Release uses R8 minify + resource shrinking. F-Droid builds from source and signs with their own key.
 
 ## Quick start
 

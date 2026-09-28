@@ -1,0 +1,5 @@
+Primo pacchetto di metadati per F-Droid.
+
+• Modalità locale e sync CalDAV per attività, note ed eventi
+• Widget home, temi e UI EN/ES/IT
+• Le build release usano minify R8 e shrink delle risorse
