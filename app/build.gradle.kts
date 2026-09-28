@@ -20,7 +20,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            // Local/CI can install this APK; F-Droid rebuilds and signs with their key.
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -93,7 +96,10 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
     // CalDAV (OkHttp variant used by DAVx⁵ family)
-    implementation("com.github.bitfireAT:dav4jvm:2.2.1")
+    implementation("com.github.bitfireAT:dav4jvm:2.2.1") {
+        // Android already provides XmlPullParser; bundling xpp3 breaks R8.
+        exclude(group = "org.ogce", module = "xpp3")
+    }
 
     // iCalendar
     implementation("org.mnode.ical4j:ical4j:3.2.19") {
