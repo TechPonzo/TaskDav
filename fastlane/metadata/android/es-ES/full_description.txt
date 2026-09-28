@@ -1,0 +1,17 @@
+TaskDav es una aplicación Android libre y de código abierto para tareas, notas y eventos de calendario.
+
+Puedes usarla totalmente sin conexión en el dispositivo, o sincronizar con tu propio servidor CalDAV (Radicale, Nextcloud, Baïkal y similares). Las credenciales se guardan cifradas en el teléfono. No hay anuncios, analíticas, rastreadores de fallos ni Google Play Services.
+
+Funciones:
+• Tareas (VTODO), notas (VJOURNAL) y eventos (VEVENT) con prioridad local
+• Subtareas y categorías anidables
+• Etiquetas, vencimientos, prioridades y eventos de calendario opcionales
+• Panel de inicio con atrasadas, hoy y próximos
+• Vistas de calendario: día / semana / mes / año / lista
+• Widgets de inicio: hoy, agenda semana/mes, tareas y notas
+• Temas desde un color de marca; interfaz en inglés, español e italiano
+• Compartir como texto o .ics; espejo/importación opcional del calendario del teléfono
+• Compatible con DAVx⁵ en la misma cuenta
+
+Licencia: GNU GPLv3
+Código: https://github.com/TechPonzo/TaskDav

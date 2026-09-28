@@ -1,0 +1,5 @@
+Primer empaquetado de metadatos para F-Droid.
+
+• Modo local y sincronización CalDAV para tareas, notas y eventos
+• Widgets de inicio, temas e interfaz EN/ES/IT
+• Las builds de release usan minify R8 y reducción de recursos
