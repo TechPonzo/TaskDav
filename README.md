@@ -1,55 +1,67 @@
 # TaskDav
 
-Kotlin Android app for tasks and notes that syncs over CalDAV with your own server (including Radicale). No Google Play Services. Works alongside DAVx⁵ on the same account.
+**Tasks, notes, and a calendar that sync over CalDAV — or stay on the device.**
 
-**License:** GNU General Public License v3.0 (GPLv3)
+TaskDav is a free and open-source Android app for people who want their planning data on a server they control (Radicale, Nextcloud, Baïkal, …), without Google Play Services, analytics, or ads. It works fine next to [DAVx⁵](https://www.davx5.com/) on the same account.
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![Android](https://img.shields.io/badge/Android-8.0%2B-green.svg)](#requirements)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
+
+<p align="center">
+  <img src="docs/screenshots/01-home.png" width="160" alt="Home — today, overdue, and upcoming" />
+  <img src="docs/screenshots/02-calendar.png" width="160" alt="Calendar — month grid and today’s events" />
+  <img src="docs/screenshots/03-tasks.png" width="160" alt="Tasks — categories, subtasks, due dates" />
+  <img src="docs/screenshots/04-notes.png" width="160" alt="Notes — recent journals" />
+  <img src="docs/screenshots/06-appearance.png" width="160" alt="Appearance — language and brand color" />
+</p>
+
+## Why TaskDav?
+
+Most “productivity” apps want a proprietary cloud. TaskDav speaks plain CalDAV:
+
+- **Your server, your data** — credentials stay encrypted on the phone; nothing is sent to the TaskDav authors
+- **Local-only mode** — use it without any account until you are ready to sync
+- **Works with the FOSS stack** — designed to coexist with DAVx⁵ and other CalDAV clients
+- **No Play Services** — suitable for GrapheneOS, LineageOS, and F-Droid-style installs
 
 ## Features
 
-- Offline-capable tasks, notes, and events (Room): edits save locally and sync when the CalDAV server is reachable (WorkManager + reconnect); conflicts prefer the newer item
-- Local-only or CalDAV sync mode (Settings → Syncing); optional publish of events into the phone calendar (CalendarContract)
-- Handles "add event" / ICS intents so TaskDav can be chosen as a calendar app
-- Share task, event, or note via the Android share sheet (text + `.ics`)
-- Recursive subtasks via `RELATED-TO;RELTYPE=PARENT`
-- Collection colors from Apple `calendar-color`
-- Due date/time pickers; optional calendar event link with start/end pickers
-- Tags on tasks and notes (`CATEGORIES`)
-- Calendar events with weekly recurrence (`RRULE`: weekly / every N weeks, optional count)
-- Notes synced as `VJOURNAL`
-- Animated task/note list inserts and removals
-- Appearance themes (Forest, Ocean, Sand, Slate, High contrast)
-- Export selected calendars as ICS via the share sheet
-- Collections list is pruned when calendars are removed on the server
-- Bottom tabs: Home / Calendar / Tasks / Notes / Settings; Home shows stats, today, overdue, upcoming, and recent notes
-- Categories are nestable VTODO parents (`X-TASKDAV-KIND:CATEGORY`) for grouping tasks
-- Settings hub: Syncing, Appearance, Export, Privacy & license, Credits
-- UI in English, Spanish, and Italian
+- Offline-first tasks (`VTODO`), notes (`VJOURNAL`), and events (`VEVENT`) with Room + WorkManager sync
+- Nested tasks and nestable categories (`RELATED-TO` / `X-TASKDAV-KIND:CATEGORY`)
+- Tags (`CATEGORIES`), due dates, priorities, and optional linked calendar events
+- Weekly recurrence for events (`RRULE`)
+- Home dashboard: overdue, due today, today’s agenda, recent notes
+- Calendar views (day / week / month / year / list)
+- Themes from a single brand color; UI in **English**, **Spanish**, and **Italian**
+- Home-screen widgets for today, week/month agenda, tasks, and notes
+- Share tasks, events, or notes as text + `.ics`; export collections
+- Optional mirror / import with the phone calendar (`CalendarContract`)
+- Handles “add event” / ICS intents so TaskDav can be a calendar target
 
-## Requirements
+## Install
 
-- Android 8.0+ (API 26)
-- A CalDAV server with collections advertising `VTODO` (and optionally `VEVENT` / `VJOURNAL`)
-- JDK 17+ to build
-
-## Build
+### From source (debug)
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 21)   # or your JDK 17+
+export JAVA_HOME=$(/usr/libexec/java_home -v 21)   # JDK 17+
 export ANDROID_HOME=~/Library/Android/sdk
 
 ./gradlew assembleDebug
-# APK: app/build/outputs/apk/debug/app-debug.apk
-```
-
-Install:
-
-```bash
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## Server setup (Radicale example)
+### Stores
 
-Create a collection that supports tasks, events, and notes:
+TaskDav is intended for **F-Droid** and similar free-software catalogs. Links will be added here once the packages are published. Until then, build from this repository.
+
+## Quick start
+
+1. Open the app → finish onboarding (or skip) — you land in **local-only** mode with an on-device calendar.
+2. To sync: **Settings → Syncing → CalDAV** → base URL, username, password → **Save & discover** → enable collections → sync.
+3. Optional: keep DAVx⁵ for contacts/calendars; TaskDav talks to the server itself for tasks, notes, and its own events.
+
+### Radicale collection example
 
 ```bash
 curl -u USER:PASS -X MKCOL 'https://caldav.example/USER/tasks/' --data \
@@ -73,30 +85,59 @@ curl -u USER:PASS -X MKCOL 'https://caldav.example/USER/tasks/' --data \
 </create>'
 ```
 
-In TaskDav: **Settings → Syncing** → enter base URL (e.g. `https://host:5232/USER/`), username, password → **Save & discover** → enable collections → sync.
+Use a base URL like `https://host:5232/USER/` in TaskDav.
 
-## Coexistence with DAVx⁵
+## Privacy
 
-- DAVx⁵ can keep syncing calendars (and another tasks app) to the same account.
-- TaskDav talks to the server itself; it does not replace DAVx⁵'s task provider.
-- Nested tasks use standard parent links so other clients that support subtasks can see the same hierarchy.
-- Colors come from the collection's `calendar-color`; refresh collections after changing color on the server.
+- Account credentials live in **encrypted preferences** on the device
+- Tasks, notes, and events live in a **local database** and are sent only to the CalDAV server you configure
+- No analytics, crash-reporting SDKs, ads, or Google Play Services
+- Uninstall or clear app data to remove the local copy
+
+See **Settings → Privacy** in the app for the full notice.
 
 ## Architecture (short)
 
-| Piece | Role |
-|-------|------|
-| `caldav/` | OkHttp + dav4jvm auth, PROPFIND/REPORT/PUT/DELETE, ical4j mappers |
-| `data/` | Room entities, encrypted account prefs |
-| `domain/` | Task tree, repository |
-| `sync/` | WorkManager periodic + manual sync |
-| `ui/` | Home, Tasks, Notes, editor, settings hub |
+| Area | Role |
+|------|------|
+| `caldav/` | OkHttp + dav4jvm, PROPFIND/REPORT/PUT/DELETE, ical4j |
+| `data/` | Room, encrypted account prefs, locale / appearance |
+| `domain/` | Task tree, repository, sync orchestration |
+| `sync/` | WorkManager periodic + reconnect push |
+| `ui/` | Home, Calendar, Tasks, Notes, Settings |
+| `widget/` | Glance home-screen widgets |
+
+## Requirements
+
+- Android 8.0+ (API 26)
+- Optional: a CalDAV server advertising `VTODO` (and optionally `VEVENT` / `VJOURNAL`)
+- JDK 17+ to build
 
 ## Limitations
 
-- No DAVx⁵ ContentProvider integration
-- Per-occurrence edits of recurring events are not supported (series only); recurring tasks are not edited in-app (existing RRULEs may be preserved on rewrite when possible)
+- No DAVx⁵ ContentProvider integration (TaskDav syncs over CalDAV itself)
+- Recurring events: series edits only (no single-occurrence exceptions yet)
+- Recurring tasks are not edited in-app (existing `RRULE`s may be preserved on rewrite when possible)
+
+## Contributing
+
+Pull requests and issues are welcome.
+
+1. Fork [TechPonzo/TaskDav](https://github.com/TechPonzo/TaskDav)
+2. Create a branch for your change
+3. Open a PR with a short description of *why*
+
+Useful entry points: `app/src/main/java/app/taskdav/`, string catalogs under `app/src/main/res/values*/strings.xml`.
+
+Debug builds include a demo seeder for screenshots:
+
+```bash
+adb shell am broadcast -n app.taskdav/.debug.DemoSeedReceiver -a app.taskdav.debug.SEED_DEMO
+./scripts/capture-screenshots.sh
+```
 
 ## License
 
-TaskDav is licensed under the **GNU General Public License v3.0**. Dependencies retain their own licenses (see in-app Credits).
+TaskDav is free software under the [GNU General Public License v3.0](LICENSE).
+
+Third-party libraries keep their own licenses — see **Settings → Credits** in the app.

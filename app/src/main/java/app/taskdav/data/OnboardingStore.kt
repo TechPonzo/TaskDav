@@ -21,7 +21,7 @@ class OnboardingStore(context: Context) {
     val completed: StateFlow<Boolean?> = _completed.asStateFlow()
 
     fun setCompleted(done: Boolean) {
-        prefs.edit().putBoolean(KEY_DONE, done).apply()
+        prefs.edit().putBoolean(KEY_DONE, done).commit()
         _completed.value = done
     }
 

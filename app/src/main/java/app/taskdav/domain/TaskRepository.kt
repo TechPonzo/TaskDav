@@ -19,6 +19,8 @@ import app.taskdav.data.TaskEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 data class PushOutcome(
@@ -35,6 +37,8 @@ class TaskRepository(
     private val systemCalendarMirror: SystemCalendarMirror? = null,
     private val systemCalendarImport: SystemCalendarImport? = null,
 ) {
+    private val localWorkspaceLock = Mutex()
+
     fun observeCollections(): Flow<List<CollectionEntity>> = db.collections().observeAll()
 
     fun observeTasks(): Flow<List<TaskEntity>> = db.tasks().observeActive()
@@ -109,15 +113,15 @@ class TaskRepository(
      * Ensures a single on-device calendar that accepts tasks, events, and notes.
      * Used when [SyncBackend.LOCAL] is selected.
      */
-    suspend fun ensureLocalWorkspace(): Long {
+    suspend fun ensureLocalWorkspace(): Long = localWorkspaceLock.withLock {
         val existing = db.collections().getByHref(LOCAL_COLLECTION_HREF)
         if (existing != null) {
             if (!existing.enabled) {
                 db.collections().setEnabled(existing.id, true)
             }
-            return existing.id
+            return@withLock existing.id
         }
-        return db.collections().upsert(
+        db.collections().upsert(
             CollectionEntity(
                 href = LOCAL_COLLECTION_HREF,
                 displayName = "On this device",
