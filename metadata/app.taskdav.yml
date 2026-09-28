@@ -1,19 +1,8 @@
-# Draft metadata for https://gitlab.com/fdroid/fdroiddata
-# Copy this file to: metadata/app.taskdav.yml in an fdroiddata fork, then open an MR.
-#
-# Before submitting:
-# 1. Merge packaging (fastlane/, minify, this file) onto the default branch.
-# 2. Ensure the release tag points at that commit (current GitHub tag v1.0.0 is
-#    older than minify/fastlane — retag or cut v1.0.1).
-# 3. Fastlane metadata must be present at the tagged commit:
-#    fastlane/metadata/android/{en-US,es-ES,it-IT}/
-#
-# See: https://f-droid.org/docs/Submitting_to_F-Droid_Quick_Start_Guide/
-
 Categories:
-  - Time
-  - Writing
   - Calendar & Agenda
+  - Note
+  - Task
+  - Writing
 License: GPL-3.0-only
 AuthorName: Juan Curti
 AuthorWebSite: https://github.com/TechPonzo
@@ -28,14 +17,10 @@ RepoType: git
 Repo: https://github.com/TechPonzo/TaskDav.git
 
 Builds:
-  - versionName: "1.0.0"
+  - versionName: 1.0.0
     versionCode: 1
-    commit: v1.0.0
+    commit: 81bebeb4aee003d72289a2fba2e8686b09927853
     subdir: app
-    sudo:
-      - apt-get update
-      - apt-get install -y openjdk-17-jdk-headless
-      - update-java-alternatives -a
     gradle:
       - yes
     rm:
@@ -44,14 +29,15 @@ Builds:
       - scripts
 
 MaintainerNotes: |-
-  Kotlin + Jetpack Compose + KSP/Room. Needs JDK 17.
-  CalDAV client comes from JitPack (com.github.bitfireAT:dav4jvm).
-  Store listing / screenshots: fastlane/metadata/android/ (EN, ES, IT).
-  Demo seeder lives only in the debug source set and is not in release builds.
-  Do not use -PuseDebugKeystore on the F-Droid builder; leave release unsigned
-  so fdroidserver can sign.
+  Kotlin + Jetpack Compose + KSP/Room. Builds with the builder JDK (21).
+  CalDAV client is pulled from JitPack: com.github.bitfireAT:dav4jvm.
+  Store listing, changelogs, and phone screenshots are in the app repo under
+  fastlane/metadata/android/ for locales en-US, es-ES, and it-IT.
+  Demo/seed code is debug-only and not included in release builds.
+  Release builds are left unsigned here so fdroidserver can sign them
+  (do not pass -PuseDebugKeystore on the F-Droid builder).
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: "1.0.0"
+CurrentVersion: 1.0.0
 CurrentVersionCode: 1
