@@ -1,0 +1,5 @@
+Correcciones y mejoras.
+
+• Arrastrar tareas más fluido, incluidas tareas anidadas y al soltar
+• Editor de eventos: calendario al crear y editar, repetición mensual y anual, ubicación sin quedar bajo el teclado
+• Ajustes de metadatos para F-Droid

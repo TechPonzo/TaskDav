@@ -1,0 +1,5 @@
+Correzioni e miglioramenti.
+
+• Trascinamento attività più fluido, anche annidate e al rilascio
+• Editor eventi: calendario in creazione e modifica, ripetizione mensile e annuale, posizione sopra la tastiera
+• Correzioni metadati F-Droid

@@ -1,0 +1,5 @@
+Bug fixes and polish.
+
+• Smoother task drag-and-drop, including stacked tasks and after drop
+• Event editor: calendar on create and edit, monthly and yearly repeat, location field above keyboard
+• F-Droid metadata corrections
