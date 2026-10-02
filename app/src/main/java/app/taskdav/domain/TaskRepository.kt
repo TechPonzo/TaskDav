@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import androidx.room.withTransaction
 
 data class PushOutcome(
     /** True when nothing dirty remains after the attempt. */
@@ -295,23 +296,25 @@ class TaskRepository(
      * Persist order and parent links from the flat task list after drag-and-drop.
      */
     suspend fun persistFlatOrder(flat: List<TaskNode>) {
-        val now = System.currentTimeMillis()
-        val counters = mutableMapOf<String?, Int>()
-        for (node in flat) {
-            val parent = node.task.parentUid
-            val order = counters.getOrDefault(parent, 0)
-            counters[parent] = order + 1
-            val existing = db.tasks().getById(node.task.id) ?: continue
-            if (existing.sortOrder != order || existing.parentUid != parent) {
-                db.tasks().update(
-                    existing.copy(
-                        parentUid = parent,
-                        sortOrder = order,
-                        icsRaw = null,
-                        dirty = true,
-                        updatedAt = now,
-                    ),
-                )
+        db.withTransaction {
+            val now = System.currentTimeMillis()
+            val counters = mutableMapOf<String?, Int>()
+            for (node in flat) {
+                val parent = node.task.parentUid
+                val order = counters.getOrDefault(parent, 0)
+                counters[parent] = order + 1
+                val existing = db.tasks().getById(node.task.id) ?: continue
+                if (existing.sortOrder != order || existing.parentUid != parent) {
+                    db.tasks().update(
+                        existing.copy(
+                            parentUid = parent,
+                            sortOrder = order,
+                            icsRaw = null,
+                            dirty = true,
+                            updatedAt = now,
+                        ),
+                    )
+                }
             }
         }
     }
@@ -669,15 +672,22 @@ class TaskRepository(
         description: String?,
         rrule: String? = null,
         updateRrule: Boolean = false,
+        collectionId: Long? = null,
     ) {
         val existing = db.events().getByUid(uid) ?: throw IllegalStateException("Event missing")
+        val targetCollectionId = collectionId?.takeIf { it > 0L } ?: existing.collectionId
+        val moved = targetCollectionId != existing.collectionId
         val updated = existing.copy(
+            collectionId = targetCollectionId,
             summary = summary.trim().ifBlank { existing.summary },
             location = location?.trim()?.ifBlank { null },
             description = description?.trim()?.ifBlank { null },
             dtStartMillis = startMillis,
             dtEndMillis = endMillis,
             rrule = if (updateRrule) rrule?.trim()?.ifBlank { null } else existing.rrule,
+            // Moving calendars forces a fresh upload URL on the next push.
+            href = if (moved) null else existing.href,
+            etag = if (moved) null else existing.etag,
             icsRaw = null,
             dirty = true,
             updatedAt = System.currentTimeMillis(),

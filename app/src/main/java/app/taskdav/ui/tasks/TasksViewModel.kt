@@ -136,7 +136,8 @@ class TasksViewModel(
     fun persistOrder(flat: List<TaskNode>) {
         viewModelScope.launch {
             repository.persistFlatOrder(flat)
-            repository.tryPushLocalChanges()
+            // Push/sync in the background worker so the list isn't rebuilt mid-frame
+            // by an immediate push right after drop.
             CalDavSyncWorker.enqueueNow(app)
         }
     }
