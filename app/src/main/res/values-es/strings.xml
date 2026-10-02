@@ -248,6 +248,8 @@
     <string name="event_editor_repeat_weekly">Semanal</string>
     <string name="event_editor_repeat_biweekly">Cada 2 semanas</string>
     <string name="event_editor_repeat_n_weeks">Cada N semanas</string>
+    <string name="event_editor_repeat_monthly">Mensual</string>
+    <string name="event_editor_repeat_yearly">Anual</string>
     <string name="event_editor_repeat_custom">Personalizado</string>
     <string name="event_editor_repeat_every_weeks">Repetir cada (semanas)</string>
     <string name="event_editor_clear_custom_rule">Borrar regla personalizada</string>

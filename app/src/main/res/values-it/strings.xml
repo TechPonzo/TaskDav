@@ -248,6 +248,8 @@
     <string name="event_editor_repeat_weekly">Settimanale</string>
     <string name="event_editor_repeat_biweekly">Ogni 2 settimane</string>
     <string name="event_editor_repeat_n_weeks">Ogni N settimane</string>
+    <string name="event_editor_repeat_monthly">Mensile</string>
+    <string name="event_editor_repeat_yearly">Annuale</string>
     <string name="event_editor_repeat_custom">Personalizzato</string>
     <string name="event_editor_repeat_every_weeks">Ripeti ogni (settimane)</string>
     <string name="event_editor_clear_custom_rule">Cancella regola personalizzata</string>

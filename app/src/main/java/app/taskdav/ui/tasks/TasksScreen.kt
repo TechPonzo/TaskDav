@@ -100,8 +100,12 @@ fun TasksScreen(
     var dragging by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<TaskNode?>(null) }
 
-    LaunchedEffect(visibleFlat, dragging) {
-        if (!dragging) {
+    // Key only on visibleFlat — keying on dragging reapplied stale Room data on drop.
+    // Skip applying when the visible content is unchanged so Room's post-persist
+    // re-emit (new entity instances) doesn't make row text look like it reloads.
+    LaunchedEffect(visibleFlat) {
+        if (dragging) return@LaunchedEffect
+        if (!taskListVisuallyEqual(displayList, visibleFlat)) {
             displayList = visibleFlat
         }
     }
@@ -287,8 +291,39 @@ internal fun filterCollapsedCategories(
     return out
 }
 
+/** Compare what the task rows actually show — ignore Room identity / updatedAt. */
+internal fun taskListVisuallyEqual(a: List<TaskNode>, b: List<TaskNode>): Boolean {
+    if (a.size != b.size) return false
+    for (i in a.indices) {
+        val left = a[i]
+        val right = b[i]
+        val t = left.task
+        val u = right.task
+        if (t.id != u.id ||
+            left.depth != right.depth ||
+            t.parentUid != u.parentUid ||
+            t.summary != u.summary ||
+            t.status != u.status ||
+            t.percentComplete != u.percentComplete ||
+            t.dueMillis != u.dueMillis ||
+            t.completedMillis != u.completedMillis ||
+            t.categories != u.categories ||
+            t.linkedEventUid != u.linkedEventUid ||
+            t.isCategory != u.isCategory ||
+            left.collection?.id != right.collection?.id ||
+            left.children.size != right.children.size
+        ) {
+            return false
+        }
+    }
+    return true
+}
+
 /**
  * Move a task (and its contiguous descendants) in the flat list.
+ *
+ * Index semantics match sh.calvin.reorderable's expected single-item mutation
+ * `add(toIndex, removeAt(fromIndex))`, generalized to a contiguous subtree.
  *
  * - Dropping onto a category nests into it as the first child.
  * - Sliding into an expanded parent's child rows keeps/joins that parent.
@@ -319,14 +354,11 @@ internal fun relocateTaskSubtree(
     val movingUids = list.subList(fromIndex, fromEnd).mapTo(HashSet()) { it.task.uid }
     val rawTarget = list[toIndex]
 
-    // Drop onto a category, or onto a task that already has visible children → nest.
-    fun hasVisibleChildren(index: Int): Boolean {
-        val depth = list[index].depth
-        return index + 1 < list.size && list[index + 1].depth > depth
-    }
+    // Drop onto a category → nest. (Do not auto-nest into tasks that merely have
+    // children — that made downward sibling reorders fall into the target's kids.)
     val nestIntoTarget = !fromNode.task.isCategory &&
-        rawTarget.task.uid !in movingUids &&
-        (rawTarget.task.isCategory || hasVisibleChildren(toIndex))
+        rawTarget.task.isCategory &&
+        rawTarget.task.uid !in movingUids
 
     val block = list.subList(fromIndex, fromEnd).toList()
     val mutable = list.toMutableList()
@@ -342,8 +374,17 @@ internal fun relocateTaskSubtree(
         return mutable
     }
 
-    val insertAt = (if (toIndex > fromIndex) toIndex - block.size else toIndex)
+    // Same formula as the original single-item-style insert. The one-step-down
+    // case (toIndex == fromEnd) would no-op for a multi-row block; bump past the
+    // hovered target (and its kids) so the list still moves one sibling slot.
+    var insertAt = (if (toIndex > fromIndex) toIndex - block.size else toIndex)
         .coerceIn(0, mutable.size)
+    if (toIndex > fromIndex && insertAt == fromIndex && insertAt < mutable.size) {
+        val targetDepth = mutable[insertAt].depth
+        var end = insertAt + 1
+        while (end < mutable.size && mutable[end].depth > targetDepth) end++
+        insertAt = end
+    }
 
     val prev = mutable.getOrNull(insertAt - 1)
     val next = mutable.getOrNull(insertAt)
