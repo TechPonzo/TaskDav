@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -918,6 +919,7 @@ private fun EventEditorScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -936,7 +938,7 @@ private fun EventEditorScreen(
                 label = { Text(stringResource(R.string.event_editor_description)) },
                 minLines = 3,
             )
-            if (isNew && collections.isNotEmpty()) {
+            if (collections.isNotEmpty()) {
                 ExposedDropdownMenuBox(
                     expanded = collectionExpanded,
                     onExpandedChange = { collectionExpanded = it },
@@ -985,6 +987,20 @@ private fun EventEditorScreen(
             )
 
             Text(
+                stringResource(R.string.event_editor_location),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                value = location,
+                onValueChange = onLocation,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.event_editor_location_label)) },
+                singleLine = true,
+                placeholder = { Text(stringResource(R.string.event_editor_location_placeholder)) },
+            )
+
+            Text(
                 stringResource(R.string.event_editor_repeat),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1026,6 +1042,20 @@ private fun EventEditorScreen(
                                 intervalWeeks = recurrence.intervalWeeks.coerceAtLeast(3),
                             ),
                         )
+                    },
+                )
+                ExpressiveFilterChip(
+                    label = stringResource(R.string.event_editor_repeat_monthly),
+                    selected = recurrence.mode == EventRecurrence.Mode.MONTHLY,
+                    onClick = {
+                        onRecurrence(recurrence.copy(mode = EventRecurrence.Mode.MONTHLY))
+                    },
+                )
+                ExpressiveFilterChip(
+                    label = stringResource(R.string.event_editor_repeat_yearly),
+                    selected = recurrence.mode == EventRecurrence.Mode.YEARLY,
+                    onClick = {
+                        onRecurrence(recurrence.copy(mode = EventRecurrence.Mode.YEARLY))
                     },
                 )
                 if (recurrence.mode == EventRecurrence.Mode.OTHER) {
@@ -1099,19 +1129,6 @@ private fun EventEditorScreen(
                 }
             }
 
-            Text(
-                stringResource(R.string.event_editor_location),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            OutlinedTextField(
-                value = location,
-                onValueChange = onLocation,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.event_editor_location_label)) },
-                singleLine = true,
-                placeholder = { Text(stringResource(R.string.event_editor_location_placeholder)) },
-            )
             error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error)
             }

@@ -248,6 +248,8 @@
     <string name="event_editor_repeat_weekly">Weekly</string>
     <string name="event_editor_repeat_biweekly">Every 2 weeks</string>
     <string name="event_editor_repeat_n_weeks">Every N weeks</string>
+    <string name="event_editor_repeat_monthly">Monthly</string>
+    <string name="event_editor_repeat_yearly">Yearly</string>
     <string name="event_editor_repeat_custom">Custom</string>
     <string name="event_editor_repeat_every_weeks">Repeat every (weeks)</string>
     <string name="event_editor_clear_custom_rule">Clear custom rule</string>

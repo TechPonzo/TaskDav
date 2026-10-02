@@ -520,6 +520,7 @@ class CalendarViewModel(
                         description = state.editorDescription,
                         rrule = rrule,
                         updateRrule = true,
+                        collectionId = collectionId,
                     )
                 }
                 CalDavSyncWorker.enqueueNow(app)

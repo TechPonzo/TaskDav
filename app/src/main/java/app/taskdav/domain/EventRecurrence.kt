@@ -8,7 +8,7 @@ import net.fortuna.ical4j.model.parameter.Value
 import java.util.concurrent.TimeUnit
 
 /**
- * Build / parse weekly-oriented RRULEs for the event editor, and expand
+ * Build / parse simple RRULEs for the event editor, and expand
  * occurrences for calendar display.
  */
 object EventRecurrence {
@@ -17,6 +17,8 @@ object EventRecurrence {
         WEEKLY,
         EVERY_2_WEEKS,
         EVERY_N_WEEKS,
+        MONTHLY,
+        YEARLY,
         /** Keep an RRULE we don't fully model in the simple UI. */
         OTHER,
     }
@@ -32,6 +34,8 @@ object EventRecurrence {
             Mode.WEEKLY -> buildWeekly(1, count)
             Mode.EVERY_2_WEEKS -> buildWeekly(2, count)
             Mode.EVERY_N_WEEKS -> buildWeekly(intervalWeeks.coerceAtLeast(1), count)
+            Mode.MONTHLY -> buildSimple("MONTHLY", count = count)
+            Mode.YEARLY -> buildSimple("YEARLY", count = count)
             Mode.OTHER -> otherRrule?.takeIf { it.isNotBlank() }
         }
 
@@ -40,6 +44,8 @@ object EventRecurrence {
             Mode.WEEKLY -> countLabel("Every week")
             Mode.EVERY_2_WEEKS -> countLabel("Every 2 weeks")
             Mode.EVERY_N_WEEKS -> countLabel("Every $intervalWeeks weeks")
+            Mode.MONTHLY -> countLabel("Every month")
+            Mode.YEARLY -> countLabel("Every year")
             Mode.OTHER -> otherRrule ?: "Custom repeat"
         }
 
@@ -62,21 +68,28 @@ object EventRecurrence {
         val count = parts["COUNT"]?.toIntOrNull()
         val hasUntil = parts.containsKey("UNTIL")
         val hasBy = parts.keys.any { it.startsWith("BY") }
-        if (freq == "WEEKLY" && !hasUntil && !hasBy) {
-            return when (interval) {
-                1 -> EditState(Mode.WEEKLY, intervalWeeks = 1, count = count)
-                2 -> EditState(Mode.EVERY_2_WEEKS, intervalWeeks = 2, count = count)
-                else -> EditState(Mode.EVERY_N_WEEKS, intervalWeeks = interval.coerceAtLeast(1), count = count)
+        if (!hasUntil && !hasBy) {
+            when (freq) {
+                "WEEKLY" -> return when (interval) {
+                    1 -> EditState(Mode.WEEKLY, intervalWeeks = 1, count = count)
+                    2 -> EditState(Mode.EVERY_2_WEEKS, intervalWeeks = 2, count = count)
+                    else -> EditState(Mode.EVERY_N_WEEKS, intervalWeeks = interval.coerceAtLeast(1), count = count)
+                }
+                "MONTHLY" -> if (interval == 1) return EditState(Mode.MONTHLY, count = count)
+                "YEARLY" -> if (interval == 1) return EditState(Mode.YEARLY, count = count)
             }
         }
         return EditState(Mode.OTHER, otherRrule = rrule)
     }
 
-    fun buildWeekly(intervalWeeks: Int, count: Int?): String {
-        val interval = intervalWeeks.coerceAtLeast(1)
+    fun buildWeekly(intervalWeeks: Int, count: Int?): String =
+        buildSimple("WEEKLY", interval = intervalWeeks.coerceAtLeast(1), count = count)
+
+    fun buildSimple(freq: String, interval: Int = 1, count: Int?): String {
+        val safeInterval = interval.coerceAtLeast(1)
         return buildString {
-            append("FREQ=WEEKLY")
-            if (interval != 1) append(";INTERVAL=").append(interval)
+            append("FREQ=").append(freq.uppercase())
+            if (safeInterval != 1) append(";INTERVAL=").append(safeInterval)
             if (count != null && count > 0) append(";COUNT=").append(count)
         }
     }
